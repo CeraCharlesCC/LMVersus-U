@@ -1,0 +1,62 @@
+[versions]
+kotlin = "2.1.20"
+ktor = "3.3.3"
+logback = "1.4.14"
+flaxoosRateLimiting = "2.2.1"
+ksp = "2.1.20-1.0.32"
+dagger = "2.57"
+
+openai-java = "4.12.0"
+ktoml-core = "0.7.1"
+
+kotlinx-coroutines = "1.10.2"
+kotlinx-serialization = "1.7.3"
+
+# Testing
+junit-jupiter = "5.14.1"
+junit-platform = "1.14.1"
+kotlinx-coroutines-test = "1.10.2"
+
+[plugins]
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
+ktor = { id = "io.ktor.plugin", version.ref = "ktor" }
+
+[libraries]
+kotlin-stdlib = { group = "org.jetbrains.kotlin", name = "kotlin-stdlib", version.ref = "kotlin" }
+kotlin-reflect = { group = "org.jetbrains.kotlin", name = "kotlin-reflect", version.ref = "kotlin" }
+
+kotlinx-coroutines = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
+kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
+
+
+dagger = { group = "com.google.dagger", name = "dagger", version.ref = "dagger" }
+dagger-compiler = { group = "com.google.dagger", name = "dagger-compiler", version.ref = "dagger" }
+javax-inject = { group = "javax.inject", name = "javax.inject", version = "1" }
+
+openai-java = { group = "com.openai", name = "openai-java", version.ref = "openai-java" }
+ktoml-core = { group = "com.akuleshov7", name = "ktoml-core", version.ref = "ktoml-core" }
+
+ktor-bom = { module = "io.ktor:ktor-bom", version.ref = "ktor" }
+
+ktor-server-core = { module = "io.ktor:ktor-server-core" }
+ktor-server-websockets = { module = "io.ktor:ktor-server-websockets" }
+ktor-server-content-negotiation = { module = "io.ktor:ktor-server-content-negotiation" }
+ktor-serialization-kotlinx-json = { module = "io.ktor:ktor-serialization-kotlinx-json" }
+ktor-serialization-gson = { module = "io.ktor:ktor-serialization-gson" }
+ktor-server-host-common = { module = "io.ktor:ktor-server-host-common" }
+ktor-server-status-pages = { module = "io.ktor:ktor-server-status-pages" }
+ktor-server-call-logging = { module = "io.ktor:ktor-server-call-logging" }
+ktor-server-request-validation = { module = "io.ktor:ktor-server-request-validation" }
+ktor-server-sessions = { module = "io.ktor:ktor-server-sessions" }
+ktor-server-cors = { module = "io.ktor:ktor-server-cors" }
+ktor-server-netty = { module = "io.ktor:ktor-server-netty" }
+ktor-server-config-yaml = { module = "io.ktor:ktor-server-config-yaml" }
+ktor-server-test-host = { module = "io.ktor:ktor-server-test-host" }
+
+logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
+
+flaxoos-ktor-server-rate-limiting = { module = "io.github.flaxoos:ktor-server-rate-limiting", version.ref = "flaxoosRateLimiting" }
+
+kotlin-test-junit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.ref = "kotlin" }
