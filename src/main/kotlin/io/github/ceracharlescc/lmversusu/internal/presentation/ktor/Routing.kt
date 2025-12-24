@@ -23,9 +23,4 @@ internal fun Application.configureRouting() {
             else ValidationResult.Valid
         }
     }
-    routing {
-        get("/") {
-            call.respondText("Hello World!")
-        }
-    }
 }

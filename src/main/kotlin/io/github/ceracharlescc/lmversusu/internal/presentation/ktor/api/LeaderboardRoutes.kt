@@ -7,35 +7,18 @@ import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import kotlinx.serialization.Serializable
 
-internal fun Route.leaderboardRoutes() {
+
+internal fun Route.leaderboardRoutes(apiController: ApiController) {
     get("/leaderboard") {
         val limit = call.request.queryParameters["limit"]?.toIntOrNull() ?: 10
         val clampedLimit = limit.coerceIn(1, 100)
 
-        val placeholderEntries = listOf(
-            LeaderboardEntry(
-                rank = 1,
-                nickname = "Placeholder Player",
-                bestScore = 100.0,
-                bestTimeMs = 5000,
-                gamesPlayed = 1
-            )
-        )
-
-        val response = LeaderboardResponse(
-            entries = placeholderEntries,
-            total = placeholderEntries.size,
-            limit = clampedLimit
-        )
-
-        call.respond(HttpStatusCode.OK, response)
+        when (val response = apiController.getLeaderboard(clampedLimit)) {
+            is ApiResponse.Ok -> call.respond(HttpStatusCode.OK, response.body)
+            is ApiResponse.BadRequest -> call.respond(HttpStatusCode.BadRequest, mapOf("message" to response.message))
+            is ApiResponse.NotFound -> call.respond(HttpStatusCode.NotFound, mapOf("message" to response.message))
+            is ApiResponse.ServiceUnavailable -> call.respond(HttpStatusCode.ServiceUnavailable, mapOf("message" to response.message))
+            is ApiResponse.InternalError -> call.respond(HttpStatusCode.InternalServerError, mapOf("message" to response.message))
+        }
     }
 }
-
-@Serializable
-internal data class LeaderboardResponse(
-    val entries: List<LeaderboardEntry>,
-    val total: Int,
-    val limit: Int
-)
-

@@ -1,5 +1,6 @@
 package io.github.ceracharlescc.lmversusu.internal
 
+import io.github.ceracharlescc.lmversusu.internal.di.DaggerAppComponent
 import io.github.ceracharlescc.lmversusu.internal.infrastructure.ktor.*
 import io.github.ceracharlescc.lmversusu.internal.presentation.ktor.api.apiV1Routes
 import io.github.ceracharlescc.lmversusu.internal.presentation.ktor.configureRouting
@@ -14,6 +15,10 @@ fun main(args: Array<String>) {
 }
 
 internal fun Application.module() {
+    val appConfig = AppConfig()
+    val appComponent = DaggerAppComponent.builder()
+        .appConfig(appConfig)
+        .build()
     configureSockets()
     configureSerialization()
     configureAdministration()
@@ -24,7 +29,7 @@ internal fun Application.module() {
     configureRouting()
 
     routing {
-        apiV1Routes()
+        apiV1Routes(appComponent.apiController())
         gameRoutes()
     }
 }

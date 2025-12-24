@@ -1,7 +1,7 @@
-package io.github.ceracharlescc.lmversusu.internal.application.port
+package io.github.ceracharlescc.lmversusu.internal.domain.repository
 
-import io.github.ceracharlescc.versuslm.internal.domain.entity.LeaderboardEntry
-import io.github.ceracharlescc.versuslm.internal.domain.entity.SessionResult
+import io.github.ceracharlescc.lmversusu.internal.domain.entity.LeaderboardEntry
+import io.github.ceracharlescc.lmversusu.internal.domain.entity.SessionResult
 
 internal interface ResultsRepository {
     /**
