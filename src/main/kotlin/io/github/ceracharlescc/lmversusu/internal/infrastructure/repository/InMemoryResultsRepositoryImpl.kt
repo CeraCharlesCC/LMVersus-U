@@ -14,6 +14,7 @@ internal class InMemoryResultsRepositoryImpl @Inject constructor() : ResultsRepo
     override suspend fun saveResult(result: SessionResult) {
         val candidate = LeaderboardEntry(
             rank = 0,
+            userId = result.humanUserId,
             nickname = result.humanNickname,
             bestScore = result.humanScore,
             bestTimeMs = result.durationMs,

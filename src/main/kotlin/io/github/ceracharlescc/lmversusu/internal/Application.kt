@@ -19,6 +19,7 @@ internal fun Application.module() {
     val appComponent = DaggerAppComponent.builder()
         .appConfig(appConfig)
         .build()
+
     configureSockets()
     configureSerialization()
     configureAdministration()

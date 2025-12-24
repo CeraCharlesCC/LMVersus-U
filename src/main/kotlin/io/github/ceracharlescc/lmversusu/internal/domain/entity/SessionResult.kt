@@ -8,6 +8,7 @@ internal data class SessionResult(
     val mode: GameMode,
     val llmProfileName: String,
     val humanNickname: String,
+    val humanUserId: String,
     val humanScore: Double,
     val llmScore: Double,
     val humanWon: Boolean,

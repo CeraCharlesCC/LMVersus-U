@@ -45,5 +45,6 @@ dependencies {
     implementation(libs.ktor.server.config.yaml)
 
     testImplementation(libs.ktor.server.test.host)
+    testImplementation(libs.ktor.client.content.negotiation)
     testImplementation(libs.kotlin.test.junit)
 }

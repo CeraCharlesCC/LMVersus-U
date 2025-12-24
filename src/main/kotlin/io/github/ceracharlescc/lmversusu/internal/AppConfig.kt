@@ -62,7 +62,7 @@ internal class AppConfig {
     ) {
         companion object {
             const val DEFAULT_GLOBAL_HTTP_GATE_KEY = "http:global"
-            const val DEFAULT_GLOBAL_HTTP_WINDOW_MILLIS = 60_000L
+            const val DEFAULT_GLOBAL_HTTP_WINDOW_MILLIS = 600_000L
             const val DEFAULT_GLOBAL_HTTP_MAX_REQUESTS = 100
 
             const val DEFAULT_USEER_HTTP_GATE_KEY = "http:user:"
@@ -78,6 +78,52 @@ internal class AppConfig {
             const val DEFAULT_USER_LLM_MAX_REQUESTS = 3
 
 
+        }
+    }
+
+    @Serializable
+    data class SessionCryptoConfig(
+        val encryptionKeyHex: String = "",
+        val signKeyHex: String = "",
+    ) {
+        fun requireKeys(): Keys {
+            val encryptionKey = encryptionKeyHex.decodeHexOrThrow("encKeyHex")
+            val signKey = signKeyHex.decodeHexOrThrow("signKeyHex")
+
+            require(encryptionKey.size == 32) {
+                "encKeyHex must be 32 bytes (64 hex chars), but was ${encryptionKey.size} bytes"
+            }
+            require(signKey.size == 32) {
+                "signKeyHex must be 32 bytes (64 hex chars), but was ${signKey.size} bytes"
+            }
+
+            return Keys(encryptionKey = encryptionKey, signKey = signKey)
+        }
+
+        internal data class Keys(val encryptionKey: ByteArray, val signKey: ByteArray) {
+            override fun equals(other: Any?): Boolean {
+                if (this === other) return true
+                if (javaClass != other?.javaClass) return false
+
+                other as Keys
+
+                if (!encryptionKey.contentEquals(other.encryptionKey)) return false
+                if (!signKey.contentEquals(other.signKey)) return false
+
+                return true
+            }
+
+            override fun hashCode(): Int {
+                var result = encryptionKey.contentHashCode()
+                result = 31 * result + signKey.contentHashCode()
+                return result
+            }
+        }
+
+        private fun String.decodeHexOrThrow(field: String): ByteArray {
+            require(this.isNotBlank()) { "$field is blank" }
+            require(length % 2 == 0) { "$field hex length must be even" }
+            return chunked(2).map { it.toInt(16).toByte() }.toByteArray()
         }
     }
 
