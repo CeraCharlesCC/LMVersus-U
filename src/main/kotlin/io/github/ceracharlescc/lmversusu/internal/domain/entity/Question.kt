@@ -2,10 +2,10 @@ package io.github.ceracharlescc.lmversusu.internal.domain.entity
 
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.Difficulty
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.VerifierSpec
-import java.util.UUID
+import kotlin.uuid.Uuid
 
 internal data class Question(
-    val questionId: UUID,
+    val questionId: Uuid,
     val prompt: String,
     val choices: List<String>? = null,
     val difficulty: Difficulty = Difficulty.MEDIUM,

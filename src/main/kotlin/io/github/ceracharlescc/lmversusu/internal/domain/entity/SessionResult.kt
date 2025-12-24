@@ -2,11 +2,10 @@ package io.github.ceracharlescc.lmversusu.internal.domain.entity
 
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.Difficulty
 import java.time.Instant
-import java.util.UUID
 import kotlin.uuid.Uuid
 
 internal data class SessionResult(
-    val sessionId: UUID,
+    val sessionId: Uuid,
     val gameMode: GameMode,
     val difficulty: Difficulty,
     val llmProfileName: String,

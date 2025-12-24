@@ -3,10 +3,10 @@ package io.github.ceracharlescc.lmversusu.internal.domain.entity
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.LlmProfile
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.Score
 import java.time.Instant
-import java.util.UUID
+import kotlin.uuid.Uuid
 
 internal data class GameSession(
-    val sessionId: UUID,
+    val sessionId: Uuid,
     val joinCode: String,
     val mode: GameMode,
     val llmProfile: LlmProfile,

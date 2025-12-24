@@ -1,7 +1,8 @@
 package io.github.ceracharlescc.lmversusu.internal.application.port
 
 import io.github.ceracharlescc.lmversusu.internal.domain.entity.Question
-import java.util.UUID
+import io.github.ceracharlescc.lmversusu.internal.domain.vo.Difficulty
+import kotlin.uuid.Uuid
 
 internal interface QuestionBank {
     /**
@@ -18,7 +19,7 @@ internal interface QuestionBank {
 }
 
 internal data class QuestionConstraints(
-    val difficulty: Question.Difficulty? = null,
+    val difficulty: Difficulty? = null,
     val categories: List<String>? = null,
-    val excludeQuestionIds: Set<UUID> = emptySet()
+    val excludeQuestionIds: Set<Uuid> = emptySet()
 )

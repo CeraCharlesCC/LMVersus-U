@@ -65,7 +65,7 @@ A useful mental model is: **Domain/Application must compile without Ktor or any 
 
 A `GameSession` has:
 
-* `sessionId: UUID`
+* `sessionId: Uuid`
 * `mode: GameMode` (`LIGHTWEIGHT`, `PREMIUM`, later `SUPER_PREMIUM`)
 * `llmProfile: LlmProfile` (model name, temperature, etc.)
 * `players: PlayerSet` (human + “LLM player”)
@@ -74,7 +74,7 @@ A `GameSession` has:
 
 A `Round` has:
 
-* `roundId: UUID`
+* `roundId: Uuid`
 * `question: Question` (domain object that includes prompt, choices if any, metadata like difficulty)
 * `releasedAt: Instant`
 * `handicap: Duration` (human head start)

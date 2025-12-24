@@ -1,9 +1,9 @@
 package io.github.ceracharlescc.lmversusu.internal.domain.entity
 
-import java.util.UUID
+import kotlin.uuid.Uuid
 
 internal data class Player(
-    val playerId: UUID,
+    val playerId: Uuid,
     val type: PlayerType,
     val nickname: String
 ) {

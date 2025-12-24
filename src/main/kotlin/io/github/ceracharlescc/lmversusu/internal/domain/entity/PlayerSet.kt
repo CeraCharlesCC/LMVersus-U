@@ -1,6 +1,6 @@
 package io.github.ceracharlescc.lmversusu.internal.domain.entity
 
-import java.util.UUID
+import kotlin.uuid.Uuid
 
 internal data class PlayerSet(
     val human: Player,
@@ -11,7 +11,7 @@ internal data class PlayerSet(
         require(llm.type == Player.PlayerType.LLM) { "LLM player must have LLM type" }
     }
 
-    fun findById(playerId: UUID): Player? = when (playerId) {
+    fun findById(playerId: Uuid): Player? = when (playerId) {
         human.playerId -> human
         llm.playerId -> llm
         else -> null

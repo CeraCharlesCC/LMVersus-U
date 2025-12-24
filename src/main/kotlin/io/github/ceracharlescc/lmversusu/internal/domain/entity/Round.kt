@@ -3,10 +3,10 @@ package io.github.ceracharlescc.lmversusu.internal.domain.entity
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.RoundResult
 import java.time.Duration
 import java.time.Instant
-import java.util.UUID
+import kotlin.uuid.Uuid
 
 internal data class Round(
-    val roundId: UUID,
+    val roundId: Uuid,
     val question: Question,
     val releasedAt: Instant,
     val handicap: Duration,

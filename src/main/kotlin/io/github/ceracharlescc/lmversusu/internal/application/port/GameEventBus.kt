@@ -1,7 +1,7 @@
 package io.github.ceracharlescc.lmversusu.internal.application.port
 
 import io.github.ceracharlescc.lmversusu.internal.domain.entity.GameEvent
-import java.util.UUID
+import kotlin.uuid.Uuid
 
 internal interface GameEventBus {
     /**
@@ -18,7 +18,7 @@ internal interface GameEventBus {
      * @param listener The listener to receive events
      */
     fun subscribe(
-        sessionId: UUID,
+        sessionId: Uuid,
         listener: GameEventListener
     )
 
@@ -29,7 +29,7 @@ internal interface GameEventBus {
      * @param listener The listener to remove
      */
     fun unsubscribe(
-        sessionId: UUID,
+        sessionId: Uuid,
         listener: GameEventListener
     )
 }

@@ -3,11 +3,11 @@ package io.github.ceracharlescc.lmversusu.internal.domain.entity
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.Answer
 import java.time.Duration
 import java.time.Instant
-import java.util.UUID
+import kotlin.uuid.Uuid
 
 internal data class Submission(
-    val submissionId: UUID,
-    val playerId: UUID,
+    val submissionId: Uuid,
+    val playerId: Uuid,
     val answer: Answer,
     val serverReceivedAt: Instant,
     val clientSentAt: Instant? = null
