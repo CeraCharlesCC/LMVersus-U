@@ -25,6 +25,7 @@ dependencies {
     ksp(libs.dagger.compiler)
 
     implementation(libs.openai.java)
+    implementation(libs.ktoml.core)
 
     implementation(platform(libs.ktor.bom))
 

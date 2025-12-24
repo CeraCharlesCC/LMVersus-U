@@ -4,10 +4,15 @@ import kotlinx.serialization.Serializable
 import kotlin.reflect.full.memberProperties
 
 @Serializable
-internal class AppConfig {
+internal data class AppConfig(
+    val logConfig: LogConfig = LogConfig(),
+    val llmConfig: LlmConfig = LlmConfig(),
+    val rateLimitConfig: RateLimitConfig = RateLimitConfig(),
+    val sessionCrypto: SessionCryptoConfig = SessionCryptoConfig(),
+) {
 
     @Serializable
-    internal data class LogConfig(
+    data class LogConfig(
         val level: String = DEFAULT_LOG_LEVEL,
         val format: String = DEFAULT_LOG_FORMAT,
     ) {
@@ -18,7 +23,7 @@ internal class AppConfig {
     }
 
     @Serializable
-    internal data class LlmConfig(
+    data class LlmConfig(
         val primary: LlmProviderConfig = LlmProviderConfig(),
         val fallback: LlmProviderConfig? = null,
     ) {
@@ -26,7 +31,7 @@ internal class AppConfig {
     }
 
     @Serializable
-    internal data class LlmProviderConfig(
+    data class LlmProviderConfig(
         val apiKey: String = "",
         val apiUrl: String = DEFAULT_API_URL,
         val model: String = DEFAULT_MODEL,
@@ -34,7 +39,7 @@ internal class AppConfig {
     ) {
         private companion object {
             const val DEFAULT_API_URL = "https://api.openai.com/v1"
-            const val DEFAULT_MODEL = "gpt-5-mini"
+            const val DEFAULT_MODEL = "gpt-4o-mini"
             const val DEFAULT_PROVIDER = "openai"
         }
 
@@ -55,7 +60,10 @@ internal class AppConfig {
     }
 
     @Serializable
-    internal data class RateLimitConfig(
+    data class RateLimitConfig(
+        val globalHttpGateKey: String = DEFAULT_GLOBAL_HTTP_GATE_KEY,
+        val globalHttpWindowMillis: Long = DEFAULT_GLOBAL_HTTP_WINDOW_MILLIS,
+        val globalHttpMaxRequests: Int = DEFAULT_GLOBAL_HTTP_MAX_REQUESTS,
         val globalLlmGateKey: String = DEFAULT_GLOBAL_LLM_GATE_KEY,
         val globalLlmWindowMillis: Long = DEFAULT_GLOBAL_LLM_WINDOW_MILLIS,
         val globalLlmMaxRequests: Int = DEFAULT_GLOBAL_LLM_MAX_REQUESTS,
@@ -83,9 +91,14 @@ internal class AppConfig {
 
     @Serializable
     data class SessionCryptoConfig(
+        val enableSecureCookie: Boolean = DEFAULT_SECURE_MODE,
         val encryptionKeyHex: String = "",
         val signKeyHex: String = "",
     ) {
+        companion object {
+            const val DEFAULT_SECURE_MODE = false
+        }
+
         fun requireKeys(): Keys {
             val encryptionKey = encryptionKeyHex.decodeHexOrThrow("encKeyHex")
             val signKey = signKeyHex.decodeHexOrThrow("signKeyHex")
@@ -100,7 +113,7 @@ internal class AppConfig {
             return Keys(encryptionKey = encryptionKey, signKey = signKey)
         }
 
-        internal data class Keys(val encryptionKey: ByteArray, val signKey: ByteArray) {
+        data class Keys(val encryptionKey: ByteArray, val signKey: ByteArray) {
             override fun equals(other: Any?): Boolean {
                 if (this === other) return true
                 if (javaClass != other?.javaClass) return false
@@ -126,5 +139,4 @@ internal class AppConfig {
             return chunked(2).map { it.toInt(16).toByte() }.toByteArray()
         }
     }
-
 }

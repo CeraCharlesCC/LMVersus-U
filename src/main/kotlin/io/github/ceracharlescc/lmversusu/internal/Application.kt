@@ -15,7 +15,7 @@ fun main(args: Array<String>) {
 }
 
 internal fun Application.module() {
-    val appConfig = AppConfig()
+    val appConfig = ConfigLoader.load()
     val appComponent = DaggerAppComponent.builder()
         .appConfig(appConfig)
         .build()
@@ -24,7 +24,7 @@ internal fun Application.module() {
     configureSerialization()
     configureAdministration()
     configureMonitoring()
-    configureSecurity()
+    configureSecurity(appConfig.sessionCrypto)
     configureHTTP()
 
     configureRouting()
