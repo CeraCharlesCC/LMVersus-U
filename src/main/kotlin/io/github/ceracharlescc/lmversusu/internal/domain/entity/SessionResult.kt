@@ -1,6 +1,5 @@
 package io.github.ceracharlescc.lmversusu.internal.domain.entity
 
-import io.github.ceracharlescc.lmversusu.internal.domain.entity.GameMode
 import java.time.Instant
 import java.util.UUID
 

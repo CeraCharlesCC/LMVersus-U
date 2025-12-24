@@ -23,6 +23,7 @@ internal class ApiController @Inject constructor(
                     )
                 )
             }
+
             is GetLeaderboardUseCase.Result.Failure -> {
                 ApiResponse.ServiceUnavailable("leaderboard is temporarily unavailable")
             }

@@ -1,11 +1,9 @@
 package io.github.ceracharlescc.lmversusu.internal.presentation.ktor.api
 
-import io.github.ceracharlescc.versuslm.internal.domain.entity.LeaderboardEntry
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
-import kotlinx.serialization.Serializable
 
 
 internal fun Route.leaderboardRoutes(apiController: ApiController) {
@@ -17,8 +15,15 @@ internal fun Route.leaderboardRoutes(apiController: ApiController) {
             is ApiResponse.Ok -> call.respond(HttpStatusCode.OK, response.body)
             is ApiResponse.BadRequest -> call.respond(HttpStatusCode.BadRequest, mapOf("message" to response.message))
             is ApiResponse.NotFound -> call.respond(HttpStatusCode.NotFound, mapOf("message" to response.message))
-            is ApiResponse.ServiceUnavailable -> call.respond(HttpStatusCode.ServiceUnavailable, mapOf("message" to response.message))
-            is ApiResponse.InternalError -> call.respond(HttpStatusCode.InternalServerError, mapOf("message" to response.message))
+            is ApiResponse.ServiceUnavailable -> call.respond(
+                HttpStatusCode.ServiceUnavailable,
+                mapOf("message" to response.message)
+            )
+
+            is ApiResponse.InternalError -> call.respond(
+                HttpStatusCode.InternalServerError,
+                mapOf("message" to response.message)
+            )
         }
     }
 }
