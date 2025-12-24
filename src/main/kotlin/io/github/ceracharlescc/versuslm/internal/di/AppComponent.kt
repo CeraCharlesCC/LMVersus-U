@@ -1,8 +1,8 @@
-package io.github.ceracharlescc.versuslm.internal.di
+package io.github.ceracharlescc.lmversusu.internal.di
 
 import dagger.BindsInstance
 import dagger.Component
-import io.github.ceracharlescc.versuslm.internal.AppConfig
+import io.github.ceracharlescc.lmversusu.internal.AppConfig
 import javax.inject.Singleton
 
 @Singleton

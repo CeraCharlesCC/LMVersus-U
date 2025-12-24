@@ -1,4 +1,4 @@
-package io.github.ceracharlescc.versuslm.internal.domain.vo
+package io.github.ceracharlescc.lmversusu.internal.domain.vo
 
 internal data class VerificationOutcome(
     val correct: Boolean,

@@ -1,4 +1,4 @@
-rootProject.name = "VersusLM"
+rootProject.name = "LMVersus-U"
 
 pluginManagement {
     repositories {

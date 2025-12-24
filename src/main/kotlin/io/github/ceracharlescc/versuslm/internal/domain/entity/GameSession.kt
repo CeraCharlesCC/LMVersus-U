@@ -1,7 +1,7 @@
-package io.github.ceracharlescc.versuslm.internal.domain.entity
+package io.github.ceracharlescc.lmversusu.internal.domain.entity
 
-import io.github.ceracharlescc.versuslm.internal.domain.vo.LlmProfile
-import io.github.ceracharlescc.versuslm.internal.domain.vo.Score
+import io.github.ceracharlescc.lmversusu.internal.domain.vo.LlmProfile
+import io.github.ceracharlescc.lmversusu.internal.domain.vo.Score
 import java.time.Instant
 import java.util.UUID
 

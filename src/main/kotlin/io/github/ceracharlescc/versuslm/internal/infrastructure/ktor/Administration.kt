@@ -1,4 +1,4 @@
-package io.github.ceracharlescc.versuslm.internal.infrastructure.ktor
+package io.github.ceracharlescc.lmversusu.internal.infrastructure.ktor
 
 import io.github.flaxoos.ktor.server.plugins.ratelimiter.RateLimiting
 import io.github.flaxoos.ktor.server.plugins.ratelimiter.implementations.TokenBucket

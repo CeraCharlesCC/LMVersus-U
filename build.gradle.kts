@@ -6,7 +6,7 @@ plugins {
     application
 }
 
-group = "io.github.ceracharlescc.versuslm"
+group = "io.github.ceracharlescc.lmversusu"
 version = "0.0.1"
 
 application {

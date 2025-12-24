@@ -1,6 +1,6 @@
 package io.github.ceracharlescc
 
-import io.github.ceracharlescc.versuslm.internal.module
+import io.github.ceracharlescc.lmversusu.internal.module
 import io.ktor.client.request.*
 import io.ktor.http.*
 import io.ktor.server.testing.*

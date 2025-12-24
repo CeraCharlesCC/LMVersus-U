@@ -1,6 +1,6 @@
-package io.github.ceracharlescc.versuslm.internal.application.port
+package io.github.ceracharlescc.lmversusu.internal.application.port
 
-import io.github.ceracharlescc.versuslm.internal.domain.entity.Question
+import io.github.ceracharlescc.lmversusu.internal.domain.entity.Question
 import java.util.UUID
 
 internal interface QuestionBank {

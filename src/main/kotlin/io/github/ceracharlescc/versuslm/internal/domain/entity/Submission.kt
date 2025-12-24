@@ -1,6 +1,6 @@
-package io.github.ceracharlescc.versuslm.internal.domain.entity
+package io.github.ceracharlescc.lmversusu.internal.domain.entity
 
-import io.github.ceracharlescc.versuslm.internal.domain.vo.Answer
+import io.github.ceracharlescc.lmversusu.internal.domain.vo.Answer
 import java.time.Duration
 import java.time.Instant
 import java.util.UUID

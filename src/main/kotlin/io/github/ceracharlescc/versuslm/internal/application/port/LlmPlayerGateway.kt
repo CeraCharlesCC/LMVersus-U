@@ -1,7 +1,7 @@
-package io.github.ceracharlescc.versuslm.internal.application.port
+package io.github.ceracharlescc.lmversusu.internal.application.port
 
-import io.github.ceracharlescc.versuslm.internal.domain.vo.Answer
-import io.github.ceracharlescc.versuslm.internal.domain.vo.LlmProfile
+import io.github.ceracharlescc.lmversusu.internal.domain.vo.Answer
+import io.github.ceracharlescc.lmversusu.internal.domain.vo.LlmProfile
 import java.util.UUID
 
 internal interface LlmPlayerGateway {

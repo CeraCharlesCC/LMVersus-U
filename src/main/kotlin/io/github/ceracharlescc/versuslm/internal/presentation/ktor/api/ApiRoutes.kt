@@ -1,4 +1,4 @@
-package io.github.ceracharlescc.versuslm.internal.presentation.ktor.api
+package io.github.ceracharlescc.lmversusu.internal.presentation.ktor.api
 
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.route

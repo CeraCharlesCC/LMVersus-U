@@ -1,7 +1,7 @@
-package io.github.ceracharlescc.versuslm.internal.domain.policy
+package io.github.ceracharlescc.lmversusu.internal.domain.policy
 
-import io.github.ceracharlescc.versuslm.internal.domain.entity.GameMode
-import io.github.ceracharlescc.versuslm.internal.domain.entity.Question
+import io.github.ceracharlescc.lmversusu.internal.domain.entity.GameMode
+import io.github.ceracharlescc.lmversusu.internal.domain.entity.Question
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 

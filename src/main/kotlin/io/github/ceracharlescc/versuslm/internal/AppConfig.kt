@@ -1,4 +1,4 @@
-package io.github.ceracharlescc.versuslm.internal
+package io.github.ceracharlescc.lmversusu.internal
 
 import kotlinx.serialization.Serializable
 import kotlin.reflect.full.memberProperties

@@ -1,4 +1,4 @@
-package io.github.ceracharlescc.versuslm.internal.di
+package io.github.ceracharlescc.lmversusu.internal.di
 
 import dagger.Module
 import dagger.Provides
@@ -12,7 +12,7 @@ internal object AppModule {
 
     @Provides
     @Singleton
-    fun provideLogger(): Logger = LoggerFactory.getLogger("VersusLM")
+    fun provideLogger(): Logger = LoggerFactory.getLogger("LMVersus-U")
 
     @Provides
     @Singleton

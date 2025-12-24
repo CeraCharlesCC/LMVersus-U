@@ -1,12 +1,12 @@
-package io.github.ceracharlescc.versuslm.internal.domain.policy
+package io.github.ceracharlescc.lmversusu.internal.domain.policy
 
-import io.github.ceracharlescc.versuslm.internal.domain.vo.Answer
-import io.github.ceracharlescc.versuslm.internal.domain.vo.RoundResult
-import io.github.ceracharlescc.versuslm.internal.domain.vo.Score
-import io.github.ceracharlescc.versuslm.internal.domain.vo.Winner
-import io.github.ceracharlescc.versuslm.internal.domain.entity.Round
-import io.github.ceracharlescc.versuslm.internal.domain.vo.PlayerOutcome
-import io.github.ceracharlescc.versuslm.internal.domain.vo.ScoreBreakdown
+import io.github.ceracharlescc.lmversusu.internal.domain.vo.Answer
+import io.github.ceracharlescc.lmversusu.internal.domain.vo.RoundResult
+import io.github.ceracharlescc.lmversusu.internal.domain.vo.Score
+import io.github.ceracharlescc.lmversusu.internal.domain.vo.Winner
+import io.github.ceracharlescc.lmversusu.internal.domain.entity.Round
+import io.github.ceracharlescc.lmversusu.internal.domain.vo.PlayerOutcome
+import io.github.ceracharlescc.lmversusu.internal.domain.vo.ScoreBreakdown
 import java.time.Duration
 
 internal object ScorePolicy {

@@ -1,7 +1,7 @@
-package io.github.ceracharlescc.versuslm.internal.application.usecase
+package io.github.ceracharlescc.lmversusu.internal.application.usecase
 
-import io.github.ceracharlescc.versuslm.internal.application.port.LeaderboardEntry
-import io.github.ceracharlescc.versuslm.internal.application.port.ResultsRepository
+import io.github.ceracharlescc.lmversusu.internal.application.port.LeaderboardEntry
+import io.github.ceracharlescc.lmversusu.internal.application.port.ResultsRepository
 import javax.inject.Inject
 import javax.inject.Singleton
 

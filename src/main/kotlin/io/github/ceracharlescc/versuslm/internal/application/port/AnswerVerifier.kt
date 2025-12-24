@@ -1,8 +1,8 @@
-package io.github.ceracharlescc.versuslm.internal.application.port
+package io.github.ceracharlescc.lmversusu.internal.application.port
 
-import io.github.ceracharlescc.versuslm.internal.domain.entity.Question
-import io.github.ceracharlescc.versuslm.internal.domain.entity.Submission
-import io.github.ceracharlescc.versuslm.internal.domain.vo.VerificationOutcome
+import io.github.ceracharlescc.lmversusu.internal.domain.entity.Question
+import io.github.ceracharlescc.lmversusu.internal.domain.entity.Submission
+import io.github.ceracharlescc.lmversusu.internal.domain.vo.VerificationOutcome
 
 internal interface AnswerVerifier {
     /**

@@ -1,4 +1,4 @@
-package io.github.ceracharlescc.versuslm.internal.infrastructure.ktor
+package io.github.ceracharlescc.lmversusu.internal.infrastructure.ktor
 
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
