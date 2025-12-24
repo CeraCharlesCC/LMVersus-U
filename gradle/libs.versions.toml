@@ -10,7 +10,7 @@ openai-java = "4.12.0"
 ktoml-core = "0.7.1"
 
 kotlinx-coroutines = "1.10.2"
-kotlinx-serialization = "1.7.3"
+kotlinx-serialization = "1.8.1"
 
 # Testing
 junit-jupiter = "5.14.1"
