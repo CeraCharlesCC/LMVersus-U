@@ -6,16 +6,20 @@ import kotlinx.coroutines.flow.Flow
 import kotlin.uuid.Uuid
 
 internal interface LlmPlayerGateway {
+
     /**
-     * Streams the LLM answer process:
-     * - multiple reasoning deltas
-     * - one final answer event
+     * Streams the answer from the LLM based on the provided [roundContext].
+     *
+     * @param roundContext The context of the round including question ID, prompt, choices, and LLM profile.
+     * @return A flow of [LlmStreamEvent] representing the streaming events from the LLM.
      */
     fun streamAnswer(roundContext: RoundContext): Flow<LlmStreamEvent>
 
     /**
-     * Non-streaming convenience (optional).
-     * In implementations you can derive this by collecting streamAnswer().
+     * Gets the final answer from the LLM based on the provided [roundContext].
+     *
+     * @param roundContext The context of the round including question ID, prompt, choices, and LLM profile.
+     * @return An [LlmAnswer] representing the final answer from the LLM.
      */
     suspend fun getAnswer(roundContext: RoundContext): LlmAnswer
 }
