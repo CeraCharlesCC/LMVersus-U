@@ -9,12 +9,6 @@ import java.nio.file.Path
 import java.nio.file.Paths
 import kotlin.system.exitProcess
 
-/**
- * Configuration loader that reads TOML configuration files.
- *
- * On first run, copies default configuration to the appropriate location
- * and exits with a message prompting the user to configure.
- */
 @Suppress("MaxLineLength")
 internal object ConfigLoader {
 
@@ -70,7 +64,6 @@ internal object ConfigLoader {
     private fun validateAndResolve(config: AppConfig, configDirectory: Path): AppConfig {
         val reasons = mutableListOf<String>()
 
-        // Validate and resolve LLM configuration
         val resolvedPrimary = resolveProviderConfig(
             providerConfig = config.llmConfig.primary,
             fieldPrefix = "llmConfig.primary",
@@ -87,7 +80,6 @@ internal object ConfigLoader {
             )
         }
 
-        // Validate session crypto configuration
         val resolvedCrypto = resolveCryptoConfig(
             cryptoConfig = config.sessionCrypto,
             reasons = reasons,
@@ -139,15 +131,15 @@ internal object ConfigLoader {
         val signKeyHex = resolveSecret(cryptoConfig.signKeyHex, "sessionCrypto.signKeyHex", reasons)
 
         if (encryptionKeyHex.isBlank()) {
-            reasons += "- 'sessionCrypto.encryptionKeyHex' must be set (64 hex characters for 32 bytes)."
-        } else if (encryptionKeyHex.length != 64) {
-            reasons += "- 'sessionCrypto.encryptionKeyHex' must be 64 hex characters (32 bytes), got ${encryptionKeyHex.length}."
+            reasons += "- 'sessionCrypto.encryptionKeyHex' must be set (32 hex characters for 16 bytes / AES-128)."
+        } else if (encryptionKeyHex.length != 32) {
+            reasons += "- 'sessionCrypto.encryptionKeyHex' must be 32 hex characters (16 bytes / AES-128), got ${encryptionKeyHex.length}."
         }
 
         if (signKeyHex.isBlank()) {
-            reasons += "- 'sessionCrypto.signKeyHex' must be set (64 hex characters for 32 bytes)."
+            reasons += "- 'sessionCrypto.signKeyHex' must be set (64 hex characters for 32 bytes / HMAC-SHA256)."
         } else if (signKeyHex.length != 64) {
-            reasons += "- 'sessionCrypto.signKeyHex' must be 64 hex characters (32 bytes), got ${signKeyHex.length}."
+            reasons += "- 'sessionCrypto.signKeyHex' must be 64 hex characters (32 bytes / HMAC-SHA256), got ${signKeyHex.length}."
         }
 
         return cryptoConfig.copy(
@@ -172,7 +164,7 @@ internal object ConfigLoader {
             .getResourceAsStream(DEFAULT_CONFIG_RESOURCE)
             ?: failStartup(
                 "Default config resource '$DEFAULT_CONFIG_RESOURCE' is missing from the classpath. " +
-                    "Make sure it exists under src/main/resources."
+                        "Make sure it exists under src/main/resources."
             )
 
         targetFile.parentFile?.mkdirs()

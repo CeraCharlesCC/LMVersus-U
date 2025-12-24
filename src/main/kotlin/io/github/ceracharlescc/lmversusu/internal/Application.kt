@@ -14,8 +14,8 @@ fun main(args: Array<String>) {
     EngineMain.main(args)
 }
 
-internal fun Application.module() {
-    val appConfig = ConfigLoader.load()
+internal fun Application.module(appConfigOverride: AppConfig? = null) {
+    val appConfig = appConfigOverride ?: ConfigLoader.load()
     val appComponent = DaggerAppComponent.builder()
         .appConfig(appConfig)
         .build()

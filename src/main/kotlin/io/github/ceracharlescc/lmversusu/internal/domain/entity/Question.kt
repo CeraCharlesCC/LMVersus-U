@@ -1,5 +1,6 @@
 package io.github.ceracharlescc.lmversusu.internal.domain.entity
 
+import io.github.ceracharlescc.lmversusu.internal.domain.vo.Difficulty
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.VerifierSpec
 import java.util.UUID
 
@@ -10,13 +11,7 @@ internal data class Question(
     val difficulty: Difficulty = Difficulty.MEDIUM,
     val verifierSpec: VerifierSpec,
     val metadata: QuestionMetadata? = null
-) {
-    enum class Difficulty {
-        EASY,
-        MEDIUM,
-        HARD
-    }
-}
+)
 
 data class QuestionMetadata(
     val category: String? = null,

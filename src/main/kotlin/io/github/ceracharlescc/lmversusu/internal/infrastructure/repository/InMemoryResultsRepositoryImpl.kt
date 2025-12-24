@@ -13,12 +13,14 @@ internal class InMemoryResultsRepositoryImpl @Inject constructor() : ResultsRepo
 
     override suspend fun saveResult(result: SessionResult) {
         val candidate = LeaderboardEntry(
+            sessionId = result.sessionId,
             rank = 0,
+            gameMode = result.gameMode,
+            difficulty = result.difficulty,
             userId = result.humanUserId,
             nickname = result.humanNickname,
             bestScore = result.humanScore,
             bestTimeMs = result.durationMs,
-            gamesPlayed = 1
         )
 
         bestByNickname.merge(result.humanNickname, candidate) { existing, incoming ->
@@ -27,7 +29,7 @@ internal class InMemoryResultsRepositoryImpl @Inject constructor() : ResultsRepo
                 incoming.bestScore < existing.bestScore -> existing
                 else -> if (incoming.bestTimeMs < existing.bestTimeMs) incoming else existing
             }
-            better.copy(gamesPlayed = existing.gamesPlayed + 1)
+            better.copy()
         }
     }
 

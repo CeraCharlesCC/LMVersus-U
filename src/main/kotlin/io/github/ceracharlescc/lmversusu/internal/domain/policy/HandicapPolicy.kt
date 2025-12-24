@@ -2,17 +2,18 @@ package io.github.ceracharlescc.lmversusu.internal.domain.policy
 
 import io.github.ceracharlescc.lmversusu.internal.domain.entity.GameMode
 import io.github.ceracharlescc.lmversusu.internal.domain.entity.Question
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.seconds
+import io.github.ceracharlescc.lmversusu.internal.domain.vo.Difficulty
+import io.github.ceracharlescc.lmversusu.internal.utils.scaledBy
+import java.time.Duration
 
 internal object HandicapPolicy {
-    private val LIGHTWEIGHT_BASE_HANDICAP = 10.seconds
-    private val PREMIUM_BASE_HANDICAP = 15.seconds
+    private val LIGHTWEIGHT_BASE_HANDICAP = Duration.ofSeconds(10)
+    private val PREMIUM_BASE_HANDICAP = Duration.ofSeconds(15)
 
     private val DIFFICULTY_MULTIPLIERS = mapOf(
-        Question.Difficulty.EASY to 0.8,
-        Question.Difficulty.MEDIUM to 1.0,
-        Question.Difficulty.HARD to 1.2
+        Difficulty.EASY to 5.0,
+        Difficulty.MEDIUM to 3.0,
+        Difficulty.HARD to 1.0,
     )
 
     /**
@@ -32,6 +33,6 @@ internal object HandicapPolicy {
         }
 
         val multiplier = DIFFICULTY_MULTIPLIERS[question.difficulty] ?: 1.0
-        return baseHandicap * multiplier
+        return baseHandicap.scaledBy(multiplier)
     }
 }

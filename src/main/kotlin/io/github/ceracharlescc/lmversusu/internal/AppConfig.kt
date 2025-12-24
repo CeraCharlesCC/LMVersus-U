@@ -100,14 +100,14 @@ internal data class AppConfig(
         }
 
         fun requireKeys(): Keys {
-            val encryptionKey = encryptionKeyHex.decodeHexOrThrow("encKeyHex")
+            val encryptionKey = encryptionKeyHex.decodeHexOrThrow("encryptionKeyHex")
             val signKey = signKeyHex.decodeHexOrThrow("signKeyHex")
 
-            require(encryptionKey.size == 32) {
-                "encKeyHex must be 32 bytes (64 hex chars), but was ${encryptionKey.size} bytes"
+            require(encryptionKey.size == 16) {
+                "encryptionKeyHex must be 16 bytes (32 hex chars) for AES-128, but was ${encryptionKey.size} bytes"
             }
             require(signKey.size == 32) {
-                "signKeyHex must be 32 bytes (64 hex chars), but was ${signKey.size} bytes"
+                "signKeyHex must be 32 bytes (64 hex chars) for HMAC-SHA256, but was ${signKey.size} bytes"
             }
 
             return Keys(encryptionKey = encryptionKey, signKey = signKey)

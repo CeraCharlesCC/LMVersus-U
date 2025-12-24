@@ -1,6 +1,6 @@
 package io.github.ceracharlescc.lmversusu.internal.domain.vo
 
-import kotlin.time.Duration
+import java.time.Duration
 
 internal data class TimerSpec(
     val handicap: Duration,

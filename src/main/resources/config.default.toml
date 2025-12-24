@@ -43,11 +43,12 @@ globalLlmMaxRequests = 20
 # ------------------------------------------------------------
 # Session Crypto Configuration
 # ------------------------------------------------------------
-# Generate these keys using a secure random generator.
-# Each key must be 32 bytes (64 hex characters).
-# Example (do NOT use these in production):
-#   openssl rand -hex 32
+# encryptionKeyHex: 16 bytes (32 hex chars) for AES-128 encryption
+#   Generate with: openssl rand -hex 16
+# signKeyHex: 32 bytes (64 hex chars) for HMAC-SHA256 signing
+#   Generate with: openssl rand -hex 32
 # ------------------------------------------------------------
 [sessionCrypto]
+enableSecureCookie = false
 encryptionKeyHex = ""
 signKeyHex = ""

@@ -65,7 +65,7 @@ internal object ScorePolicy {
         // Speed bonus: faster response = more bonus, capped at MAX_SPEED_BONUS
         // Only award speed bonus for correct answers
         val speedBonus = if (correct) {
-            val maxTimeMs = handicap.toMillis().coerceAtLeast(30_000)
+            val maxTimeMs = handicap.milliseconds.coerceAtLeast(30_000)
             val responseFraction = 1.0 - (responseTime.toMillis().toDouble() / maxTimeMs).coerceIn(0.0, 1.0)
             MAX_SPEED_BONUS * responseFraction
         } else {
