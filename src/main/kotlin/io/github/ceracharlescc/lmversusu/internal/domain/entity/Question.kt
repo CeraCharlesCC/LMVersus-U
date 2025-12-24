@@ -11,10 +11,10 @@ internal data class Question(
     val difficulty: Difficulty = Difficulty.MEDIUM,
     val verifierSpec: VerifierSpec,
     val metadata: QuestionMetadata? = null
-) {
-    data class QuestionMetadata(
-        val category: String? = null,
-        val source: String? = null,
-        val tags: List<String> = emptyList()
-    )
-}
+)
+
+data class QuestionMetadata(
+    val category: String? = null,
+    val source: String? = null,
+    val tags: List<String> = emptyList()
+)

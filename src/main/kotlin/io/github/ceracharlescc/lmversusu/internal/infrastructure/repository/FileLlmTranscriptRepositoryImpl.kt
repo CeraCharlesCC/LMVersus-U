@@ -7,6 +7,7 @@ import io.github.ceracharlescc.lmversusu.internal.domain.vo.Answer
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.LlmProfile
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
 import java.nio.file.Files
 import java.nio.file.Path
@@ -22,9 +23,6 @@ internal class FileLlmTranscriptRepositoryImpl @Inject constructor(
 
     private val cache: Map<Key, LlmTranscript> by lazy {
         val path = transcriptFileResolver.resolve()
-        require(Files.exists(path)) {
-            "Transcript file not found at path: ${path.toAbsolutePath()}"
-        }
         val text = Files.readString(path)
         val decoded = json.decodeFromString(TranscriptFile.serializer(), text)
 
@@ -93,6 +91,6 @@ internal class FileLlmTranscriptRepositoryImpl @Inject constructor(
 internal class TranscriptFileResolver @Inject constructor() {
     fun resolve(): Path {
         val configDir = System.getProperty("lmversusu.configDir") ?: "."
-        return Path.of(configDir).resolve("LLM-Configs").resolve("lightweight_quiz.json").toAbsolutePath().normalize()
+        return Path.of(configDir).resolve("LMV-Configs").resolve("lightweight_quiz.json").toAbsolutePath().normalize()
     }
 }

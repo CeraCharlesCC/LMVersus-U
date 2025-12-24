@@ -262,7 +262,7 @@ internal object ConfigLoader {
         println()
         println("Please open this file in a text editor and set at least:")
         println("  - llmConfig.primary.apiKey            (LLM API key)")
-        println("  - sessionCrypto.encryptionKeyHex      (16-byte hex for session encryption)")
+        println("  - sessionCrypto.encryptionKeyHex      (32-byte hex for session encryption)")
         println("  - sessionCrypto.signKeyHex            (32-byte hex for session signing)")
         println()
         println("You may also adjust:")
