@@ -68,4 +68,19 @@ internal sealed class GameEvent {
         val errorCode: String,
         val message: String
     ) : GameEvent()
+
+    data class LlmReasoningDelta(
+        override val sessionId: Uuid,
+        val roundId: Uuid,
+        val deltaText: String,
+        val emittedTokenCount: Int,
+        val totalTokenCount: Int
+    ) : GameEvent()
+
+    data class LlmFinalAnswer(
+        override val sessionId: Uuid,
+        val roundId: Uuid,
+        val answer: String,
+        val confidenceScore: Double? = null
+    ) : GameEvent()
 }
