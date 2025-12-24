@@ -73,7 +73,7 @@ internal data class AppConfig(
             const val DEFAULT_GLOBAL_HTTP_WINDOW_MILLIS = 600_000L
             const val DEFAULT_GLOBAL_HTTP_MAX_REQUESTS = 100
 
-            const val DEFAULT_USEER_HTTP_GATE_KEY = "http:user:"
+            const val DEFAULT_USER_HTTP_GATE_KEY = "http:user:"
             const val DEFAULT_USER_HTTP_WINDOW_MILLIS = 60_000L
             const val DEFAULT_USER_HTTP_MAX_REQUESTS = 10
 
