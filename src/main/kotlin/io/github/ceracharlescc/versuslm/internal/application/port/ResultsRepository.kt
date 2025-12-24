@@ -1,8 +1,7 @@
 package io.github.ceracharlescc.lmversusu.internal.application.port
 
-import io.github.ceracharlescc.lmversusu.internal.domain.entity.GameMode
-import java.time.Instant
-import java.util.UUID
+import io.github.ceracharlescc.versuslm.internal.domain.entity.LeaderboardEntry
+import io.github.ceracharlescc.versuslm.internal.domain.entity.SessionResult
 
 internal interface ResultsRepository {
     /**
@@ -20,23 +19,3 @@ internal interface ResultsRepository {
      */
     suspend fun getLeaderboard(limit: Int = 10): List<LeaderboardEntry>
 }
-
-internal data class SessionResult(
-    val sessionId: UUID,
-    val mode: GameMode,
-    val llmProfileName: String,
-    val humanNickname: String,
-    val humanScore: Double,
-    val llmScore: Double,
-    val humanWon: Boolean,
-    val durationMs: Long,
-    val completedAt: Instant
-)
-
-data class LeaderboardEntry(
-    val rank: Int,
-    val nickname: String,
-    val bestScore: Double,
-    val bestTimeMs: Long,
-    val gamesPlayed: Int
-)
