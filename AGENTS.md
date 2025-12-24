@@ -20,13 +20,12 @@ As a base, we follow the principles of Clean Architecture. That is:
        The Command/EventListener should:
         - Focus on early returns and event decomposition.
         - Extract fields from the framework Event/Context.
-        - Convert (“un-framework-fy”) them into domain-/application-friendly values.
         - Pass only what is necessary to the Controller’s functions.
     6. The principle of the least privilege must be strictly observed.
-        - Controllers and UseCases must not receive full framework Event/Context objects.
+        - UseCases must not receive full framework Event/Context objects.
         - Unless the Controller needs a specific value, passing it is prohibited.
         - Passing the entire Event/Context itself is prohibited.
-        - Framework-specific types (IDs, locale types, message objects, etc.) should be converted at the Command/EventListener boundary into simple primitives or domain/value types.
+        - Framework-specific types (IDs, locale types, message objects, etc.) should be converted at the Controller boundary into simple primitives or domain/value types.
     7. Controller bloat should be avoided.
         - Break responsibilities down properly into use cases.
         - The Controller’s business should be restricted to orchestrating use cases and mapping their results into simple response models for the outer layers (e.g., what kind of message to show), not doing complex business logic itself.
