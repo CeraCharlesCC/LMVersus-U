@@ -5,10 +5,7 @@ import io.github.ceracharlescc.lmversusu.internal.domain.repository.LlmTranscrip
 import io.github.ceracharlescc.lmversusu.internal.domain.repository.LlmTranscriptRepository
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.Answer
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.LlmProfile
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.withContext
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.nio.file.Files
@@ -23,41 +20,22 @@ internal class FileLlmTranscriptRepositoryImpl @Inject constructor(
     private val transcriptFileResolver: TranscriptFileResolver
 ) : LlmTranscriptRepository {
 
-    private val mutex = Mutex()
+    private val cache: Map<Key, LlmTranscript> by lazy {
+        val path = transcriptFileResolver.resolve()
+        require(Files.exists(path)) {
+            "Transcript file not found at path: ${path.toAbsolutePath()}"
+        }
+        val text = Files.readString(path)
+        val decoded = json.decodeFromString(TranscriptFile.serializer(), text)
 
-    @Volatile
-    private var cache: Map<Key, LlmTranscript>? = null
-
-    override suspend fun find(questionId: Uuid, llmProfile: LlmProfile): LlmTranscript? {
-        val loaded = loadCacheIfNeeded()
-
-        return loaded[Key(questionId, llmProfile.transcriptKey)]
+        decoded.items.associate { item ->
+            val key = Key(Uuid.parse(item.questionId), item.profileName)
+            key to item.toDomain()
+        }
     }
 
-    private suspend fun loadCacheIfNeeded(): Map<Key, LlmTranscript> {
-        cache?.let { return it }
-
-        return mutex.withLock {
-            cache?.let { return@withLock it }
-
-            val loaded = withContext(Dispatchers.IO) {
-                val path = transcriptFileResolver.resolve()
-                if (!Files.exists(path)) {
-                    return@withContext emptyMap()
-                }
-
-                val text = Files.readString(path)
-                val decoded = json.decodeFromString(TranscriptFile.serializer(), text)
-
-                decoded.items.associate { item ->
-                    val key = Key(Uuid.parse(item.questionId), item.profileName)
-                    key to item.toDomain()
-                }
-            }
-
-            cache = loaded
-            loaded
-        }
+    override fun find(questionId: Uuid, llmProfile: LlmProfile): LlmTranscript? {
+        return cache[Key(questionId, llmProfile.modelName)] ?: cache[Key(questionId, llmProfile.displayName)]
     }
 
     private data class Key(val questionId: Uuid, val profileName: String)
@@ -70,33 +48,51 @@ internal class FileLlmTranscriptRepositoryImpl @Inject constructor(
         val questionId: String,
         val profileName: String,
         val reasoning: String,
-        val finalAnswer: Answer,
+        val finalAnswer: AnswerJson,
         val averageTokensPerSecond: Double,
         val chunkSizeTokens: Int
     ) {
         fun toDomain(): LlmTranscript {
             return LlmTranscript(
                 reasoning = reasoning,
-                finalAnswer = finalAnswer,
+                finalAnswer = finalAnswer.toDomain(),
                 averageTokensPerSecond = averageTokensPerSecond,
                 chunkSizeTokens = chunkSizeTokens
             )
+        }
+
+        val questionUuid: Uuid
+            get() = Uuid.parse(questionId)
+    }
+
+    @Serializable
+    private sealed class AnswerJson {
+        @Serializable
+        @SerialName("multiple_choice")
+        data class MultipleChoice(val choiceIndex: Int) : AnswerJson()
+
+        @Serializable
+        @SerialName("integer")
+        data class Integer(val value: Int) : AnswerJson()
+
+        @Serializable
+        @SerialName("free_text")
+        data class FreeText(val text: String) : AnswerJson()
+
+        fun toDomain(): Answer {
+            return when (this) {
+                is MultipleChoice -> Answer.MultipleChoice(choiceIndex)
+                is Integer -> Answer.Integer(value)
+                is FreeText -> Answer.FreeText(text)
+            }
         }
     }
 }
 
 @Singleton
-internal class TranscriptFileResolver @Inject constructor(
-    private val configDir: ConfigDirectory
-) {
+internal class TranscriptFileResolver @Inject constructor() {
     fun resolve(): Path {
-        return configDir.path
-            .resolve("LLM-Configs")
-            .resolve("lightweight_quiz.json")
-            .toAbsolutePath()
-            .normalize()
+        val configDir = System.getProperty("lmversusu.configDir") ?: "."
+        return Path.of(configDir).resolve("LLM-Configs").resolve("lightweight_quiz.json").toAbsolutePath().normalize()
     }
 }
-
-@JvmInline
-internal value class ConfigDirectory(val path: Path)

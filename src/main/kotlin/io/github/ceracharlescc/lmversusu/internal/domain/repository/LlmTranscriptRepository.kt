@@ -4,8 +4,9 @@ import io.github.ceracharlescc.lmversusu.internal.domain.vo.Answer
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.LlmProfile
 import kotlin.uuid.Uuid
 
+
 internal interface LlmTranscriptRepository {
-    suspend fun find(
+    fun find(
         questionId: Uuid,
         llmProfile: LlmProfile
     ): LlmTranscript?

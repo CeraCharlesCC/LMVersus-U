@@ -14,4 +14,11 @@ internal fun Application.configureRouting() {
             call.respondText(text = "500: $cause", status = HttpStatusCode.InternalServerError)
         }
     }
+    install(RequestValidation) {
+        validate<String> { bodyText ->
+            if (!bodyText.startsWith("Hello"))
+                ValidationResult.Invalid("Body text should start with 'Hello'")
+            else ValidationResult.Valid
+        }
+    }
 }
