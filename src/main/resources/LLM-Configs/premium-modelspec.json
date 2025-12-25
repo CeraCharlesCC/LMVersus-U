@@ -1,0 +1,21 @@
+{
+    "id": "premium-kimi-k2",
+    "mode": "PREMIUM",
+    "displayName": "Kimi K2 Thinking (Live)",
+    "llmProfile": {
+        "modelName": "kimi-k2-thinking",
+        "displayName": "Kimi K2"
+    },
+    "provider": {
+        "providerName": "some-provider",
+        "apiUrl": "https://provider.example/v1",
+        "apiKey": "ENV:KIMI_API_KEY"
+    },
+    "questionSetPath": "Datasets/question-sets/mmlu_pro_subset.jsonl",
+    "streaming": {
+        "revealDelayMs": 10000,
+        "targetTokensPerSecond": 80,
+        "burstMultiplierOnFinal": 5.0,
+        "maxBufferedChars": 200000
+    }
+}

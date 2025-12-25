@@ -46,4 +46,54 @@ class ApplicationTest {
         }
 
     }
+
+    @Test
+    fun `GET models endpoint is reachable`() = testApplication {
+        application {
+            module(TestConfigFactory.createTestConfig())
+        }
+
+        val client = createClient {
+            install(ContentNegotiation) {
+                json(
+                    Json {
+                        ignoreUnknownKeys = true
+                    }
+                )
+            }
+            defaultRequest {
+                accept(ContentType.Application.Json)
+            }
+        }
+
+        // Without LLM-Configs directory set up, expect ServiceUnavailable
+        client.get("/api/v1/models").apply {
+            // Either OK (if configs somehow exist) or ServiceUnavailable (expected in test env)
+            assert(status == HttpStatusCode.OK || status == HttpStatusCode.ServiceUnavailable)
+        }
+    }
+
+    @Test
+    fun `GET models with invalid mode returns BadRequest`() = testApplication {
+        application {
+            module(TestConfigFactory.createTestConfig())
+        }
+
+        val client = createClient {
+            install(ContentNegotiation) {
+                json(
+                    Json {
+                        ignoreUnknownKeys = true
+                    }
+                )
+            }
+            defaultRequest {
+                accept(ContentType.Application.Json)
+            }
+        }
+
+        client.get("/api/v1/models?mode=INVALID").apply {
+            assertEquals(HttpStatusCode.BadRequest, status)
+        }
+    }
 }

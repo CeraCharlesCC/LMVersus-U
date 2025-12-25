@@ -1,5 +1,8 @@
 package io.github.ceracharlescc.lmversusu.internal.domain.vo
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 internal data class LlmProfile(
     val modelName: String,
     val temperature: Double = 0.7,

@@ -7,5 +7,6 @@ internal fun Route.apiV1Routes(apiController: ApiController) {
     route("/api/v1") {
         heartbeatRoutes()
         leaderboardRoutes(apiController)
+        modelsRoutes(apiController)
     }
 }

@@ -2,6 +2,7 @@ package io.github.ceracharlescc.lmversusu.internal.domain.entity
 
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.LlmProfile
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.Score
+import kotlinx.serialization.Serializable
 import java.time.Instant
 import kotlin.uuid.Uuid
 
@@ -51,6 +52,7 @@ enum class SessionState {
     CANCELLED
 }
 
+@Serializable
 enum class GameMode {
     /** Uses precomputed LLM outputs for offline play */
     LIGHTWEIGHT,
