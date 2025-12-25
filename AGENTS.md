@@ -60,3 +60,6 @@ As a base, we follow the principles of Clean Architecture. That is:
 - ### Niche:
     1. In implementations that involve blocking I/O, `withContext(Dispatchers.IO)` should be done by the RepositoryImpl.
     2. You must always run detekt before committing. (Hmm, but it's probably impossible to fully comply in the jda environment, so consider it only as assistance for formatting and such.)
+
+## Appendix
+- I don't like DTOs. Avoid them as much as possible.
