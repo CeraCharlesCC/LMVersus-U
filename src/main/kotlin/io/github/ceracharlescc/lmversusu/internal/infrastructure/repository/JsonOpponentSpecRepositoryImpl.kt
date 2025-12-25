@@ -15,6 +15,10 @@ import kotlin.io.path.readText
 @Singleton
 internal class JsonOpponentSpecRepositoryImpl @Inject constructor() : OpponentSpecRepository {
 
+    private companion object {
+        const val ENV_PREFIX = "ENV:"
+    }
+
     private val json = Json {
         ignoreUnknownKeys = true
         isLenient = true
@@ -35,9 +39,7 @@ internal class JsonOpponentSpecRepositoryImpl @Inject constructor() : OpponentSp
         val configDir = resolveConfigDirectory() ?: return null
         val llmConfigsDir = configDir.resolve("LLM-Configs")
 
-        if (!Files.isDirectory(llmConfigsDir)) {
-            return null
-        }
+        if (!Files.isDirectory(llmConfigsDir)) return null
 
         return try {
             Files.list(llmConfigsDir).use { stream ->
@@ -48,7 +50,7 @@ internal class JsonOpponentSpecRepositoryImpl @Inject constructor() : OpponentSp
                     .map { it!! }
                     .toList()
             }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             null
         }
     }
@@ -56,10 +58,38 @@ internal class JsonOpponentSpecRepositoryImpl @Inject constructor() : OpponentSp
     private fun parseSpec(path: Path): OpponentSpec? {
         return try {
             val content = path.readText()
-            json.decodeFromString<OpponentSpec>(content)
-        } catch (e: Exception) {
+            val spec = json.decodeFromString<OpponentSpec>(content)
+            resolveEnvSecrets(spec)
+        } catch (_: Exception) {
             null
         }
+    }
+
+    private fun resolveEnvSecrets(spec: OpponentSpec): OpponentSpec {
+        return when (spec) {
+            is OpponentSpec.Lightweight -> spec
+
+            is OpponentSpec.Premium -> {
+                val resolvedProvider = spec.provider.copy(
+                    providerName = resolveSecret(spec.provider.providerName),
+                    apiUrl = resolveSecret(spec.provider.apiUrl),
+                    apiKey = resolveSecret(spec.provider.apiKey),
+                )
+
+                spec.copy(provider = resolvedProvider)
+            }
+        }
+    }
+
+    private fun resolveSecret(raw: String): String {
+        val trimmed = raw.trim()
+
+        if (!trimmed.startsWith(ENV_PREFIX)) return trimmed
+
+        val envName = trimmed.removePrefix(ENV_PREFIX).trim()
+        if (envName.isEmpty()) return ""
+
+        return System.getenv(envName)?.trim().orEmpty()
     }
 
     private fun resolveConfigDirectory(): Path? {
