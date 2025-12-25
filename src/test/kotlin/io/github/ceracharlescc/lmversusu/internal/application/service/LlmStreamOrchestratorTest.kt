@@ -127,9 +127,13 @@ internal class LlmStreamOrchestratorTest {
         advanceTimeBy(1)
         runCurrent()
 
-        assertEquals(2, events.size)
+        assertEquals(3, events.size)
+
         assertEquals(1_500, events[1].atMs)
         assertTrue(events[1].event is LlmStreamEvent.ReasoningDelta)
+
+        assertEquals(1_500, events[2].atMs)
+        assertTrue(events[2].event is LlmStreamEvent.FinalAnswer)
 
         runCurrent()
         assertEquals(3, events.size)
@@ -265,9 +269,14 @@ internal class LlmStreamOrchestratorTest {
 
         advanceTimeBy(1)
         runCurrent()
-        assertEquals(1, events.size)
+
+        assertEquals(2, events.size)
+
         assertEquals(1_000, events[0].atMs)
         assertTrue(events[0].event is LlmStreamEvent.ReasoningDelta)
+
+        assertEquals(1_000, events[1].atMs)
+        assertTrue(events[1].event is LlmStreamEvent.Error)
 
         runCurrent()
         assertEquals(2, events.size)
