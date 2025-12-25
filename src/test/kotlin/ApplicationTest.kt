@@ -3,6 +3,7 @@ package io.github.ceracharlescc
 import io.github.ceracharlescc.lmversusu.internal.module
 import io.github.ceracharlescc.lmversusu.internal.TestConfigFactory
 import io.github.ceracharlescc.lmversusu.internal.presentation.ktor.api.HeartbeatResponse
+import io.github.ceracharlescc.lmversusu.internal.presentation.ktor.api.ModelsResponse
 import io.ktor.client.call.body
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.get
@@ -10,6 +11,7 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.request.accept
+import io.ktor.client.statement.bodyAsText
 import io.ktor.serialization.kotlinx.json.json
 
 import io.ktor.server.testing.testApplication
@@ -65,11 +67,10 @@ class ApplicationTest {
                 accept(ContentType.Application.Json)
             }
         }
-
-        // Without LLM-Configs directory set up, expect ServiceUnavailable
+        
         client.get("/api/v1/models").apply {
-            // Either OK (if configs somehow exist) or ServiceUnavailable (expected in test env)
-            assert(status == HttpStatusCode.OK || status == HttpStatusCode.ServiceUnavailable)
+            println(bodyAsText())
+            assert(status == HttpStatusCode.OK)
         }
     }
 
