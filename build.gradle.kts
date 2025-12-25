@@ -23,6 +23,7 @@ kotlin {
 dependencies {
     implementation(libs.kotlin.stdlib)
     implementation(libs.kotlin.reflect)
+    implementation(libs.kotlinx.coroutines)
 
     implementation(libs.dagger)
     ksp(libs.dagger.compiler)
@@ -51,6 +52,7 @@ dependencies {
     testImplementation(libs.ktor.server.test.host)
     testImplementation(libs.ktor.client.content.negotiation)
     testImplementation(libs.kotlin.test.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
 }
 
 tasks.test {
