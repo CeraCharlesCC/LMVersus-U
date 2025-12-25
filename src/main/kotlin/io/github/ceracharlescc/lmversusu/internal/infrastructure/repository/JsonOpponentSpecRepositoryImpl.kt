@@ -1,4 +1,4 @@
-package io.github.ceracharlescc.lmversusu.internal.infrastructure.spec
+package io.github.ceracharlescc.lmversusu.internal.infrastructure.repository
 
 import io.github.ceracharlescc.lmversusu.internal.domain.entity.OpponentSpec
 import io.github.ceracharlescc.lmversusu.internal.domain.repository.OpponentSpecRepository

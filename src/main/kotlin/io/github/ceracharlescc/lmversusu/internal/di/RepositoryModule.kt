@@ -5,7 +5,7 @@ import dagger.Module
 import io.github.ceracharlescc.lmversusu.internal.domain.repository.OpponentSpecRepository
 import io.github.ceracharlescc.lmversusu.internal.domain.repository.ResultsRepository
 import io.github.ceracharlescc.lmversusu.internal.infrastructure.repository.InMemoryResultsRepositoryImpl
-import io.github.ceracharlescc.lmversusu.internal.infrastructure.spec.JsonOpponentSpecRepositoryImpl
+import io.github.ceracharlescc.lmversusu.internal.infrastructure.repository.JsonOpponentSpecRepositoryImpl
 import javax.inject.Singleton
 
 @Module
