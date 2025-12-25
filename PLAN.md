@@ -1,357 +1,543 @@
-    ## What we’re building
+# LMVersus-U Plan
 
-A small real-time “race” game: a human and an LLM answer the same benchmark questions in parallel, with a handicap window that gives the human a head start. Each session has 3 questions. The backend must be authoritative (clients never receive ground-truth answers until the round ends), support a Lightweight mode (precomputed LLM outputs) and a Premium mode (live API calls), and keep a simple winners list. Ktor + Kotlin + Dagger + KSP is a great fit.
+## What we’re building
 
-One important practical note: WebSockets prevent trivial “open DevTools → see answers” only if the server never sends answers early. You can’t stop a player from reading the question (they must), but you can stop them from obtaining the correct answer or forging timing/score by keeping all verification, timers, and scoring on the server.
+LMVersus-U is a small real-time “race” game: a human and an LLM answer the same questions, and the UI makes it feel like you’re “fighting” the model. A session runs a fixed number of rounds (3 for now). The server is authoritative for timers and scoring, and it streams LLM progress to the client via WebSocket.
 
----
+There are two operating modes:
 
-## Goals and constraints
+* **LIGHTWEIGHT**: offline replay using a precomputed dataset that already contains questions + model reasoning + model final answers.
+* **PREMIUM**: live LLM calls to an external provider at runtime (dataset contains questions + ground truth, but the model output is generated live).
 
-**Functional goals**
-
-* Create/join a session, run 3 rounds, show real-time LLM “progress” + final answers, and compute who wins.
-* Support multiple answer types: multiple-choice now, later integer (0–100), later free-response (judgeable via pluggable verifier).
-* Lightweight mode uses preloaded benchmark questions + precomputed LLM thoughts/answers.
-* Premium mode makes real API calls at runtime.
-* Persist minimal results for a winners list.
-
-**Non-goals (for festival version)**
-
-* Full account system, anti-cheat beyond server authority, multi-region latency optimization, multi-instance orchestration.
-
-**Scale**
-
-* DAU ≤ 50, likely single server instance is fine, which simplifies session state (in-memory) dramatically.
+A key design requirement is that **the streaming logic must be replaceable** and **must not be coupled to Lightweight**. Lightweight is just one possible backend for `LlmPlayerGateway`.
 
 ---
 
-## System overview (Clean Architecture)
+## Guiding constraints
 
-Clean Architecture works nicely if you treat “game” logic as the core, and everything else (Ktor, DB, LLM APIs) as plug-ins.
+The project must stay simple. The “secret sauce” is only:
 
-### Layering
+1. a clean separation between “where the LLM output comes from” and “how it is streamed to the UI”, and
+2. a simple on-disk config layout next to the `.jar`.
 
-**1) Domain (Enterprise rules)**
-
-* Pure Kotlin, no frameworks.
-* Entities/value objects: `GameSession`, `Round`, `Question`, `Player`, `Submission`, `Score`, `Answer`, `TimerSpec`.
-* Policies: handicap computation, scoring rules, round lifecycle invariants.
-
-**2) Application (Use cases)**
-
-* Interactors orchestrate domain objects and call ports (interfaces).
-* Use cases like `CreateSession`, `JoinSession`, `StartNextRound`, `SubmitAnswer`, `TickTimers`, `EndSession`, `GetLeaderboard`.
-* Defines ports: repositories, clock, RNG, LLM gateway, verifier, event publisher.
-
-**3) Interface Adapters**
-
-* Ktor controllers/handlers that translate WS/HTTP DTOs ↔ use case requests/responses.
-* Presenters (mapping to client event messages).
-* Implementations of ports that still aren’t “infrastructure heavy” (e.g., mapping DB rows to domain models can live here or in infra depending on taste).
-
-**4) Infrastructure**
-
-* Ktor server wiring, WebSocket sessions, DB implementation, migrations, OpenAI/Anthropic client, Redis (optional), logging/metrics.
-* Dagger graph assembly.
-
-A useful mental model is: **Domain/Application must compile without Ktor or any LLM SDK present**.
+Everything else should remain minimal and easy to swap.
 
 ---
 
-## Core domain model
+## Runtime file layout (next to the .jar)
 
-### Session and round
+At runtime, the app reads configs relative to the directory containing `config.toml` (your `ConfigLoader` already sets `lmversusu.configDir`).
 
-A `GameSession` has:
+Recommended layout:
 
-* `sessionId: Uuid`
-* `mode: GameMode` (`LIGHTWEIGHT`, `PREMIUM`, later `SUPER_PREMIUM`)
-* `llmProfile: LlmProfile` (model name, temperature, etc.)
-* `players: PlayerSet` (human + “LLM player”)
-* `rounds: List<Round>` where each round has a `questionRef`, timers, submissions, and result.
-* `state: SessionState` (WAITING, IN_PROGRESS, COMPLETED)
+```
+<run-dir>/
+  config.toml
+  LLM-Configs/
+    lightweight-modelspec.json
+    premium-modelspec.json
+    (more specs later...)
+  Datasets/
+    lightweight/
+      sonnet45_mmlu_pro_subset/
+        items.jsonl
+        manifest.json
+    question-sets/
+      mmlu_pro_subset.jsonl
+```
 
-A `Round` has:
+Notes:
 
-* `roundId: Uuid`
-* `question: Question` (domain object that includes prompt, choices if any, metadata like difficulty)
-* `releasedAt: Instant`
-* `handicap: Duration` (human head start)
-* `deadline: Instant`
-* `humanSubmission: Submission?`
-* `llmSubmission: Submission?`
-* `result: RoundResult?`
+* `LLM-Configs/` contains “what opponents exist” and how to run them.
+* `Datasets/` contains question sets and (for Lightweight) replay items including reasoning and final answers.
+* Keep secrets out of JSON when possible. If you *must* include API keys in JSON, support `ENV:` like `config.toml` does.
 
-### Question and answers
-
-Represent answer as a sealed type so verification stays polymorphic:
-
-* `Answer.MultipleChoice(choiceIndex: Int)`
-* `Answer.Integer(value: Int)` (with constraints defined per question, e.g., 0–100)
-* `Answer.FreeText(text: String)` (future)
-
-The `Question` carries a `VerifierSpec` that tells the application which verifier to use, without hard-coding the verifier inside the entity.
-
-### Scoring
-
-Given it’s a “race,” scoring typically uses:
-
-* correctness (binary or partial later),
-* time-to-submit from `releasedAt` (server clock),
-* tie-breakers (earliest correct wins, else both wrong → fastest wrong or no winner).
-
-Keep the scoring logic as a domain policy: `ScorePolicy.compute(round)`.
+Your `ConfigLoader.copyDefaultLlmConfigs()` already copies `src/main/resources/LLM-Configs/*.json` to `<run-dir>/LLM-Configs/` on first run. This is exactly the right direction; the plan below assumes we keep that behavior.
 
 ---
 
-## Pluggable verification (future-proofing)
+## Core concept: Separate “source of output” from “shape of stream”
 
-Define a port:
+You want this UX:
 
-```kotlin
-interface AnswerVerifier {
-  fun verify(question: Question, submission: Submission): VerificationOutcome
+* LLM thinking starts
+* reasoning is produced immediately, but **only becomes visible after ~10s**
+* once the final answer is ready, **flush remaining buffered reasoning quickly** and then show the final answer immediately
+
+That is not a Lightweight-only concern. It is a **stream shaping** policy.
+
+So we treat the pipeline as two independent layers:
+
+1. **Source**: `LlmPlayerGateway` produces `Flow<LlmStreamEvent>`
+
+    * Lightweight reads a precomputed dataset and emits events
+    * Premium connects to a provider and emits events
+
+2. **Shaper**: `LlmStreamOrchestrator` takes that `Flow` and re-times it (delay, target TPS, flush-on-final, caps)
+
+The shaper is where “TPS × 5”, “10s reveal delay”, and “burst flush” live. The source should stay dumb.
+
+---
+
+## WebSocket event model for real-time UI updates
+
+The client should be able to update two visible fields continuously:
+
+* `reasoningSummary` (append deltas)
+* `finalAnswer` (set once at the end)
+
+So the server should emit two WS event types during a round:
+
+* `llm_reasoning_delta` (append-only text)
+* `llm_final_answer` (the parsed `LlmAnswer`)
+
+Optionally, a cosmetic signal:
+
+* `llm_thinking` (spinner/progress)
+
+You can either add these to `GameEvent` or keep them as WS-only DTOs. Since you already have `GameEventBus` and `GameEvent`, the least invasive approach is to extend `GameEvent` with two new events:
+
+* `GameEvent.LlmReasoningDelta(sessionId, roundId, deltaText, seq)`
+* `GameEvent.LlmFinalAnswer(sessionId, roundId, answer)`
+
+Then `presentation` maps `GameEvent` to WS frames.
+
+This keeps the use cases emitting domain-ish events, while the WS layer stays a translator.
+
+---
+
+## Streaming policy (the “fight feel”)
+
+Define a small, explicit policy object that can be configured per opponent:
+
+**Policy behaviors**
+
+* `revealDelayMs`: how long the server buffers reasoning before sending any of it
+* `targetTokensPerSecond`: baseline playback rate once revealing starts
+* `burstMultiplierOnFinal`: when final arrives, replay remaining buffered reasoning at `targetTPS * multiplier` (or as fast as possible)
+* `maxBufferedChars`: safety cap to avoid runaway memory usage
+
+This policy must be applied to the stream regardless of whether the underlying stream is live (Premium) or replayed (Lightweight).
+
+**Important simplification**
+“Tokens per second” is an approximation unless your provider gives exact token counts. For Lightweight you can store token counts in the dataset, or approximate by characters. The policy should be phrased in a way that tolerates approximation.
+
+---
+
+## Model specs: keep them simple, mode-specific
+
+You requested that Lightweight and Premium specs be separated because their operational mental model differs. The simplest way to honor that without over-engineering is:
+
+* `lightweight-modelspec.json`: “This model replay package contains its own problem set.”
+* `premium-modelspec.json`: “This problem set is solved by this live model/provider.”
+
+### Lightweight modelspec (example)
+
+`LLM-Configs/lightweight-modelspec.json`
+
+```json
+{
+  "id": "lightweight-sonnet45-mmlu-pro",
+  "mode": "LIGHTWEIGHT",
+  "displayName": "Claude Sonnet 4.5 (Replay)",
+  "llmProfile": {
+    "modelName": "claude-sonnet-4.5",
+    "displayName": "Sonnet 4.5"
+  },
+  "datasetPath": "Datasets/lightweight/sonnet45_mmlu_pro_subset",
+  "streaming": {
+    "revealDelayMs": 10000,
+    "targetTokensPerSecond": 120,
+    "burstMultiplierOnFinal": 5.0,
+    "maxBufferedChars": 200000
+  }
 }
 ```
 
-Then implement strategies:
+This is “model owns set” because `datasetPath` points to a folder that already contains questions + reasoning + answers.
 
-* `MultipleChoiceVerifier` (matches correct index)
-* `IntegerRangeVerifier` (exact match; enforces bounds like 0–100)
-* Later `FreeResponseVerifier` (could be rubric-based, embedding similarity, or “LLM-as-judge” behind a separate safety/abuse gate)
+### Premium modelspec (example)
 
-The game engine never needs to know *how* verification works; it only consumes `VerificationOutcome(correct: Boolean, score: Double?)`.
+`LLM-Configs/premium-modelspec.json`
 
----
-
-## LLM opponent abstraction (Lightweight vs Premium)
-
-Define another port:
-
-```kotlin
-interface LlmPlayerGateway {
-  suspend fun getAnswer(roundContext: RoundContext): LlmAnswer
+```json
+{
+  "id": "premium-kimi-k2-mmlu-pro",
+  "mode": "PREMIUM",
+  "displayName": "Kimi K2 Thinking (Live)",
+  "llmProfile": {
+    "modelName": "kimi-k2-thinking",
+    "displayName": "Kimi K2"
+  },
+  "provider": {
+    "providerName": "some-provider",
+    "apiUrl": "https://provider.example/v1",
+    "apiKey": "ENV:KIMI_API_KEY"
+  },
+  "questionSetPath": "Datasets/question-sets/mmlu_pro_subset.jsonl",
+  "streaming": {
+    "revealDelayMs": 10000,
+    "targetTokensPerSecond": 80,
+    "burstMultiplierOnFinal": 5.0,
+    "maxBufferedChars": 200000
+  }
 }
 ```
 
-Where `LlmAnswer` can include:
+This is “set owns model” because the questions come from `questionSetPath` and the model/provider is attached at runtime.
 
-* `finalAnswer: Answer`
-* optional `reasoningSummary: String` (be careful about leaking benchmark solutions if you care about spoiler culture)
-* optional streaming events (see below)
-
-Two concrete implementations:
-
-1. **LightweightLlmPlayerGateway**
-   Looks up precomputed outputs by `(questionId, llmProfile)` and returns them. You can also simulate latency by scheduling “thinking” events for fun.
-
-2. **ApiLlmPlayerGateway**
-   Calls the real API. It should be wrapped with:
-
-   * timeouts,
-   * retry/backoff for transient failures,
-   * a strict budget limit per session/day (festival safety),
-   * response parsing into your `Answer` types.
-
-### Handicap behavior
-
-The cleanest approach is to **release the question to the human immediately**, then trigger the LLM attempt after `handicap` elapses. That makes the concept intuitive and easy to enforce server-side. In Lightweight mode, you still delay the “LLM answered” event until handicap passes (even though you already know it).
+If you prefer to keep provider secrets only in `config.toml`, you can replace the `provider` object with something like `"providerRef": "primary"` and reuse `AppConfig.llmConfig.primary`, but the file above matches your “premium needs url etc” expectation without adding extra layers.
 
 ---
 
-## Real-time transport design (WebSocket-first, REST for misc)
+## Dataset formats
 
-### Why WS is the “source of truth”
+### Lightweight dataset (recommended minimal structure)
 
-All time and scoring should be computed on the server. The client UI can show countdowns, but must treat server events as authoritative. This keeps the game fair even if someone modifies their browser clock or sends crafted messages.
+`Datasets/lightweight/<pack>/manifest.json`
 
-### Connection model
+* metadata, counts, optional averages (like average TPS), versioning
 
-* Client opens a WS to `/ws/game`.
-* Server assigns/reads a `clientId` cookie (anonymous) and binds it to a `playerId` inside the session.
-* Session join uses a short `joinCode` (e.g., base32) plus the server-created `sessionId`.
+`Datasets/lightweight/<pack>/items.jsonl`
+Each line is one round item:
 
-### Event protocol
+```json
+{
+  "questionId": "uuid",
+  "prompt": "....",
+  "choices": ["A", "B", "C", "D"],
+  "verifierSpec": { "type": "multiple_choice", "correctIndex": 2 },
 
-Use a small typed event system. For example:
+  "llmReasoning": "full reasoning text ...",
+  "llmFinalAnswer": { "type": "multiple_choice", "choiceIndex": 2 },
 
-Client → Server:
-
-* `CreateSession(mode, llmProfile, difficultyPreset?)`
-* `JoinSession(joinCode, nickname)`
-* `StartSession` (if you want a host)
-* `SubmitAnswer(roundId, answerPayload, clientSentAt?, nonceToken)`
-* `Ping(seq)` (optional, for latency display)
-
-Server → Client:
-
-* `SessionCreated(sessionId, joinCode)`
-* `SessionState(snapshot)`
-* `RoundStarted(roundId, questionPayload, releasedAt, handicapMs, deadlineAt, nonceToken)`
-* `LlmThinking(roundId, progress?)` (optional cosmetic)
-* `LlmSubmitted(roundId)` / `LlmAnswerRevealed(roundId, llmAnswer)` (depending on your spoiler preference)
-* `RoundResult(roundId, correctAnswer, humanOutcome, llmOutcome, scores)`
-* `SessionCompleted(finalScores, leaderboardDelta?)`
-* `Error(code, message)`
-
-The `nonceToken` is important: it’s a per-round server-generated token tied to that connection/session so you can reject forged submissions for other rounds/sessions.
-
-### “Don’t leak answers” rule
-
-Until the round is finished, the server sends only:
-
-* the question (and choices),
-* timing info,
-* maybe the LLM “is thinking” status.
-
-It never sends:
-
-* the correct answer,
-* the LLM final answer (unless you want to show it live; but that invites copying).
-
-You can reveal both after the human submits or time expires.
-
----
-
-## Use cases (application layer)
-
-At minimum, these interactors keep your system modular:
-
-* `CreateSessionUseCase`: chooses mode/profile, allocates session state, generates join code.
-* `JoinSessionUseCase`: attaches a player connection and nickname, returns snapshot.
-* `StartSessionUseCase`: selects 3 questions via `QuestionBank`, initializes Round 1.
-* `SubmitAnswerUseCase`: validates nonce, locks the submission, computes server submit time.
-* `ResolveRoundUseCase`: once human submitted or deadline reached, triggers verification and scoring, emits results.
-* `TriggerLlmUseCase`: after handicap, requests LLM answer via gateway (or looks up precomputed), records it.
-* `EndSessionUseCase`: persists summary result, updates leaderboard.
-
-A small but valuable pattern is introducing a `GameEventBus` port so your use cases can emit domain events (`RoundStarted`, `RoundResolved`, etc.) and the WS adapter simply subscribes and forwards them to connected clients.
-
----
-
-## Data persistence (keep it light)
-
-For festival scale and easy deploy, you have three good options:
-
-1. **SQLite** (file-based): easiest operationally, but on some hosts ephemeral disk resets can wipe data. Great if you don’t care about persistence.
-2. **Postgres on Render**: very standard, persists winners list.
-3. **In-memory + periodic JSON dump**: simplest code, but fragile.
-
-A reasonable compromise is Postgres (or even Render’s managed Postgres) with only a few tables.
-
-### Minimal schema
-
-* `question_bank` (optional if you store questions as JSON in resources)
-* `session_results`:
-
-  * sessionId, createdAt, mode, llmProfile, humanNickname, humanScore, llmScore, won(boolean), durationMs
-* `leaderboard_entries` (or derive from results with a query):
-
-  * dateBucket, nickname, bestScore, bestTimeMs
-
-Keep question content out of DB if you want; store static JSON for MMLU-Pro subsets and load at startup. For Lightweight mode with precomputed LLM outputs, you can store those alongside the questions in resources or in a separate table/file keyed by `questionId`.
-
----
-
-## Question bank strategy
-
-Create a `QuestionBank` port:
-
-```kotlin
-interface QuestionBank {
-  fun pickQuestions(count: Int, constraints: QuestionConstraints): List<Question>
+  "replay": {
+    "avgTokensPerSecond": 90,
+    "reasoningTokenCount": 900
+  }
 }
 ```
 
-Implementation options:
+You can keep this even simpler if you want: a single `items.jsonl` is enough. The important part is that it contains the full reasoning and the final answer.
 
-* `ResourceJsonQuestionBank` reading `resources/questions/*.json`
-* Later `DbQuestionBank`
+### Premium question set
 
-For “not memorized as a set,” what matters most is rotating and having enough items; per-session UUIDs don’t prevent memorization if the underlying question text repeats, but they do help with protocol integrity. If you can’t increase the dataset, consider mixing in randomized parameter variants for math-style questions where possible.
+`Datasets/question-sets/<set>.jsonl` contains questions + ground truth, but no model output:
 
----
+```json
+{
+  "questionId": "uuid",
+  "prompt": "...",
+  "choices": ["A", "B", "C", "D"],
+  "verifierSpec": { "type": "multiple_choice", "correctIndex": 2 }
+}
+```
 
-## Package/module structure (Gradle multi-module recommended)
-
-A clean split that maps directly to architecture:
-
-* `:domain`
-
-  * entities, value objects, policies
-* `:application`
-
-  * use cases, ports, DTOs (use-case request/response models), domain events
-* `:adapters`
-
-  * ktor handlers, websocket protocol mapping, presenters
-* `:infrastructure`
-
-  * db implementations, migrations, LLM API client impls, config/env, logging
-* `:app`
-
-  * Ktor entrypoint, Dagger component assembly, module wiring
-
-This structure makes it hard to accidentally couple domain logic to Ktor, and it keeps testing pleasant.
+That keeps the question bank consistent across modes.
 
 ---
 
-## Dependency injection with Dagger + KSP
+## Proposed package layout (single Gradle module, clean packages)
 
-Use Dagger to bind ports to implementations at the outer layers:
+Keep one module for now, but enforce Clean Architecture by package boundaries:
 
-* Bind `QuestionBank` → `ResourceJsonQuestionBank` (or DB version)
-* Bind `LlmPlayerGateway` → either lightweight or API gateway based on `mode`
-* Bind `ResultsRepository` → `ExposedResultsRepository` / `JdbiResultsRepository` / plain JDBC, etc.
-* Bind `Clock` → `SystemClock` (and a fake clock for tests)
+* `internal/domain/...`
+  Entities, value objects, policies (`ScorePolicy`, `HandicapPolicy`)
 
-The important part is that use cases depend on **interfaces** (ports), and Dagger wires concrete classes only in `:app`/`:infrastructure`.
+* `internal/application/port/...`
+  Existing ports plus a few new ones:
 
----
+    * `OpponentSpecRepository` (loads modelspec JSONs)
+    * `ReplayDatasetRepository` (reads Lightweight dataset)
 
-## Concurrency model (Ktor + coroutines)
+* `internal/application/usecase/...`
 
-* Each WS connection runs in a coroutine context.
-* Game session state should be protected. For a single-instance festival server, a pragmatic pattern is:
+    * `CreateSessionUseCase`, `JoinSessionUseCase`, `StartRoundUseCase`, `SubmitAnswerUseCase`, etc.
+    * `TriggerLlmUseCase` (starts streaming after handicap)
 
-  * store sessions in a `ConcurrentHashMap<SessionId, SessionActor>`
-  * each `SessionActor` has a `Channel<Command>` and processes sequentially (actor model), ensuring no race conditions when submissions and LLM answers arrive simultaneously.
-* Timeouts/deadlines are scheduled inside the session actor (using `delay`), not on clients.
+* `internal/application/service/...`
+  Small coordination services that are not domain policies:
 
-This actor approach makes correctness much easier than sprinkling locks.
+    * `LlmStreamOrchestrator` (the stream shaper described above)
 
----
+* `internal/infrastructure/spec/...`
 
-## Observability and safety
+    * JSON parsing + file IO for modelspecs
+    * resolves `ENV:` secrets if used
 
-Even for a festival project, you’ll thank yourself for:
+* `internal/infrastructure/llm/...`
 
-* structured logs (sessionId, roundId, playerId),
-* request/WS event counters,
-* a hard cap on premium API usage (per IP and per day) to avoid surprise bills,
-* graceful degradation: if LLM API fails, declare the LLM forfeited for that round or fall back to lightweight answers.
+    * `LightweightLlmPlayerGatewayImpl`
+    * `PremiumLlmPlayerGatewayImpl` (provider client + streaming)
 
----
+* `internal/infrastructure/game/...`
 
-## Deployment to Render (simple path)
+    * `SessionManager` + `SessionActor`
+    * `InMemoryGameEventBusImpl`
 
-A practical deployment shape:
+* `internal/presentation/ktor/game/...`
+  WebSocket route, DTO mapping, subscription lifecycle
 
-* Build a Docker image for the Ktor server.
-* Configure environment variables:
-
-  * `PORT`, `DATABASE_URL`, `LLM_API_KEY`, `MODE_DEFAULT`, etc.
-* If you use Postgres, add managed Postgres and run migrations on startup (Flyway is straightforward).
-* Keep a single instance to avoid multi-instance session routing issues. If you later scale horizontally, you’ll want Redis (or another shared store) for session state and a sticky-session load balancer.
+This avoids multi-module complexity while still keeping the “direction” correct.
 
 ---
 
-## Testing strategy (fast and architecture-aligned)
+## Session actor and streaming wiring (server-side)
 
-* Domain tests: scoring, handicap, round lifecycle.
-* Use case tests: submission handling, timeouts, verification dispatch.
-* Adapter tests: WS message decoding/encoding and error mapping.
-* Infrastructure tests: DB repository integration and LLM gateway parsing (with recorded fixtures).
+To keep concurrency simple and avoid race conditions, use an actor per session:
 
-Because the domain/application layers don’t depend on Ktor, most tests are just plain Kotlin/JUnit and run very fast.
+* `SessionActor` owns all mutable session state.
+* External stimuli become commands into the actor channel:
+
+    * player join, start round, submit answer
+    * **LLM stream events** (important: the collector should push into the actor, not mutate state directly)
+
+### LLM stream flow in the actor
+
+1. Round starts
+2. After handicap, actor triggers LLM:
+
+    * obtains `Flow<LlmStreamEvent>` from `LlmPlayerGateway.streamAnswer(context)`
+    * passes it through `LlmStreamOrchestrator.apply(policy, flow)`
+3. The orchestrator emits a timed stream:
+
+    * nothing is revealed during `revealDelayMs`
+    * after reveal begins, deltas are published at target TPS
+    * on final, flush buffered reasoning and publish final immediately
+4. Each emitted event becomes a `GameEvent` and goes through `GameEventBus` to WS clients.
+
+This produces the exact “fight” feeling without baking Lightweight assumptions into the UI layer.
+
+---
+
+## Client behavior (minimal expectations)
+
+The client keeps two mutable strings in UI state:
+
+* `reasoningText`: append incoming `llm_reasoning_delta.deltaText`
+* `finalAnswer`: set on `llm_final_answer`
+
+If the client reconnects mid-round, the server can either:
+
+* replay from a snapshot (optional), or
+* keep it simple and only show new deltas from that point (acceptable for festival).
+
+Keeping it simple is fine initially.
+
+---
+
+## Incremental implementation steps (kept intentionally small)
+
+1. **Add modelspec loader** that reads `LLM-Configs/*.json` from `<run-dir>`
+   It returns a list of `OpponentSpec` items.
+
+2. **Implement Lightweight gateway** that reads a dataset item by `questionId` and produces a `Flow<LlmStreamEvent>`.
+
+3. **Implement Premium gateway** that calls a provider and produces a `Flow<LlmStreamEvent>`.
+   If the provider does not support reasoning streaming, emit only `FinalAnswer` (the orchestrator still works).
+
+4. **Implement `LlmStreamOrchestrator`** with:
+
+    * delayed reveal
+    * target TPS playback
+    * burst flush on final
+    * buffer caps
+
+5. **Extend WS protocol** so deltas and finals reach the client.
+
+This sequence lets you test the “fight feel” quickly using Lightweight while keeping the design ready for Premium.
+
+
+---
+
+## Appendix A: Workflow Diagrams
+
+### A.1 Game Session Lifecycle
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                          SESSION LIFECYCLE                               │
+└─────────────────────────────────────────────────────────────────────────┘
+
+  ┌──────────────┐     ┌───────────────┐     ┌─────────────┐
+  │ Create       │────▶│ Select        │────▶│ Join        │
+  │ Session      │     │ Opponent      │     │ Session     │
+  └──────────────┘     │ (modelspec)   │     └──────┬──────┘
+                       └───────────────┘            │
+                                                    ▼
+  ┌──────────────┐     ┌───────────────┐     ┌─────────────┐
+  │ Session      │◀────│ Round N       │◀────│ Start       │
+  │ Complete     │     │ Complete      │     │ Round 1     │
+  └──────────────┘     └───────────────┘     └─────────────┘
+                              ▲                     │
+                              │     ┌───────────────┘
+                              │     ▼
+                       ┌──────┴──────────────────────────────┐
+                       │         ROUND LOOP (3 rounds)       │
+                       │  ┌────────┐  ┌────────┐  ┌────────┐ │
+                       │  │Round 1 │─▶│Round 2 │─▶│Round 3 │ │
+                       │  └────────┘  └────────┘  └────────┘ │
+                       └─────────────────────────────────────┘
+```
+
+### A.2 Single Round Flow
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                           SINGLE ROUND FLOW                              │
+└─────────────────────────────────────────────────────────────────────────┘
+
+      PLAYER                    SERVER                       LLM
+        │                          │                          │
+        │   ◀── Question Sent ──   │                          │
+        │                          │                          │
+        │                          │   ── Trigger LLM ──▶     │
+        │                          │      (after handicap)    │
+        │                          │                          │
+        │   ◀── llm_thinking ──    │   ◀── Stream begins ──   │
+        │        (spinner)         │                          │
+        │                          │                          │
+        │        ┌─────────────────┴─────────────────┐        │
+        │        │     REVEAL_DELAY (10s buffer)     │        │
+        │        │   [reasoning buffered, hidden]    │        │
+        │        └─────────────────┬─────────────────┘        │
+        │                          │                          │
+        │   ◀── reasoning_delta ── │   ◀── ReasoningChunk ──  │
+        │        (visible now)     │        (target TPS)      │
+        │                          │                          │
+        │   ── Submit Answer ──▶   │                          │
+        │                          │   ◀── Final Answer ──    │
+        │                          │                          │
+        │        ┌─────────────────┴─────────────────┐        │
+        │        │   BURST FLUSH remaining buffer    │        │
+        │        │      (TPS × burstMultiplier)      │        │
+        │        └─────────────────┬─────────────────┘        │
+        │                          │                          │
+        │   ◀── llm_final_answer ──│                          │
+        │                          │                          │
+        │   ◀── Round Result ──    │                          │
+        ▼                          ▼                          ▼
+```
+
+### A.3 LLM Streaming Pipeline
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        LLM STREAMING PIPELINE                            │
+└─────────────────────────────────────────────────────────────────────────┘
+
+ ┌───────────────────────────────────────────────────────────────────────┐
+ │                         SOURCE LAYER                                   │
+ │                                                                        │
+ │   ┌──────────────────────┐       ┌──────────────────────┐             │
+ │   │     LIGHTWEIGHT      │       │       PREMIUM        │             │
+ │   │  LlmPlayerGateway    │       │  LlmPlayerGateway    │             │
+ │   ├──────────────────────┤       ├──────────────────────┤             │
+ │   │ • Read from dataset  │       │ • Live API call      │             │
+ │   │ • items.jsonl        │       │ • Provider streaming │             │
+ │   │ • Precomputed output │       │ • Real-time output   │             │
+ │   └──────────┬───────────┘       └──────────┬───────────┘             │
+ │              │                              │                          │
+ │              └──────────┬───────────────────┘                          │
+ │                         ▼                                              │
+ │               Flow<LlmStreamEvent>                                     │
+ │               ┌─────────────────┐                                      │
+ │               │ ReasoningChunk  │                                      │
+ │               │ FinalAnswer     │                                      │
+ │               └────────┬────────┘                                      │
+ └────────────────────────┼───────────────────────────────────────────────┘
+                          ▼
+ ┌───────────────────────────────────────────────────────────────────────┐
+ │                         SHAPER LAYER                                   │
+ │                                                                        │
+ │                  ┌─────────────────────────┐                           │
+ │                  │   LlmStreamOrchestrator │                           │
+ │                  ├─────────────────────────┤                           │
+ │                  │ Policy:                 │                           │
+ │                  │ • revealDelayMs: 10000  │                           │
+ │                  │ • targetTPS: 80-120     │                           │
+ │                  │ • burstMultiplier: 5.0  │                           │
+ │                  │ • maxBufferedChars      │                           │
+ │                  └───────────┬─────────────┘                           │
+ │                              │                                         │
+ │          ┌───────────────────┴───────────────────┐                     │
+ │          ▼                                       ▼                     │
+ │   ┌─────────────┐                        ┌─────────────┐               │
+ │   │ BUFFER      │──(after delay)──▶      │ EMIT        │               │
+ │   │ reasoning   │                        │ at target   │               │
+ │   └─────────────┘                        │ TPS rate    │               │
+ │          │                               └──────┬──────┘               │
+ │          │ on FinalAnswer                       │                      │
+ │          ▼                                      ▼                      │
+ │   ┌─────────────┐                     Flow<LlmStreamEvent>             │
+ │   │ BURST FLUSH │                       (timed/shaped)                 │
+ │   │ remaining   │─────────────────────────────▶│                       │
+ │   └─────────────┘                              │                       │
+ └────────────────────────────────────────────────┼───────────────────────┘
+                                                  ▼
+ ┌───────────────────────────────────────────────────────────────────────┐
+ │                       DELIVERY LAYER                                   │
+ │                                                                        │
+ │   ┌─────────────────────┐                                              │
+ │   │    SessionActor     │──▶ Maps to GameEvent                         │
+ │   └──────────┬──────────┘                                              │
+ │              ▼                                                         │
+ │   ┌─────────────────────┐                                              │
+ │   │    GameEventBus     │──▶ Publishes events                          │
+ │   └──────────┬──────────┘                                              │
+ │              ▼                                                         │
+ │   ┌─────────────────────┐     ┌─────────────────────────────┐         │
+ │   │  WebSocket Route    │───▶│  Client UI                  │         │
+ │   │  (presentation)     │     │  • reasoningText (append)   │         │
+ │   │                     │     │  • finalAnswer (set once)   │         │
+ │   └─────────────────────┘     └─────────────────────────────┘         │
+ │                                                                        │
+ │   Events:                                                              │
+ │   ├── llm_reasoning_delta(sessionId, roundId, deltaText, seq)         │
+ │   └── llm_final_answer(sessionId, roundId, answer)                    │
+ └───────────────────────────────────────────────────────────────────────┘
+```
+
+### A.4 Mode Comparison
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        MODE COMPARISON                                   │
+└─────────────────────────────────────────────────────────────────────────┘
+
+  ┌─────────────────────────────┐     ┌─────────────────────────────┐
+  │        LIGHTWEIGHT          │     │          PREMIUM            │
+  ├─────────────────────────────┤     ├─────────────────────────────┤
+  │                             │     │                             │
+  │  "Model owns problem set"   │     │  "Problem set owns model"   │
+  │                             │     │                             │
+  │  ┌───────────────────────┐  │     │  ┌───────────────────────┐  │
+  │  │ lightweight-spec.json │  │     │  │  premium-spec.json    │  │
+  │  │ ├─ datasetPath ───────┼──┼─┐   │  │  ├─ questionSetPath ──┼──┼──┐
+  │  │ └─ llmProfile         │  │ │   │  │  ├─ provider (live)   │  │  │
+  │  └───────────────────────┘  │ │   │  │  └─ llmProfile        │  │  │
+  │                             │ │   │  └───────────────────────┘  │  │
+  │  ┌───────────────────────┐  │ │   │                             │  │
+  │  │ Datasets/lightweight/ │◀─┼─┘   │  ┌───────────────────────┐  │  │
+  │  │ └─ items.jsonl        │  │     │  │ Datasets/question-    │◀─┼──┘
+  │  │    ├─ question        │  │     │  │   sets/*.jsonl        │  │
+  │  │    ├─ llmReasoning ✓  │  │     │  │    ├─ question        │  │
+  │  │    ├─ llmFinalAnswer✓ │  │     │  │    ├─ verifierSpec    │  │
+  │  │    └─ replay metadata │  │     │  │    └─ (no LLM output) │  │
+  │  └───────────────────────┘  │     │  └───────────────────────┘  │
+  │                             │     │                             │
+  │  ✓ Offline / No API cost    │     │  ✓ Live LLM interaction    │
+  │  ✓ Deterministic replays    │     │  ✓ Real reasoning          │
+  │  ✗ No dynamic responses     │     │  ✗ Requires API key        │
+  │                             │     │                             │
+  └─────────────────────────────┘     └─────────────────────────────┘
+
+                    │                            │
+                    └────────────┬───────────────┘
+                                 ▼
+                    ┌─────────────────────────┐
+                    │  Same streaming policy  │
+                    │  Same shaping behavior  │
+                    │  Same client protocol   │
+                    └─────────────────────────┘
+```
