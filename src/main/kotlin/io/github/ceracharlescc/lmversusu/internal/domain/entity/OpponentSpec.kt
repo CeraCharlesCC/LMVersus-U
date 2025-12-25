@@ -1,6 +1,7 @@
 package io.github.ceracharlescc.lmversusu.internal.domain.entity
 
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.LlmProfile
+import io.github.ceracharlescc.lmversusu.internal.domain.vo.streaming.StreamingPolicy
 import kotlinx.serialization.DeserializationStrategy
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
@@ -40,14 +41,6 @@ internal sealed interface OpponentSpec {
 }
 
 @Serializable
-internal data class StreamingPolicy(
-    val revealDelayMs: Long,
-    val targetTokensPerSecond: Int,
-    val burstMultiplierOnFinal: Double,
-    val maxBufferedChars: Int,
-)
-
-@Serializable
 internal data class ProviderConfig(
     val providerName: String,
     val apiUrl: String,
@@ -55,7 +48,7 @@ internal data class ProviderConfig(
 )
 
 internal object OpponentSpecModeSerializer : JsonContentPolymorphicSerializer<OpponentSpec>(OpponentSpec::class) {
-    override fun selectDeserializer(element: JsonElement): DeserializationStrategy<out OpponentSpec> {
+    override fun selectDeserializer(element: JsonElement): DeserializationStrategy<OpponentSpec> {
         val mode = element.jsonObject["mode"]?.jsonPrimitive?.content
             ?: throw SerializationException("OpponentSpec is missing 'mode'")
 

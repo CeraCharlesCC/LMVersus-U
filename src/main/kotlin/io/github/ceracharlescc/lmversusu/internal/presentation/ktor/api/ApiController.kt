@@ -3,13 +3,9 @@ package io.github.ceracharlescc.lmversusu.internal.presentation.ktor.api
 import io.github.ceracharlescc.lmversusu.internal.application.usecase.GetAvailableModelsUseCase
 import io.github.ceracharlescc.lmversusu.internal.application.usecase.GetLeaderboardUseCase
 import io.github.ceracharlescc.lmversusu.internal.domain.entity.GameMode
-import io.github.ceracharlescc.lmversusu.internal.domain.entity.LeaderboardEntry
-import io.github.ceracharlescc.lmversusu.internal.domain.entity.OpponentSpec
 import io.github.ceracharlescc.lmversusu.internal.presentation.ktor.api.response.ApiResponse
 import io.github.ceracharlescc.lmversusu.internal.presentation.ktor.api.response.LeaderboardResponse
 import io.github.ceracharlescc.lmversusu.internal.presentation.ktor.api.response.ModelsResponse
-import io.github.ceracharlescc.lmversusu.internal.presentation.ktor.api.serializer.OpponentSpecPublicSerializer
-import kotlinx.serialization.Serializable
 import javax.inject.Inject
 import javax.inject.Singleton
 

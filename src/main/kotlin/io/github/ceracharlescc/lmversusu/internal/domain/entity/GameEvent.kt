@@ -1,5 +1,7 @@
 package io.github.ceracharlescc.lmversusu.internal.domain.entity
 
+import io.github.ceracharlescc.lmversusu.internal.domain.vo.streaming.LlmAnswer
+import io.github.ceracharlescc.lmversusu.internal.domain.vo.streaming.StreamSeq
 import java.time.Instant
 import kotlin.uuid.Uuid
 
@@ -29,22 +31,6 @@ internal sealed class GameEvent {
         val nonceToken: String
     ) : GameEvent()
 
-    data class LlmThinking(
-        override val sessionId: Uuid,
-        val roundId: Uuid,
-        val progress: Int? = null
-    ) : GameEvent()
-
-    data class LlmSubmitted(
-        override val sessionId: Uuid,
-        val roundId: Uuid
-    ) : GameEvent()
-
-    data class HumanSubmitted(
-        override val sessionId: Uuid,
-        val roundId: Uuid
-    ) : GameEvent()
-
     data class RoundResolved(
         override val sessionId: Uuid,
         val roundId: Uuid,
@@ -67,5 +53,42 @@ internal sealed class GameEvent {
         override val sessionId: Uuid,
         val errorCode: String,
         val message: String
+    ) : GameEvent()
+
+    data class SubmissionReceived(
+        override val sessionId: Uuid,
+        val roundId: Uuid,
+        val playerType: Player.PlayerType,
+    ) : GameEvent()
+
+    data class LlmThinking(
+        override val sessionId: Uuid,
+        val roundId: Uuid,
+        val progress: Int? = null,
+    ) : GameEvent()
+
+    data class LlmReasoningDelta(
+        override val sessionId: Uuid,
+        val roundId: Uuid,
+        val deltaText: String,
+        val seq: StreamSeq,
+    ) : GameEvent()
+
+    data class LlmReasoningTruncated(
+        override val sessionId: Uuid,
+        val roundId: Uuid,
+        val droppedChars: Int,
+    ) : GameEvent()
+
+    data class LlmFinalAnswer(
+        override val sessionId: Uuid,
+        val roundId: Uuid,
+        val answer: LlmAnswer,
+    ) : GameEvent()
+
+    data class LlmStreamError(
+        override val sessionId: Uuid,
+        val roundId: Uuid,
+        val message: String,
     ) : GameEvent()
 }

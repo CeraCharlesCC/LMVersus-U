@@ -1,7 +1,8 @@
 package io.github.ceracharlescc.lmversusu.internal.application.port
 
-import io.github.ceracharlescc.lmversusu.internal.domain.vo.Answer
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.LlmProfile
+import io.github.ceracharlescc.lmversusu.internal.domain.vo.streaming.LlmAnswer
+import io.github.ceracharlescc.lmversusu.internal.domain.vo.streaming.LlmStreamEvent
 import kotlinx.coroutines.flow.Flow
 import kotlin.uuid.Uuid
 
@@ -30,19 +31,3 @@ internal data class RoundContext(
     val choices: List<String>?,
     val llmProfile: LlmProfile
 )
-
-internal data class LlmAnswer(
-    val finalAnswer: Answer,
-    val reasoningSummary: String? = null,
-    val confidenceScore: Double? = null
-)
-
-internal sealed class LlmStreamEvent {
-    data class ReasoningDelta(
-        val deltaText: String,
-        val emittedTokenCount: Int,
-        val totalTokenCount: Int
-    ) : LlmStreamEvent()
-
-    data class FinalAnswer(val answer: LlmAnswer) : LlmStreamEvent()
-}
