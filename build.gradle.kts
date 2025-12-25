@@ -52,3 +52,18 @@ dependencies {
     testImplementation(libs.ktor.client.content.negotiation)
     testImplementation(libs.kotlin.test.junit)
 }
+
+tasks.test {
+    jvmArgs("-Dlmversusu.configDir=${projectDir}")
+}
+
+tasks.register<JavaExec>("testRun") {
+    group = "application"
+    description = "Runs the Ktor server as a manual integration test."
+
+    mainClass.set("io.ktor.server.netty.EngineMain")
+    classpath = sourceSets["main"].runtimeClasspath
+
+    workingDir = projectDir
+    jvmArgs("-Dlmversusu.configDir=${projectDir}")
+}
