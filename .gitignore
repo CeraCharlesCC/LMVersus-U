@@ -34,3 +34,7 @@ out/
 
 ### VS Code ###
 .vscode/
+
+### Testintg ###
+/LLM-Configs/
+/config.test.toml
