@@ -1,16 +1,68 @@
 package io.github.ceracharlescc.lmversusu.internal.domain.entity
 
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.LlmProfile
+import kotlinx.serialization.DeserializationStrategy
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerializationException
+import kotlinx.serialization.json.JsonContentPolymorphicSerializer
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 
-/**
- * Represents an opponent specification loaded from a modelspec JSON file.
- * Contains the metadata needed to display and configure an opponent.
- */
+@Serializable(with = OpponentSpecModeSerializer::class)
+internal sealed interface OpponentSpec {
+    val id: String
+    val mode: GameMode
+    val displayName: String
+    val llmProfile: LlmProfile
+    val streaming: StreamingPolicy
+
+    @Serializable
+    data class Lightweight(
+        override val id: String,
+        override val mode: GameMode = GameMode.LIGHTWEIGHT,
+        override val displayName: String,
+        override val llmProfile: LlmProfile,
+        override val streaming: StreamingPolicy,
+        val datasetPath: String,
+    ) : OpponentSpec
+
+    @Serializable
+    data class Premium(
+        override val id: String,
+        override val mode: GameMode = GameMode.PREMIUM,
+        override val displayName: String,
+        override val llmProfile: LlmProfile,
+        override val streaming: StreamingPolicy,
+        val questionSetPath: String,
+        val provider: ProviderConfig,
+    ) : OpponentSpec
+}
+
 @Serializable
-internal data class OpponentSpec(
-    val id: String,
-    val mode: GameMode,
-    val displayName: String,
-    val llmProfile: LlmProfile,
+internal data class StreamingPolicy(
+    val revealDelayMs: Long,
+    val targetTokensPerSecond: Int,
+    val burstMultiplierOnFinal: Double,
+    val maxBufferedChars: Int,
 )
+
+@Serializable
+internal data class ProviderConfig(
+    val providerName: String,
+    val apiUrl: String,
+    val apiKey: String,
+)
+
+internal object OpponentSpecModeSerializer : JsonContentPolymorphicSerializer<OpponentSpec>(OpponentSpec::class) {
+    override fun selectDeserializer(element: JsonElement): DeserializationStrategy<out OpponentSpec> {
+        val mode = element.jsonObject["mode"]?.jsonPrimitive?.content
+            ?: throw SerializationException("OpponentSpec is missing 'mode'")
+
+        return when (mode) {
+            "LIGHTWEIGHT" -> OpponentSpec.Lightweight.serializer()
+            "PREMIUM" -> OpponentSpec.Premium.serializer()
+            else -> throw SerializationException("Unknown OpponentSpec mode='$mode'")
+        }
+    }
+}

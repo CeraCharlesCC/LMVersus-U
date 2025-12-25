@@ -5,6 +5,10 @@ import io.github.ceracharlescc.lmversusu.internal.application.usecase.GetLeaderb
 import io.github.ceracharlescc.lmversusu.internal.domain.entity.GameMode
 import io.github.ceracharlescc.lmversusu.internal.domain.entity.LeaderboardEntry
 import io.github.ceracharlescc.lmversusu.internal.domain.entity.OpponentSpec
+import io.github.ceracharlescc.lmversusu.internal.presentation.ktor.api.response.ApiResponse
+import io.github.ceracharlescc.lmversusu.internal.presentation.ktor.api.response.LeaderboardResponse
+import io.github.ceracharlescc.lmversusu.internal.presentation.ktor.api.response.ModelsResponse
+import io.github.ceracharlescc.lmversusu.internal.presentation.ktor.api.serializer.OpponentSpecPublicSerializer
 import kotlinx.serialization.Serializable
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -54,15 +58,3 @@ internal class ApiController @Inject constructor(
         }
     }
 }
-
-@Serializable
-internal data class LeaderboardResponse(
-    val entries: List<LeaderboardEntry>,
-    val total: Int,
-    val limit: Int
-)
-
-@Serializable
-internal data class ModelsResponse(
-    val models: List<OpponentSpec>
-)

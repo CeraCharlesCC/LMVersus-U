@@ -1,5 +1,6 @@
 package io.github.ceracharlescc.lmversusu.internal.presentation.ktor.api
 
+import io.github.ceracharlescc.lmversusu.internal.presentation.ktor.api.response.ApiResponse
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route

@@ -1,4 +1,4 @@
-package io.github.ceracharlescc.lmversusu.internal.presentation.ktor.api
+package io.github.ceracharlescc.lmversusu.internal.presentation.ktor.api.response
 
 internal sealed interface ApiResponse<out T> {
     data class Ok<T>(val body: T) : ApiResponse<T>
