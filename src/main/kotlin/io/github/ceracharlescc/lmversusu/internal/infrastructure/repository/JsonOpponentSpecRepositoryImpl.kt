@@ -12,9 +12,6 @@ import kotlin.io.path.extension
 import kotlin.io.path.isRegularFile
 import kotlin.io.path.readText
 
-/**
- * Loads opponent specifications from JSON files in the LLM-Configs directory.
- */
 @Singleton
 internal class JsonOpponentSpecRepositoryImpl @Inject constructor() : OpponentSpecRepository {
 
