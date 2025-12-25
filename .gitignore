@@ -38,3 +38,4 @@ out/
 ### Testintg ###
 /LLM-Configs/
 /config.test.toml
+/config.toml
