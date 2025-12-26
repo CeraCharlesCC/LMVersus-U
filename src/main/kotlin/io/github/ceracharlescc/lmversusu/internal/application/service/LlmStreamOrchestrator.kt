@@ -154,10 +154,28 @@ internal class LlmStreamOrchestrator @Inject constructor() {
 
             while (true) {
                 val snapshot = lock.withLock {
+                    val nextDelta = if (buffer.isEmpty()) null else buffer.removeFirst().also {
+                        bufferedChars -= it.deltaText.length
+                        if (bufferedChars < 0) bufferedChars = 0
+                    }
+
+                    val localDropped = droppedPending.also { droppedPending = 0 }
+
+                    val terminalOrSynthetic = terminal ?: run {
+                        if (upstreamDone) {
+                            LlmStreamEvent.Error(
+                                message = "Upstream completed without terminal event",
+                                cause = null
+                            )
+                        } else {
+                            null
+                        }
+                    }
+
                     Snapshot(
-                        delta = if (buffer.isEmpty()) null else buffer.removeFirst(),
-                        dropped = droppedPending.also { droppedPending = 0 },
-                        terminal = terminal,
+                        delta = nextDelta,
+                        dropped = localDropped,
+                        terminal = terminalOrSynthetic,
                         done = upstreamDone,
                     )
                 }
@@ -174,10 +192,7 @@ internal class LlmStreamOrchestrator @Inject constructor() {
                         if (terminal != null && buffer.isEmpty()) terminal else null
                     }
                     if (terminalNow != null) {
-                        // Emit any pending upstream truncation before terminal
-                        val pendingTruncation = lock.withLock {
-                            upstreamTruncation.also { upstreamTruncation = null }
-                        }
+                        val pendingTruncation = lock.withLock { upstreamTruncation.also { upstreamTruncation = null } }
                         if (pendingTruncation != null) emit(pendingTruncation)
                         emit(terminalNow)
                         break
@@ -205,17 +220,13 @@ internal class LlmStreamOrchestrator @Inject constructor() {
                 }
 
                 if (snapshot.terminal != null) {
-                    // Emit any pending upstream truncation before terminal
-                    val pendingTruncation = lock.withLock {
-                        upstreamTruncation.also { upstreamTruncation = null }
-                    }
+                    val pendingTruncation = lock.withLock { upstreamTruncation.also { upstreamTruncation = null } }
                     if (pendingTruncation != null) emit(pendingTruncation)
                     emit(snapshot.terminal)
                     break
                 }
 
                 if (snapshot.done) break
-
                 updated.receive()
             }
 
