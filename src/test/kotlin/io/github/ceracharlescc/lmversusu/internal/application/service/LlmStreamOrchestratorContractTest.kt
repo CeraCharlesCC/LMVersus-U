@@ -117,16 +117,16 @@ internal class LlmStreamOrchestratorContractTest {
         assertEquals(12_345, events[0].atMs)
         assertTrue(events[0].event is LlmStreamEvent.ReasoningDelta)
 
-        advanceTimeBy(999)
+        advanceTimeBy(199)
         runCurrent()
         assertEquals(1, events.size)
 
         advanceTimeBy(1)
         runCurrent()
         assertEquals(3, events.size)
-        assertEquals(13_345, events[1].atMs)
+        assertEquals(12_545, events[1].atMs)
         assertTrue(events[1].event is LlmStreamEvent.ReasoningDelta)
-        assertEquals(13_345, events[2].atMs)
+        assertEquals(12_545, events[2].atMs)
         assertTrue(events[2].event is LlmStreamEvent.FinalAnswer)
 
         job.cancel()

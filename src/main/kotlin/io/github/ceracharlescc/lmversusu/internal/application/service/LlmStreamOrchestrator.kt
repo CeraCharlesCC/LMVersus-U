@@ -13,6 +13,7 @@ import kotlinx.coroutines.selects.onTimeout
 import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.yield
 import java.util.ArrayDeque
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -34,7 +35,6 @@ internal class LlmStreamOrchestrator @Inject constructor() {
             var upstreamDone = false
 
             val updated = Channel<Unit>(Channel.CONFLATED)
-
             val terminalArrived = Channel<Unit>(Channel.CONFLATED)
 
             val collector = launch {
@@ -59,7 +59,7 @@ internal class LlmStreamOrchestrator @Inject constructor() {
                                 }
 
                                 is LlmStreamEvent.ReasoningTruncated -> {
-                                    // ignore upstream truncation.
+                                    // ignore upstream truncation
                                 }
                             }
                         }
@@ -76,22 +76,24 @@ internal class LlmStreamOrchestrator @Inject constructor() {
                 }
             }
 
-            if (policy.revealDelayMs > 0) delay(policy.revealDelayMs)
-
-            while (terminalArrived.tryReceive().isSuccess) {
-                // drain
-            }
-
             val baseMsPerToken =
                 if (policy.targetTokensPerSecond <= 0) 0.0 else 1000.0 / policy.targetTokensPerSecond.toDouble()
             val burstMsPerToken =
                 if (policy.burstMultiplierOnFinal <= 0.0) baseMsPerToken else baseMsPerToken / policy.burstMultiplierOnFinal
 
-            var burstMode = false
-
             fun delayFor(delta: LlmStreamEvent.ReasoningDelta, burst: Boolean): Long {
                 val ms = delta.emittedTokenCount.toDouble() * (if (burst) burstMsPerToken else baseMsPerToken)
                 return if (ms <= 0.0) 0L else ceil(ms).toLong()
+            }
+
+            var burstMode = false
+
+            if (policy.revealDelayMs > 0) delay(policy.revealDelayMs)
+
+            yield()
+
+            while (terminalArrived.tryReceive().isSuccess) {
+                burstMode = true
             }
 
             while (true) {
@@ -100,7 +102,7 @@ internal class LlmStreamOrchestrator @Inject constructor() {
                         delta = if (buffer.isEmpty()) null else buffer.removeFirst(),
                         dropped = droppedPending.also { droppedPending = 0 },
                         terminal = terminal,
-                        done = upstreamDone
+                        done = upstreamDone,
                     )
                 }
 
@@ -112,7 +114,6 @@ internal class LlmStreamOrchestrator @Inject constructor() {
                 if (delta != null) {
                     emit(delta)
 
-                    // If terminal is known and no buffered deltas remain, emit terminal immediately.
                     val terminalNow = lock.withLock {
                         if (terminal != null && buffer.isEmpty()) terminal else null
                     }
@@ -121,10 +122,14 @@ internal class LlmStreamOrchestrator @Inject constructor() {
                         break
                     }
 
+                    if (!burstMode) {
+                        val terminalKnown = lock.withLock { terminal != null }
+                        if (terminalKnown) burstMode = true
+                    }
+
                     val waitMs = delayFor(delta, burstMode)
                     if (waitMs > 0) {
                         if (!burstMode) {
-                            // Baseline pacing can be interrupted by terminal arrival; burst pacing is not.
                             val interrupted = select<Boolean> {
                                 terminalArrived.onReceive { true }
                                 onTimeout(waitMs) { false }
@@ -134,6 +139,7 @@ internal class LlmStreamOrchestrator @Inject constructor() {
                             delay(waitMs)
                         }
                     }
+
                     continue
                 }
 
@@ -144,7 +150,6 @@ internal class LlmStreamOrchestrator @Inject constructor() {
 
                 if (snapshot.done) break
 
-                // Nothing to emit yet; wait for upstream updates.
                 select<Unit> {
                     updated.onReceive { }
                     onTimeout(50) { }
@@ -159,6 +164,6 @@ internal class LlmStreamOrchestrator @Inject constructor() {
         val delta: LlmStreamEvent.ReasoningDelta?,
         val dropped: Int,
         val terminal: LlmStreamEvent?,
-        val done: Boolean
+        val done: Boolean,
     )
 }

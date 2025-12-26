@@ -105,6 +105,7 @@ internal class LlmStreamOrchestratorTest {
         val upstream = flow {
             emit(delta(text = "first", emittedTokens = 5, totalTokens = 10))
             emit(delta(text = "second", emittedTokens = 5, totalTokens = 10))
+            delay(1_500) // Final arrives at t=1500, exactly when second delta is emitted at baseline pacing
             emit(final(choiceIndex = 1))
         }
 
@@ -314,6 +315,54 @@ internal class LlmStreamOrchestratorTest {
         assertEquals(1, events.size)
         assertEquals(2_000, events[0].atMs)
         assertTrue(events[0].event is LlmStreamEvent.FinalAnswer)
+
+        advanceUntilIdle()
+        job.join()
+    }
+
+    @Test
+    fun `burst flush is applied immediately when final arrives during revealDelay`() = runTest {
+        val orchestrator = LlmStreamOrchestrator()
+
+        val policy = StreamingPolicy(
+            revealDelayMs = 1_000,
+            targetTokensPerSecond = 10,      // base = 100ms/token
+            burstMultiplierOnFinal = 5.0,    // burst = 20ms/token
+            maxBufferedChars = 200_000,
+        )
+
+        val upstream = flow {
+            emit(delta(text = "d1", emittedTokens = 10, totalTokens = 20))
+            emit(delta(text = "d2", emittedTokens = 10, totalTokens = 20))
+            emit(final(choiceIndex = 1))
+        }
+
+        val (job, events) = launchTimedCollector(orchestrator.apply(policy, upstream))
+
+        advanceTimeBy(999)
+        runCurrent()
+        assertTrue(events.isEmpty())
+
+        advanceTimeBy(1)
+        runCurrent()
+
+        assertEquals(1, events.size)
+        assertEquals(1_000, events[0].atMs)
+        assertTrue(events[0].event is LlmStreamEvent.ReasoningDelta)
+
+        advanceTimeBy(199)
+        runCurrent()
+        assertEquals(1, events.size)
+
+        advanceTimeBy(1)
+        runCurrent()
+
+        assertEquals(3, events.size)
+        assertEquals(1_200, events[1].atMs)
+        assertTrue(events[1].event is LlmStreamEvent.ReasoningDelta)
+
+        assertEquals(1_200, events[2].atMs)
+        assertTrue(events[2].event is LlmStreamEvent.FinalAnswer)
 
         advanceUntilIdle()
         job.join()
