@@ -19,6 +19,50 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.math.ceil
 
+/**
+ * Orchestrates the pacing and buffering of an LLM streaming response.
+ *
+ * This service transforms a raw upstream [Flow] of [LlmStreamEvent]s into a paced
+ * downstream flow, giving end-users a typewriter-like experience rather than
+ * overwhelming them with a sudden wall of text.
+ *
+ * ## Core Behavior
+ *
+ * 1. Reveal Delay: The orchestrator waits [StreamingPolicy.revealDelayMs] before
+ *    emitting the first delta, allowing the upstream to accumulate initial content.
+ *
+ * 2. Baseline Pacing: Deltas are emitted at approximately [StreamingPolicy.targetTokensPerSecond].
+ *    If the policy specifies ≤ 0, pacing is disabled and deltas are forwarded immediately.
+ *
+ * 3. Burst Mode: Once a terminal event ([LlmStreamEvent.FinalAnswer] or
+ *    [LlmStreamEvent.Error]) arrives, the emission rate accelerates by
+ *    [StreamingPolicy.burstMultiplierOnFinal] to drain remaining buffered deltas quickly.
+ *
+ * 4. Back-Pressure & Truncation: When the buffer grows beyond
+ *    [StreamingPolicy.maxBufferedChars], the oldest deltas are dropped (and later
+ *    reported as [LlmStreamEvent.ReasoningTruncated]) so that the UI always shows the
+ *    most recent reasoning.
+ *
+ * ## maxBufferedChars Caveat
+ *
+ * The drop loop intentionally guarantees at least one delta remains in the buffer
+ * (`buffer.size > 1` guard). This design choice preserves semantic integrity: the
+ * orchestrator never tampers with the *content* of deltas (e.g., by splitting a large
+ * chunk). As a consequence, a single chunk larger than `maxBufferedChars` will be
+ * buffered in its entirety. In practice, LLM providers stream fine-grained token
+ * deltas, so this edge-case is virtually unreachable under normal operation.
+ *
+ * ## Implementation Notes
+ *
+ * - Concurrency model: The upstream flow is collected in a separate coroutine (`collector`).
+ *   Shared state is protected by a [Mutex]. The emitter loop runs in the caller's coroutine.
+ * - Cooperative cancellation: If the emitter breaks out of its loop (due to terminal event
+ *   or upstream completion), the collector coroutine is explicitly cancelled.
+ * - Timing: All `delay` calls honor the caller's [kotlin.coroutines.CoroutineContext]
+ *
+ * @see StreamingPolicy
+ * @see LlmStreamEvent
+ */
 @Singleton
 internal class LlmStreamOrchestrator @Inject constructor() {
 
@@ -31,6 +75,7 @@ internal class LlmStreamOrchestrator @Inject constructor() {
             var bufferedChars = 0
 
             var droppedPending = 0
+            var upstreamTruncation: LlmStreamEvent.ReasoningTruncated? = null
             var terminal: LlmStreamEvent? = null
             var upstreamDone = false
 
@@ -38,11 +83,12 @@ internal class LlmStreamOrchestrator @Inject constructor() {
             val terminalArrived = Channel<Unit>(Channel.CONFLATED)
 
             val collector = launch {
-                try {
+                runCatching {
                     upstream.collect { event ->
                         lock.withLock {
                             when (event) {
                                 is LlmStreamEvent.ReasoningDelta -> {
+                                    if (terminal != null) return@withLock // Ignore deltas after terminal
                                     buffer.addLast(event)
                                     bufferedChars += event.deltaText.length
 
@@ -59,7 +105,7 @@ internal class LlmStreamOrchestrator @Inject constructor() {
                                 }
 
                                 is LlmStreamEvent.ReasoningTruncated -> {
-                                    // ignore upstream truncation
+                                    upstreamTruncation = event
                                 }
                             }
                         }
@@ -70,10 +116,20 @@ internal class LlmStreamOrchestrator @Inject constructor() {
                             terminalArrived.trySend(Unit)
                         }
                     }
-                } finally {
-                    lock.withLock { upstreamDone = true }
+                }.onFailure { e ->
+                    lock.withLock {
+                        if (terminal == null) {
+                            terminal = LlmStreamEvent.Error(
+                                message = e.message ?: "Upstream error",
+                                cause = e,
+                            )
+                        }
+                    }
                     updated.trySend(Unit)
+                    terminalArrived.trySend(Unit)
                 }
+                lock.withLock { upstreamDone = true }
+                updated.trySend(Unit)
             }
 
             val baseMsPerToken =
@@ -118,6 +174,11 @@ internal class LlmStreamOrchestrator @Inject constructor() {
                         if (terminal != null && buffer.isEmpty()) terminal else null
                     }
                     if (terminalNow != null) {
+                        // Emit any pending upstream truncation before terminal
+                        val pendingTruncation = lock.withLock {
+                            upstreamTruncation.also { upstreamTruncation = null }
+                        }
+                        if (pendingTruncation != null) emit(pendingTruncation)
                         emit(terminalNow)
                         break
                     }
@@ -144,16 +205,18 @@ internal class LlmStreamOrchestrator @Inject constructor() {
                 }
 
                 if (snapshot.terminal != null) {
+                    // Emit any pending upstream truncation before terminal
+                    val pendingTruncation = lock.withLock {
+                        upstreamTruncation.also { upstreamTruncation = null }
+                    }
+                    if (pendingTruncation != null) emit(pendingTruncation)
                     emit(snapshot.terminal)
                     break
                 }
 
                 if (snapshot.done) break
 
-                select<Unit> {
-                    updated.onReceive { }
-                    onTimeout(50) { }
-                }
+                updated.receive()
             }
 
             collector.cancel()

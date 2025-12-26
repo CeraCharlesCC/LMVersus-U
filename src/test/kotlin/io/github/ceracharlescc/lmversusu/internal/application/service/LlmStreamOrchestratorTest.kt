@@ -1,6 +1,5 @@
-package io.github.ceracharlescc.io.github.ceracharlescc.lmversusu.internal.application.service
+package io.github.ceracharlescc.lmversusu.internal.application.service
 
-import io.github.ceracharlescc.lmversusu.internal.application.service.LlmStreamOrchestrator
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.Answer
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.streaming.LlmAnswer
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.streaming.LlmStreamEvent
@@ -366,5 +365,144 @@ internal class LlmStreamOrchestratorTest {
 
         advanceUntilIdle()
         job.join()
+    }
+
+    @Test
+    fun `ignores reasoning deltas received after terminal event`() = runTest {
+        val orchestrator = LlmStreamOrchestrator()
+
+        val policy = StreamingPolicy(
+            revealDelayMs = 0,
+            targetTokensPerSecond = 1_000,
+            burstMultiplierOnFinal = 5.0,
+            maxBufferedChars = 200_000,
+        )
+
+        val upstream = flow {
+            emit(delta(text = "before", emittedTokens = 1, totalTokens = 1))
+            emit(final(choiceIndex = 1))
+            // Misbehaving upstream: sends more deltas after final
+            emit(delta(text = "after1", emittedTokens = 1, totalTokens = 2))
+            emit(delta(text = "after2", emittedTokens = 1, totalTokens = 3))
+            emit(delta(text = "after3", emittedTokens = 1, totalTokens = 4))
+        }
+
+        val (job, events) = launchTimedCollector(orchestrator.apply(policy, upstream))
+
+        advanceUntilIdle()
+        job.join()
+
+        // Should only have the delta before final + the final answer
+        assertEquals(2, events.size)
+        assertTrue(events[0].event is LlmStreamEvent.ReasoningDelta)
+        assertEquals("before", (events[0].event as LlmStreamEvent.ReasoningDelta).deltaText)
+        assertTrue(events[1].event is LlmStreamEvent.FinalAnswer)
+    }
+
+    @Test
+    fun `propagates upstream exception as Error event`() = runTest {
+        val orchestrator = LlmStreamOrchestrator()
+
+        val policy = StreamingPolicy(
+            revealDelayMs = 0,
+            targetTokensPerSecond = 1_000,
+            burstMultiplierOnFinal = 5.0,
+            maxBufferedChars = 200_000,
+        )
+
+        val upstream = flow {
+            emit(delta(text = "before crash", emittedTokens = 1, totalTokens = 1))
+            throw RuntimeException("upstream boom")
+        }
+
+        val (job, events) = launchTimedCollector(orchestrator.apply(policy, upstream))
+
+        advanceUntilIdle()
+        job.join()
+
+        assertEquals(2, events.size)
+        assertTrue(events[0].event is LlmStreamEvent.ReasoningDelta)
+        assertTrue(events[1].event is LlmStreamEvent.Error)
+
+        val error = events[1].event as LlmStreamEvent.Error
+        assertEquals("upstream boom", error.message)
+        assertTrue(error.cause is RuntimeException)
+    }
+
+    @Test
+    fun `forwards upstream ReasoningTruncated with reason`() = runTest {
+        val orchestrator = LlmStreamOrchestrator()
+
+        val policy = StreamingPolicy(
+            revealDelayMs = 0,
+            targetTokensPerSecond = 1_000,
+            burstMultiplierOnFinal = 5.0,
+            maxBufferedChars = 200_000,
+        )
+
+        val upstream = flow {
+            emit(delta(text = "part1", emittedTokens = 1, totalTokens = 2))
+            emit(LlmStreamEvent.ReasoningTruncated(reason = "reasoning budget exhausted"))
+            emit(final(choiceIndex = 0))
+        }
+
+        val (job, events) = launchTimedCollector(orchestrator.apply(policy, upstream))
+
+        advanceUntilIdle()
+        job.join()
+
+        assertEquals(3, events.size)
+        assertTrue(events[0].event is LlmStreamEvent.ReasoningDelta)
+        assertTrue(events[1].event is LlmStreamEvent.ReasoningTruncated)
+        assertTrue(events[2].event is LlmStreamEvent.FinalAnswer)
+
+        val trunc = events[1].event as LlmStreamEvent.ReasoningTruncated
+        assertEquals("reasoning budget exhausted", trunc.reason)
+        assertEquals(0, trunc.droppedChars)
+    }
+
+    @Test
+    fun `emits both local and upstream truncation in correct semantic order`() = runTest {
+        val orchestrator = LlmStreamOrchestrator()
+
+        val policy = StreamingPolicy(
+            revealDelayMs = 0,
+            targetTokensPerSecond = 1_000,
+            burstMultiplierOnFinal = 5.0,
+            maxBufferedChars = 10,
+        )
+
+        val upstream = flow {
+            emit(delta(text = "0123456789", emittedTokens = 10, totalTokens = 30))
+            emit(delta(text = "abcdefghij", emittedTokens = 10, totalTokens = 30))
+            emit(LlmStreamEvent.ReasoningTruncated(reason = "provider limit"))
+            emit(final(choiceIndex = 0))
+        }
+
+        val (job, events) = launchTimedCollector(orchestrator.apply(policy, upstream))
+
+        advanceUntilIdle()
+        job.join()
+
+        // Expected order:
+        // 1. Local truncation (dropped chars due to buffer overflow) - emitted before delta
+        // 2. Delta (the remaining content after local truncation)
+        // 3. Upstream truncation (provider limit signaled) - emitted just before terminal
+        // 4. FinalAnswer
+        assertEquals(4, events.size)
+
+        assertTrue(events[0].event is LlmStreamEvent.ReasoningTruncated)
+        val localTrunc = events[0].event as LlmStreamEvent.ReasoningTruncated
+        assertEquals(10, localTrunc.droppedChars)
+        assertEquals(null, localTrunc.reason)
+
+        assertTrue(events[1].event is LlmStreamEvent.ReasoningDelta)
+
+        assertTrue(events[2].event is LlmStreamEvent.ReasoningTruncated)
+        val upstreamTrunc = events[2].event as LlmStreamEvent.ReasoningTruncated
+        assertEquals("provider limit", upstreamTrunc.reason)
+        assertEquals(0, upstreamTrunc.droppedChars)
+
+        assertTrue(events[3].event is LlmStreamEvent.FinalAnswer)
     }
 }

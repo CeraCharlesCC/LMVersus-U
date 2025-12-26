@@ -13,7 +13,8 @@ internal sealed class LlmStreamEvent {
     ) : LlmStreamEvent()
 
     data class ReasoningTruncated(
-        val droppedChars: Int,
+        val droppedChars: Int = 0,
+        val reason: String? = null,
     ) : LlmStreamEvent()
 
     data class Error(
