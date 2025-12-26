@@ -64,22 +64,6 @@ internal object ConfigLoader {
     private fun validateAndResolve(config: AppConfig, configDirectory: Path): AppConfig {
         val reasons = mutableListOf<String>()
 
-        val resolvedPrimary = resolveProviderConfig(
-            providerConfig = config.llmConfig.primary,
-            fieldPrefix = "llmConfig.primary",
-            configDirectory = configDirectory,
-            reasons = reasons,
-        )
-
-        val resolvedFallback = config.llmConfig.fallback?.let { fallbackConfig ->
-            resolveProviderConfig(
-                providerConfig = fallbackConfig,
-                fieldPrefix = "llmConfig.fallback",
-                configDirectory = configDirectory,
-                reasons = reasons,
-            )
-        }
-
         val resolvedCrypto = resolveCryptoConfig(
             cryptoConfig = config.sessionCrypto,
             reasons = reasons,
@@ -96,31 +80,8 @@ internal object ConfigLoader {
         }
 
         return config.copy(
-            llmConfig = config.llmConfig.copy(
-                primary = resolvedPrimary,
-                fallback = resolvedFallback,
-            ),
             sessionCrypto = resolvedCrypto,
         )
-    }
-
-    private fun resolveProviderConfig(
-        providerConfig: AppConfig.LlmProviderConfig,
-        fieldPrefix: String,
-        @Suppress("UnusedParameter") configDirectory: Path,
-        reasons: MutableList<String>,
-    ): AppConfig.LlmProviderConfig {
-        val apiKey = resolveSecret(providerConfig.apiKey, "$fieldPrefix.apiKey", reasons)
-        if (apiKey.isEmpty() || apiKey == DEFAULT_API_KEY_PLACEHOLDER) {
-            reasons += "- '$fieldPrefix.apiKey' must be set to your LLM API key (not empty or default placeholder)."
-        }
-
-        val provider = providerConfig.provider.trim()
-        if (provider.isEmpty()) {
-            reasons += "- '$fieldPrefix.provider' must be set to select LLM provider."
-        }
-
-        return providerConfig.copy(apiKey = apiKey)
     }
 
     private fun resolveCryptoConfig(

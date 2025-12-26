@@ -6,7 +6,6 @@ import kotlin.reflect.full.memberProperties
 @Serializable
 internal data class AppConfig(
     val logConfig: LogConfig = LogConfig(),
-    val llmConfig: LlmConfig = LlmConfig(),
     val rateLimitConfig: RateLimitConfig = RateLimitConfig(),
     val sessionCrypto: SessionCryptoConfig = SessionCryptoConfig(),
 ) {
@@ -20,43 +19,6 @@ internal data class AppConfig(
             const val DEFAULT_LOG_LEVEL = "INFO"
             const val DEFAULT_LOG_FORMAT = "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
         }
-    }
-
-    @Serializable
-    data class LlmConfig(
-        val primary: LlmProviderConfig = LlmProviderConfig(),
-        val fallback: LlmProviderConfig? = null,
-    ) {
-        override fun toString(): String = "LlmConfig(primary=$primary, fallback=$fallback)"
-    }
-
-    @Serializable
-    data class LlmProviderConfig(
-        val apiKey: String = "",
-        val apiUrl: String = DEFAULT_API_URL,
-        val model: String = DEFAULT_MODEL,
-        val provider: String = DEFAULT_PROVIDER,
-    ) {
-        private companion object {
-            const val DEFAULT_API_URL = "https://api.openai.com/v1"
-            const val DEFAULT_MODEL = "gpt-4o-mini"
-            const val DEFAULT_PROVIDER = "openai"
-        }
-
-        private fun toSafeString(): String {
-            val kClass = LlmProviderConfig::class
-            val props = kClass.memberProperties
-            val parts = props.joinToString(", ") { prop ->
-                val value = when (prop.name) {
-                    "apiKey" -> "****"
-                    else -> prop.get(this)
-                }
-                "${prop.name}=$value"
-            }
-            return "${kClass.simpleName}($parts)"
-        }
-
-        override fun toString(): String = toSafeString()
     }
 
     @Serializable
