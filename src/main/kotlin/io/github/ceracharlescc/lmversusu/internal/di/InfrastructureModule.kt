@@ -8,6 +8,7 @@ import io.github.ceracharlescc.lmversusu.internal.domain.repository.OpponentSpec
 import io.github.ceracharlescc.lmversusu.internal.domain.repository.ResultsRepository
 import io.github.ceracharlescc.lmversusu.internal.infrastructure.llm.gateway.LlmPlayerGatewayImpl
 import io.github.ceracharlescc.lmversusu.internal.infrastructure.llm.source.LightweightPlayerSource
+import io.github.ceracharlescc.lmversusu.internal.infrastructure.llm.source.PremiumPlayerSource
 import io.github.ceracharlescc.lmversusu.internal.infrastructure.repository.FileQuestionBankImpl
 import io.github.ceracharlescc.lmversusu.internal.infrastructure.repository.InMemoryResultsRepositoryImpl
 import io.github.ceracharlescc.lmversusu.internal.infrastructure.repository.JsonOpponentSpecRepositoryImpl
@@ -33,7 +34,7 @@ internal interface InfrastructureModule {
 
     @Binds
     @Singleton
-    fun bindPremiumPlayerSource(impl: LightweightPlayerSource): LightweightPlayerSource
+    fun bindPremiumPlayerSource(impl: PremiumPlayerSource): PremiumPlayerSource
 
     @Binds
     @Singleton
