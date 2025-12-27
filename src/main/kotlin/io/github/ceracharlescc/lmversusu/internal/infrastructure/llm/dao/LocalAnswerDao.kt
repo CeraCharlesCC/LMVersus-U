@@ -44,6 +44,7 @@ internal class LocalAnswerDao(
     }
 
     private val datasetDirectory: Path = Paths.get(datasetPath).normalize()
+
     @Volatile
     private var cachedManifest: LightweightPackManifest? = null
 

@@ -1,10 +1,7 @@
 package io.github.ceracharlescc.lmversusu.internal.application.port
 
-import io.github.ceracharlescc.lmversusu.internal.application.port.QuestionBank
-import io.github.ceracharlescc.lmversusu.internal.application.port.QuestionConstraints
 import io.github.ceracharlescc.lmversusu.internal.domain.entity.OpponentSpec
 import io.github.ceracharlescc.lmversusu.internal.domain.entity.Question
-import io.github.ceracharlescc.lmversusu.internal.domain.repository.LightweightDatasetRepository
 import org.slf4j.Logger
 import javax.inject.Inject
 import javax.inject.Singleton
