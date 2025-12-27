@@ -5,15 +5,17 @@ import io.github.ceracharlescc.lmversusu.internal.domain.repository.OpponentSpec
 import kotlinx.serialization.json.Json
 import java.nio.file.Files
 import java.nio.file.Path
-import java.nio.file.Paths
 import javax.inject.Inject
+import javax.inject.Named
 import javax.inject.Singleton
 import kotlin.io.path.extension
 import kotlin.io.path.isRegularFile
 import kotlin.io.path.readText
 
 @Singleton
-internal class JsonOpponentSpecRepositoryImpl @Inject constructor() : OpponentSpecRepository {
+internal class JsonOpponentSpecRepositoryImpl @Inject constructor(
+    @Named("configDirectory") private val configDirectory: Path
+) : OpponentSpecRepository {
 
     private companion object {
         const val ENV_PREFIX = "ENV:"
@@ -36,8 +38,7 @@ internal class JsonOpponentSpecRepositoryImpl @Inject constructor() : OpponentSp
     }
 
     private fun loadFromDisk(): List<OpponentSpec>? {
-        val configDir = resolveConfigDirectory() ?: return null
-        val llmConfigsDir = configDir.resolve("LLM-Configs")
+        val llmConfigsDir = configDirectory.resolve("LLM-Configs")
 
         if (!Files.isDirectory(llmConfigsDir)) return null
 
@@ -90,14 +91,5 @@ internal class JsonOpponentSpecRepositoryImpl @Inject constructor() : OpponentSp
         if (envName.isEmpty()) return ""
 
         return System.getenv(envName)?.trim().orEmpty()
-    }
-
-    private fun resolveConfigDirectory(): Path? {
-        val configDirProperty = System.getProperty("lmversusu.configDir")
-        return if (!configDirProperty.isNullOrBlank()) {
-            Paths.get(configDirProperty)
-        } else {
-            null
-        }
     }
 }
