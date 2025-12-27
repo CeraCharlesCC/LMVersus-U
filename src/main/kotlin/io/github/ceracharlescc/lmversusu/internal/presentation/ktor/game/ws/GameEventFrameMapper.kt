@@ -1,0 +1,74 @@
+package io.github.ceracharlescc.lmversusu.internal.presentation.ktor.game.ws
+
+import io.github.ceracharlescc.lmversusu.internal.domain.entity.GameEvent
+
+internal object GameEventFrameMapper {
+    fun toFrame(event: GameEvent): WsGameFrame? = when (event) {
+        is GameEvent.PlayerJoined -> WsPlayerJoined(
+            sessionId = event.sessionId.toString(),
+            playerId = event.playerId.toString(),
+            nickname = event.nickname,
+        )
+
+        is GameEvent.RoundStarted -> WsRoundStarted(
+            sessionId = event.sessionId.toString(),
+            roundId = event.roundId.toString(),
+            roundNumber = event.roundNumber,
+            questionPrompt = event.questionPrompt,
+            choices = event.choices,
+            releasedAtEpochMs = event.releasedAt.toEpochMilli(),
+            handicapMs = event.handicapMs,
+            deadlineAtEpochMs = event.deadlineAt.toEpochMilli(),
+            nonceToken = event.nonceToken,
+        )
+
+        is GameEvent.RoundResolved -> WsRoundResolved(
+            sessionId = event.sessionId.toString(),
+            roundId = event.roundId.toString(),
+            correctAnswer = event.correctAnswer,
+            humanCorrect = event.humanCorrect,
+            llmCorrect = event.llmCorrect,
+            humanScore = event.humanScore,
+            llmScore = event.llmScore,
+            winner = event.winner,
+        )
+
+        is GameEvent.SessionError -> WsSessionError(
+            sessionId = event.sessionId.toString(),
+            errorCode = event.errorCode,
+            message = event.message,
+        )
+
+        is GameEvent.LlmReasoningDelta -> WsLlmReasoningDelta(
+            sessionId = event.sessionId.toString(),
+            roundId = event.roundId.toString(),
+            deltaText = event.deltaText,
+            seq = event.seq.value,
+        )
+
+        is GameEvent.LlmReasoningTruncated -> WsLlmReasoningTruncated(
+            sessionId = event.sessionId.toString(),
+            roundId = event.roundId.toString(),
+            droppedChars = event.droppedChars,
+        )
+
+        is GameEvent.LlmFinalAnswer -> WsLlmFinalAnswer(
+            sessionId = event.sessionId.toString(),
+            roundId = event.roundId.toString(),
+            finalAnswer = event.answer.finalAnswer,
+            reasoningSummary = event.answer.reasoningSummary,
+            confidenceScore = event.answer.confidenceScore,
+        )
+
+        is GameEvent.LlmStreamError -> WsLlmStreamError(
+            sessionId = event.sessionId.toString(),
+            roundId = event.roundId.toString(),
+            message = event.message,
+        )
+
+        is GameEvent.SessionCreated,
+        is GameEvent.SubmissionReceived,
+        is GameEvent.LlmThinking,
+        is GameEvent.SessionCompleted -> null
+    }
+}

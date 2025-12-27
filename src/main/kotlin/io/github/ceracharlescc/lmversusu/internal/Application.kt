@@ -31,7 +31,10 @@ internal fun Application.module(appConfigOverride: AppConfig? = null) {
 
     routing {
         apiV1Routes(appComponent.apiController())
-        gameRoutes()
+        gameRoutes(
+            gameController = appComponent.gameController(),
+            gameEventBus = appComponent.gameEventBus(),
+        )
     }
 }
 

@@ -1,5 +1,6 @@
 package io.github.ceracharlescc.lmversusu.internal.domain.entity
 
+import io.github.ceracharlescc.lmversusu.internal.domain.vo.Answer
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.streaming.LlmAnswer
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.streaming.StreamSeq
 import java.time.Instant
@@ -34,7 +35,7 @@ internal sealed class GameEvent {
     data class RoundResolved(
         override val sessionId: Uuid,
         val roundId: Uuid,
-        val correctAnswer: String,
+        val correctAnswer: Answer,
         val humanCorrect: Boolean,
         val llmCorrect: Boolean,
         val humanScore: Double,
