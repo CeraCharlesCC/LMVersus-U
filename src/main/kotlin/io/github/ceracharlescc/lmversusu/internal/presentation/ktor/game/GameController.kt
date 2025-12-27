@@ -4,7 +4,10 @@ import io.github.ceracharlescc.lmversusu.internal.infrastructure.game.SessionMan
 import java.time.Instant
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
+
+@OptIn(ExperimentalUuidApi::class)
 
 @Singleton
 internal class GameController @Inject constructor(
@@ -36,6 +39,7 @@ internal class GameController @Inject constructor(
 
     suspend fun joinSession(
         sessionId: String?,
+        playerId: String,
         opponentSpecId: String,
         nickname: String,
     ): JoinResult {
@@ -51,10 +55,15 @@ internal class GameController @Inject constructor(
             return JoinResult.Failure(errorCode = "invalid_session", message = "sessionId is invalid")
         }
 
-        val resolvedSessionId = parsedSessionId ?: Uuid.random()
-        val playerId = Uuid.random()
+        val parsedPlayerId = parseUuidOrNull(playerId)
+        if (parsedPlayerId == null) {
+            return JoinResult.Failure(errorCode = "invalid_player", message = "playerId is invalid")
+        }
 
-        return when (val result = sessionManager.joinSession(resolvedSessionId, playerId, nickname, opponentSpecId)) {
+        val resolvedSessionId = parsedSessionId ?: Uuid.random()
+
+        return when (val result =
+            sessionManager.joinSession(resolvedSessionId, parsedPlayerId, nickname, opponentSpecId)) {
             is SessionManager.JoinResult.Success -> JoinResult.Success(
                 sessionId = result.sessionId,
                 playerId = result.playerId,
@@ -102,7 +111,10 @@ internal class GameController @Inject constructor(
         val parsedPlayerId = parseUuidOrNull(playerId)
         val parsedRoundId = parseUuidOrNull(roundId)
         if (parsedSessionId == null || parsedPlayerId == null || parsedRoundId == null) {
-            return CommandResult.Failure(errorCode = "invalid_request", message = "sessionId, playerId, or roundId is invalid")
+            return CommandResult.Failure(
+                errorCode = "invalid_request",
+                message = "sessionId, playerId, or roundId is invalid"
+            )
         }
         if (nonceToken.isBlank()) {
             return CommandResult.Failure(

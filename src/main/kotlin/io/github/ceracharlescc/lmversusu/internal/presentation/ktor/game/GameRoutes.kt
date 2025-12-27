@@ -2,6 +2,7 @@ package io.github.ceracharlescc.lmversusu.internal.presentation.ktor.game
 
 import io.github.ceracharlescc.lmversusu.internal.application.port.GameEventBus
 import io.github.ceracharlescc.lmversusu.internal.application.port.GameEventListener
+import io.github.ceracharlescc.lmversusu.internal.domain.entity.ServiceSession
 import io.github.ceracharlescc.lmversusu.internal.presentation.ktor.game.ws.GameEventFrameMapper
 import io.github.ceracharlescc.lmversusu.internal.presentation.ktor.game.ws.WsClientFrame
 import io.github.ceracharlescc.lmversusu.internal.presentation.ktor.game.ws.WsGameFrame
@@ -12,20 +13,42 @@ import io.github.ceracharlescc.lmversusu.internal.presentation.ktor.game.ws.WsSt
 import io.github.ceracharlescc.lmversusu.internal.presentation.ktor.game.ws.WsSubmitAnswer
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.route
+import io.ktor.server.sessions.get
+import io.ktor.server.sessions.sessions
 import io.ktor.server.websocket.webSocket
 import io.ktor.websocket.Frame
+import io.ktor.websocket.close
 import io.ktor.websocket.readText
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
+@OptIn(ExperimentalUuidApi::class)
 internal fun Route.gameWebSocket(
     gameController: GameController,
     gameEventBus: GameEventBus,
 ) {
     route("/ws") {
         webSocket("/game") {
+            val session = call.sessions.get<ServiceSession>()
+            if (session == null) {
+                val json = Json { ignoreUnknownKeys = true }
+                sendFrame(
+                    json,
+                    WsSessionError(
+                        sessionId = null,
+                        errorCode = "auth_required",
+                        message = "No session found. Please call GET /api/v1/player/session first.",
+                    )
+                )
+                close()
+                return@webSocket
+            }
+
+            val cookiePlayerId = session.playerId
+
             val json = Json { ignoreUnknownKeys = true }
             var subscribedSessionId: Uuid? = null
 
@@ -67,6 +90,7 @@ internal fun Route.gameWebSocket(
                         is WsJoinSession -> {
                             val result = gameController.joinSession(
                                 sessionId = clientFrame.sessionId,
+                                playerId = cookiePlayerId, // Use cookie playerId
                                 opponentSpecId = clientFrame.opponentSpecId,
                                 nickname = clientFrame.nickname,
                             )
@@ -91,9 +115,14 @@ internal fun Route.gameWebSocket(
                         }
 
                         is WsStartRoundRequest -> {
+                            if (clientFrame.playerId != cookiePlayerId) {
+                                sendError(null, "auth_mismatch", "PlayerId in request does not match session")
+                                continue
+                            }
+
                             val result = gameController.startNextRound(
                                 sessionId = clientFrame.sessionId,
-                                playerId = clientFrame.playerId,
+                                playerId = cookiePlayerId, // Use cookie playerId
                             )
                             if (result is GameController.CommandResult.Failure) {
                                 sendError(result.sessionId, result.errorCode, result.message)
@@ -103,9 +132,14 @@ internal fun Route.gameWebSocket(
                         }
 
                         is WsSubmitAnswer -> {
+                            if (clientFrame.playerId != cookiePlayerId) {
+                                sendError(null, "auth_mismatch", "PlayerId in request does not match session")
+                                continue
+                            }
+
                             val result = gameController.submitAnswer(
                                 sessionId = clientFrame.sessionId,
-                                playerId = clientFrame.playerId,
+                                playerId = cookiePlayerId, // Use cookie playerId
                                 roundId = clientFrame.roundId,
                                 nonceToken = clientFrame.nonceToken,
                                 clientSentAtEpochMs = clientFrame.clientSentAtEpochMs,

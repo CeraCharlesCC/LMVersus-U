@@ -8,5 +8,6 @@ internal fun Route.apiV1Routes(apiController: ApiController) {
         heartbeatRoutes()
         leaderboardRoutes(apiController)
         modelsRoutes(apiController)
+        playerSessionRoutes()
     }
 }
