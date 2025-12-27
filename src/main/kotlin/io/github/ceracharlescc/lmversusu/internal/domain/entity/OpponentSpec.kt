@@ -26,6 +26,7 @@ internal sealed interface OpponentSpec {
         override val displayName: String,
         override val llmProfile: LlmProfile,
         override val streaming: StreamingPolicy,
+        val questionSetPath: String,
         val datasetPath: String,
     ) : OpponentSpec
 
