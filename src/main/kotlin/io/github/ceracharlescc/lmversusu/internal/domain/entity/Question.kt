@@ -2,6 +2,7 @@ package io.github.ceracharlescc.lmversusu.internal.domain.entity
 
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.Difficulty
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.VerifierSpec
+import kotlinx.serialization.Serializable
 import kotlin.uuid.Uuid
 
 internal data class Question(
@@ -13,6 +14,7 @@ internal data class Question(
     val metadata: QuestionMetadata? = null
 )
 
+@Serializable
 data class QuestionMetadata(
     val category: String? = null,
     val source: String? = null,

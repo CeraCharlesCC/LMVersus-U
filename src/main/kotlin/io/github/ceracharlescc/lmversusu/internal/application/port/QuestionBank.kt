@@ -21,5 +21,6 @@ internal interface QuestionBank {
 internal data class QuestionConstraints(
     val difficulty: Difficulty? = null,
     val categories: List<String>? = null,
-    val excludeQuestionIds: Set<Uuid> = emptySet()
+    val excludeQuestionIds: Set<Uuid> = emptySet(),
+    val allowedQuestionIds: Set<Uuid>? = null
 )
