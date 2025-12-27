@@ -1,7 +1,6 @@
 package io.github.ceracharlescc.lmversusu.internal
 
 import kotlinx.serialization.Serializable
-import kotlin.reflect.full.memberProperties
 
 @Serializable
 internal data class AppConfig(
