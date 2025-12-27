@@ -12,4 +12,12 @@ internal interface OpponentSpecRepository {
      * @return List of specs, or null if loading fails.
      */
     fun getAllSpecs(): List<OpponentSpec>?
+
+    /**
+     * Finds an opponent specification by its ID.
+     *
+     * @param id The ID of the opponent specification.
+     * @return The opponent specification, or null if not found.
+     */
+    fun findById(id: String): OpponentSpec?
 }

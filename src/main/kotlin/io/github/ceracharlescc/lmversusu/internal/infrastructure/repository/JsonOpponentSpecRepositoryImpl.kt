@@ -37,6 +37,9 @@ internal class JsonOpponentSpecRepositoryImpl @Inject constructor(
         }
     }
 
+    override fun findById(id: String): OpponentSpec? =
+        getAllSpecs()?.firstOrNull { it.id == id }
+
     private fun loadFromDisk(): List<OpponentSpec>? {
         val llmConfigsDir = configDirectory.resolve("LLM-Configs")
 
