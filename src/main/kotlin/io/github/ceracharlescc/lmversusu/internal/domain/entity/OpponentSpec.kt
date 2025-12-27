@@ -9,6 +9,7 @@ import kotlinx.serialization.json.JsonContentPolymorphicSerializer
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlin.reflect.full.memberProperties
 
 @Serializable(with = OpponentSpecModeSerializer::class)
 internal sealed interface OpponentSpec {
@@ -45,7 +46,22 @@ internal data class ProviderConfig(
     val providerName: String,
     val apiUrl: String,
     val apiKey: String,
-)
+) {
+    private fun toSafeString(): String {
+        val kClass = ProviderConfig::class
+        val props = kClass.memberProperties
+        val parts = props.joinToString(", ") { prop ->
+            val value = when (prop.name) {
+                "apiKey" -> "****"
+                else -> prop.get(this)
+            }
+            "${prop.name}=$value"
+        }
+        return "${kClass.simpleName}($parts)"
+    }
+
+    override fun toString(): String = toSafeString()
+}
 
 internal object OpponentSpecModeSerializer : JsonContentPolymorphicSerializer<OpponentSpec>(OpponentSpec::class) {
     override fun selectDeserializer(element: JsonElement): DeserializationStrategy<OpponentSpec> {

@@ -1,5 +1,3 @@
-package io.github.ceracharlescc
-
 import io.github.ceracharlescc.lmversusu.internal.module
 import io.github.ceracharlescc.lmversusu.internal.TestConfigFactory
 import io.github.ceracharlescc.lmversusu.internal.presentation.ktor.api.HeartbeatResponse

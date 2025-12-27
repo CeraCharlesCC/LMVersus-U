@@ -12,6 +12,11 @@ internal sealed class LlmStreamEvent {
         val answer: LlmAnswer,
     ) : LlmStreamEvent()
 
+    data class ReasoningTruncated(
+        val droppedChars: Int = 0,
+        val reason: String? = null,
+    ) : LlmStreamEvent()
+
     data class Error(
         val message: String,
         val cause: Throwable? = null,

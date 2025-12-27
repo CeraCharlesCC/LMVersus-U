@@ -16,16 +16,7 @@ internal object TestConfigFactory {
     private const val TEST_SIGN_KEY_HEX =
         "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210"
 
-    fun createTestConfig(
-        llmApiKey: String = "test-api-key",
-        llmProvider: String = "openai",
-    ): AppConfig = AppConfig(
-        llmConfig = AppConfig.LlmConfig(
-            primary = AppConfig.LlmProviderConfig(
-                apiKey = llmApiKey,
-                provider = llmProvider,
-            ),
-        ),
+    fun createTestConfig(): AppConfig = AppConfig(
         sessionCrypto = AppConfig.SessionCryptoConfig(
             enableSecureCookie = false,
             encryptionKeyHex = TEST_ENCRYPTION_KEY_HEX,
