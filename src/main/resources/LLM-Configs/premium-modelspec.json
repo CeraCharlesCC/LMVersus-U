@@ -11,7 +11,7 @@
         "apiUrl": "https://provider.example/v1",
         "apiKey": "ENV:KIMI_API_KEY"
     },
-    "questionSetPath": "Datasets/question-sets/mmlu_pro_subset",
+    "questionSetPath": "Datasets/questions/mmlu-pro/",
     "streaming": {
         "revealDelayMs": 10000,
         "targetTokensPerSecond": 80,
