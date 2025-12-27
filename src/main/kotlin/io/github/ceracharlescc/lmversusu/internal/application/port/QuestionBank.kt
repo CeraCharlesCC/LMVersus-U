@@ -5,16 +5,16 @@ import io.github.ceracharlescc.lmversusu.internal.domain.vo.Difficulty
 import kotlin.uuid.Uuid
 
 internal interface QuestionBank {
+
     /**
-     * Picks questions for a game session based on constraints.
+     * Picks questions from a specific question set directory.
      *
-     * @param count Number of questions to pick
-     * @param constraints Optional constraints for question selection
-     * @return List of selected questions
+     * @param questionSetPath directory that contains manifest.json + questions/
      */
-    fun pickQuestions(
+    suspend fun pickQuestions(
+        questionSetPath: String,
         count: Int,
-        constraints: QuestionConstraints = QuestionConstraints()
+        constraints: QuestionConstraints = QuestionConstraints(),
     ): List<Question>
 }
 
