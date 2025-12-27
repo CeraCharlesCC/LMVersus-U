@@ -24,7 +24,6 @@ internal fun Route.playerSessionRoutes() {
         val existingSession = call.sessions.get<ServiceSession>()
 
         if (existingSession != null) {
-            // Session already exists, return it
             call.respond(
                 PlayerSessionResponse(
                     playerId = existingSession.playerId,
@@ -32,7 +31,6 @@ internal fun Route.playerSessionRoutes() {
                 )
             )
         } else {
-            // Create new session
             val now = System.currentTimeMillis()
             val newSession = ServiceSession(
                 playerId = Uuid.random().toString(),
