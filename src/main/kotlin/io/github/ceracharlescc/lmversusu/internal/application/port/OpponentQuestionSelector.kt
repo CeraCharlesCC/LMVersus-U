@@ -13,7 +13,7 @@ import kotlin.uuid.Uuid
 @Singleton
 internal class OpponentQuestionSelector @Inject constructor(
     private val questionBank: QuestionBank,
-    private val lightweightDatasetRepository: LightweightDatasetRepository,
+    private val llmPlayerGateway: LlmPlayerGateway,
     private val logger: Logger,
 ) {
 
@@ -22,10 +22,7 @@ internal class OpponentQuestionSelector @Inject constructor(
         count: Int,
         constraints: QuestionConstraints = QuestionConstraints(),
     ): List<Question> {
-        val allowedByOpponent = when (opponentSpec) {
-            is OpponentSpec.Premium -> null
-            is OpponentSpec.Lightweight -> lightweightDatasetRepository.availableQuestionIds(opponentSpec.datasetPath)
-        }
+        val allowedByOpponent = llmPlayerGateway.availableQuestionIds(opponentSpec)
 
         val mergedConstraints = constraints.copy(
             allowedQuestionIds = intersectNullable(constraints.allowedQuestionIds, allowedByOpponent),
@@ -37,7 +34,7 @@ internal class OpponentQuestionSelector @Inject constructor(
         }
 
         if (opponentSpec is OpponentSpec.Lightweight) {
-            val declared = lightweightDatasetRepository.declaredQuestionSetPath(opponentSpec.datasetPath)
+            val declared = llmPlayerGateway.declaredQuestionSetPath(opponentSpec)
             if (!declared.isNullOrBlank() && declared != opponentSpec.questionSetPath) {
                 logger.warn(
                     "Lightweight specId={} questionSetPath mismatch: spec={}, datasetManifest={}",
@@ -55,12 +52,11 @@ internal class OpponentQuestionSelector @Inject constructor(
         )
     }
 
-    private fun intersectNullable(a: Set<Uuid>?, b: Set<Uuid>?): Set<Uuid>? {
-        return when {
+    private fun intersectNullable(a: Set<Uuid>?, b: Set<Uuid>?): Set<Uuid>? =
+        when {
             a == null && b == null -> null
             a == null -> b
             b == null -> a
             else -> a intersect b
         }
-    }
 }

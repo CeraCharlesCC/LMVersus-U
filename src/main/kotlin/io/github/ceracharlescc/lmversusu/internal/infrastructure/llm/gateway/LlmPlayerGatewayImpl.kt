@@ -10,6 +10,7 @@ import io.github.ceracharlescc.lmversusu.internal.infrastructure.llm.source.Prem
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.uuid.Uuid
 
 @Singleton
 internal class LlmPlayerGatewayImpl @Inject constructor(
@@ -27,5 +28,17 @@ internal class LlmPlayerGatewayImpl @Inject constructor(
         when (val spec = roundContext.opponentSpec) {
             is OpponentSpec.Premium -> premium.get(roundContext, spec)
             is OpponentSpec.Lightweight -> lightweight.get(roundContext, spec)
+        }
+
+    override suspend fun availableQuestionIds(opponentSpec: OpponentSpec): Set<Uuid>? =
+        when (opponentSpec) {
+            is OpponentSpec.Premium -> null
+            is OpponentSpec.Lightweight -> lightweight.availableQuestionIds(opponentSpec)
+        }
+
+    override suspend fun declaredQuestionSetPath(opponentSpec: OpponentSpec): String? =
+        when (opponentSpec) {
+            is OpponentSpec.Premium -> null
+            is OpponentSpec.Lightweight -> lightweight.declaredQuestionSetPath(opponentSpec)
         }
 }

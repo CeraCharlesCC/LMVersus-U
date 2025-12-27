@@ -12,6 +12,7 @@ import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Named
 import javax.inject.Singleton
+import kotlin.uuid.Uuid
 
 @Singleton
 internal class LightweightPlayerSource @Inject constructor(
@@ -34,13 +35,15 @@ internal class LightweightPlayerSource @Inject constructor(
         return dao.getReplayAnswer(questionId = context.questionId)
     }
 
+    suspend fun availableQuestionIds(spec: OpponentSpec.Lightweight): Set<Uuid> =
+        daoFor(spec).availableQuestionIds()
+
+    suspend fun declaredQuestionSetPath(spec: OpponentSpec.Lightweight): String? =
+        daoFor(spec).questionSetPath()
+
     private fun resolveDatasetPath(rawPath: String): String {
         val datasetPath = Paths.get(rawPath)
-        val resolved = if (datasetPath.isAbsolute) {
-            datasetPath
-        } else {
-            configDirectory.resolve(datasetPath)
-        }
+        val resolved = if (datasetPath.isAbsolute) datasetPath else configDirectory.resolve(datasetPath)
         return resolved.normalize().toString()
     }
 }
