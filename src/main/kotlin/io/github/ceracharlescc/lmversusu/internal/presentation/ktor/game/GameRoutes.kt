@@ -71,6 +71,19 @@ internal fun Route.gameWebSocket(
                 )
             }
 
+            /**
+             * Validates that the playerId from the client frame matches the authenticated session.
+             * This check should happen before any UUID parsing to provide clear auth error messages.
+             * @return true if valid, false if mismatch (error already sent)
+             */
+            suspend fun validatePlayerId(clientPlayerId: String): Boolean {
+                if (clientPlayerId != cookiePlayerId) {
+                    sendError(null, "auth_mismatch", "PlayerId in request does not match session")
+                    return false
+                }
+                return true
+            }
+
             try {
                 for (frame in incoming) {
                     if (frame !is Frame.Text) continue
@@ -112,10 +125,7 @@ internal fun Route.gameWebSocket(
                         }
 
                         is WsStartRoundRequest -> {
-                            if (clientFrame.playerId != cookiePlayerId) {
-                                sendError(null, "auth_mismatch", "PlayerId in request does not match session")
-                                continue
-                            }
+                            if (!validatePlayerId(clientFrame.playerId)) continue
 
                             val result = gameController.startNextRound(
                                 sessionId = clientFrame.sessionId,
@@ -129,10 +139,7 @@ internal fun Route.gameWebSocket(
                         }
 
                         is WsSubmitAnswer -> {
-                            if (clientFrame.playerId != cookiePlayerId) {
-                                sendError(null, "auth_mismatch", "PlayerId in request does not match session")
-                                continue
-                            }
+                            if (!validatePlayerId(clientFrame.playerId)) continue
 
                             val result = gameController.submitAnswer(
                                 sessionId = clientFrame.sessionId,
