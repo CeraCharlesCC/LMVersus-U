@@ -7,6 +7,7 @@ import io.github.ceracharlescc.lmversusu.internal.presentation.ktor.game.ws.Game
 import io.github.ceracharlescc.lmversusu.internal.presentation.ktor.game.ws.WsClientFrame
 import io.github.ceracharlescc.lmversusu.internal.presentation.ktor.game.ws.WsGameFrame
 import io.github.ceracharlescc.lmversusu.internal.presentation.ktor.game.ws.WsJoinSession
+import io.github.ceracharlescc.lmversusu.internal.presentation.ktor.game.ws.WsPing
 import io.github.ceracharlescc.lmversusu.internal.presentation.ktor.game.ws.WsSessionError
 import io.github.ceracharlescc.lmversusu.internal.presentation.ktor.game.ws.WsSessionJoined
 import io.github.ceracharlescc.lmversusu.internal.presentation.ktor.game.ws.WsStartRoundRequest
@@ -19,7 +20,7 @@ import io.ktor.server.websocket.webSocket
 import io.ktor.websocket.Frame
 import io.ktor.websocket.close
 import io.ktor.websocket.readText
-import kotlinx.serialization.decodeFromString
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlin.uuid.ExperimentalUuidApi
@@ -29,6 +30,7 @@ import kotlin.uuid.Uuid
 internal fun Route.gameWebSocket(
     gameController: GameController,
     gameEventBus: GameEventBus,
+    frameMapper: GameEventFrameMapper,
 ) {
     route("/ws") {
         webSocket("/game") {
@@ -51,9 +53,12 @@ internal fun Route.gameWebSocket(
 
             val json = Json { ignoreUnknownKeys = true }
             var subscribedSessionId: Uuid? = null
+            var clientLocale: String? = null  // Connection-scoped locale for i18n
 
             val listener = GameEventListener { event ->
-                val frame = GameEventFrameMapper.toFrame(event) ?: return@GameEventListener
+                val frame = runBlocking {
+                    frameMapper.toFrame(event, clientLocale)
+                } ?: return@GameEventListener
                 sendFrame(json, frame)
             }
 
@@ -88,6 +93,7 @@ internal fun Route.gameWebSocket(
 
                     when (clientFrame) {
                         is WsJoinSession -> {
+                            clientLocale = clientFrame.locale  // Capture locale from join request
                             val result = gameController.joinSession(
                                 sessionId = clientFrame.sessionId,
                                 playerId = cookiePlayerId, // Use cookie playerId
@@ -152,7 +158,7 @@ internal fun Route.gameWebSocket(
                             }
                         }
 
-                        else -> Unit
+                        is WsPing -> Unit  // Ping frames are handled automatically
                     }
                 }
             } finally {
@@ -165,8 +171,9 @@ internal fun Route.gameWebSocket(
 internal fun Route.gameRoutes(
     gameController: GameController,
     gameEventBus: GameEventBus,
+    frameMapper: GameEventFrameMapper,
 ) {
-    gameWebSocket(gameController, gameEventBus)
+    gameWebSocket(gameController, gameEventBus, frameMapper)
 }
 
 private suspend fun io.ktor.websocket.WebSocketSession.sendFrame(

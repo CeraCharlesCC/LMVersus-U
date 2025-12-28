@@ -42,6 +42,7 @@ internal data class WsPlayerJoined(
 internal data class WsRoundStarted(
     override val type: String = "round_started",
     val sessionId: String,
+    val questionId: String,
     val roundId: String,
     val roundNumber: Int,
     val questionPrompt: String,

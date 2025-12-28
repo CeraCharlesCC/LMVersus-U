@@ -1,0 +1,118 @@
+package io.github.ceracharlescc.lmversusu.internal.infrastructure.i18n
+
+import io.github.ceracharlescc.lmversusu.internal.application.port.LocalizedQuestion
+import io.github.ceracharlescc.lmversusu.internal.application.port.QuestionLocalizer
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import java.nio.file.Path
+import javax.inject.Inject
+import javax.inject.Named
+import javax.inject.Singleton
+import kotlin.io.path.div
+import kotlin.io.path.exists
+import kotlin.io.path.readText
+import kotlin.uuid.Uuid
+
+/**
+ * Loads question translations from JSON files in Datasets/i18n/<locale>/<questionId>.json
+ * 
+ * File schema:
+ * {
+ *   "prompt": "Localized prompt text",
+ *   "choices": ["Choice A", "Choice B", "Choice C", "Choice D"]
+ * }
+ * 
+ * Features:
+ * - In-memory caching (both hits and misses) to avoid repeated disk I/O
+ * - Safe fallback to canonical content on any error
+ * - Validates choice count matches canonical
+ */
+@Singleton
+internal class FileQuestionLocalizerImpl @Inject constructor(
+    @Named("configdirectory") configDir: Path,
+) : QuestionLocalizer {
+    private val i18nBasePath: Path = configDir / "Datasets" / "i18n"
+    private val cache = mutableMapOf<CacheKey, TranslationFile?>()
+    private val mutex = Mutex()
+    private val json = Json { ignoreUnknownKeys = true }
+
+    override suspend fun localize(
+        locale: String,
+        questionId: Uuid,
+        canonicalPrompt: String,
+        canonicalChoices: List<String>?,
+    ): LocalizedQuestion {
+        val normalized = normalizeLocale(locale)
+        if (normalized == null || normalized == "en") {
+            return LocalizedQuestion(canonicalPrompt, canonicalChoices)
+        }
+
+        val key = CacheKey(normalized, questionId)
+        val translation = mutex.withLock {
+            cache.getOrPut(key) {
+                loadTranslationFile(normalized, questionId)
+            }
+        }
+
+        return applyTranslation(translation, canonicalPrompt, canonicalChoices)
+    }
+
+    private suspend fun loadTranslationFile(locale: String, questionId: Uuid): TranslationFile? =
+        withContext(Dispatchers.IO) {
+            try {
+                val filePath = i18nBasePath / locale / "$questionId.json"
+                if (!filePath.exists()) return@withContext null
+
+                val content = filePath.readText(Charsets.UTF_8)
+                json.decodeFromString<TranslationFile>(content)
+            } catch (e: Exception) {
+                // Log once and cache miss to avoid repeated failures
+                null
+            }
+        }
+
+    private fun applyTranslation(
+        translation: TranslationFile?,
+        canonicalPrompt: String,
+        canonicalChoices: List<String>?,
+    ): LocalizedQuestion {
+        if (translation == null) {
+            return LocalizedQuestion(canonicalPrompt, canonicalChoices)
+        }
+
+        val localizedPrompt = translation.prompt ?: canonicalPrompt
+        val localizedChoices = when {
+            translation.choices == null -> canonicalChoices
+            canonicalChoices == null -> canonicalChoices // Free response, ignore translation
+            translation.choices.size != canonicalChoices.size -> canonicalChoices // Mismatch, fallback
+            else -> translation.choices
+        }
+
+        return LocalizedQuestion(localizedPrompt, localizedChoices)
+    }
+
+    private fun normalizeLocale(locale: String): String? {
+        if (locale.isBlank()) return null
+
+        // Extract primary language subtag (ja from ja-JP, pt from pt-BR)
+        val normalized = locale.lowercase()
+            .split('-', '_')
+            .firstOrNull()
+            ?.filter { it.isLetterOrDigit() }
+            ?.take(5)
+
+        return if (!normalized.isNullOrBlank()) normalized else null
+    }
+
+    private data class CacheKey(val locale: String, val questionId: Uuid)
+}
+
+@Serializable
+internal data class TranslationFile(
+    val prompt: String? = null,
+    val choices: List<String>? = null,
+)

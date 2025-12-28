@@ -22,6 +22,7 @@ internal sealed class GameEvent {
 
     data class RoundStarted(
         override val sessionId: Uuid,
+        val questionId: Uuid,
         val roundId: Uuid,
         val roundNumber: Int,
         val questionPrompt: String,

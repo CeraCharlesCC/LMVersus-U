@@ -16,6 +16,7 @@ internal data class WsJoinSession(
     val sessionId: String? = null,
     val opponentSpecId: String,
     val nickname: String,
+    val locale: String? = null,
 ) : WsClientFrame
 
 @Serializable

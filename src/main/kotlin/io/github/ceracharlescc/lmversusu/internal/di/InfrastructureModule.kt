@@ -6,9 +6,11 @@ import io.github.ceracharlescc.lmversusu.internal.application.port.AnswerVerifie
 import io.github.ceracharlescc.lmversusu.internal.application.port.GameEventBus
 import io.github.ceracharlescc.lmversusu.internal.application.port.LlmPlayerGateway
 import io.github.ceracharlescc.lmversusu.internal.application.port.QuestionBank
+import io.github.ceracharlescc.lmversusu.internal.application.port.QuestionLocalizer
 import io.github.ceracharlescc.lmversusu.internal.domain.repository.OpponentSpecRepository
 import io.github.ceracharlescc.lmversusu.internal.domain.repository.ResultsRepository
 import io.github.ceracharlescc.lmversusu.internal.infrastructure.game.InMemoryGameEventBusImpl
+import io.github.ceracharlescc.lmversusu.internal.infrastructure.i18n.FileQuestionLocalizerImpl
 import io.github.ceracharlescc.lmversusu.internal.infrastructure.llm.gateway.LlmPlayerGatewayImpl
 import io.github.ceracharlescc.lmversusu.internal.infrastructure.repository.FileQuestionBankImpl
 import io.github.ceracharlescc.lmversusu.internal.infrastructure.repository.InMemoryResultsRepositoryImpl
@@ -41,4 +43,8 @@ internal interface InfrastructureModule {
     @Binds
     @Singleton
     fun bindAnswerVerifier(impl: AnswerVerifierImpl): AnswerVerifier
+
+    @Binds
+    @Singleton
+    fun bindQuestionLocalizer(impl: FileQuestionLocalizerImpl): QuestionLocalizer
 }

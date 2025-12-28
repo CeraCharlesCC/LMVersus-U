@@ -1,26 +1,46 @@
 package io.github.ceracharlescc.lmversusu.internal.presentation.ktor.game.ws
 
+import io.github.ceracharlescc.lmversusu.internal.application.port.QuestionLocalizer
 import io.github.ceracharlescc.lmversusu.internal.domain.entity.GameEvent
+import javax.inject.Inject
+import javax.inject.Singleton
 
-internal object GameEventFrameMapper {
-    fun toFrame(event: GameEvent): WsGameFrame? = when (event) {
+@Singleton
+internal class GameEventFrameMapper @Inject constructor(
+    private val questionLocalizer: QuestionLocalizer,
+) {
+    suspend fun toFrame(event: GameEvent, locale: String?): WsGameFrame? = when (event) {
         is GameEvent.PlayerJoined -> WsPlayerJoined(
             sessionId = event.sessionId.toString(),
             playerId = event.playerId.toString(),
             nickname = event.nickname,
         )
 
-        is GameEvent.RoundStarted -> WsRoundStarted(
-            sessionId = event.sessionId.toString(),
-            roundId = event.roundId.toString(),
-            roundNumber = event.roundNumber,
-            questionPrompt = event.questionPrompt,
-            choices = event.choices,
-            releasedAtEpochMs = event.releasedAt.toEpochMilli(),
-            handicapMs = event.handicapMs,
-            deadlineAtEpochMs = event.deadlineAt.toEpochMilli(),
-            nonceToken = event.nonceToken,
-        )
+        is GameEvent.RoundStarted -> {
+            val localized = if (locale != null) {
+                questionLocalizer.localize(
+                    locale = locale,
+                    questionId = event.questionId,
+                    canonicalPrompt = event.questionPrompt,
+                    canonicalChoices = event.choices,
+                )
+            } else {
+                null
+            }
+
+            WsRoundStarted(
+                sessionId = event.sessionId.toString(),
+                questionId = event.questionId.toString(),
+                roundId = event.roundId.toString(),
+                roundNumber = event.roundNumber,
+                questionPrompt = localized?.prompt ?: event.questionPrompt,
+                choices = localized?.choices ?: event.choices,
+                releasedAtEpochMs = event.releasedAt.toEpochMilli(),
+                handicapMs = event.handicapMs,
+                deadlineAtEpochMs = event.deadlineAt.toEpochMilli(),
+                nonceToken = event.nonceToken,
+            )
+        }
 
         is GameEvent.RoundResolved -> WsRoundResolved(
             sessionId = event.sessionId.toString(),

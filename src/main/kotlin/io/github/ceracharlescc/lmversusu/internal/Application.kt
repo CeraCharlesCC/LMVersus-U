@@ -34,6 +34,7 @@ internal fun Application.module(appConfigOverride: AppConfig? = null) {
         gameRoutes(
             gameController = appComponent.gameController(),
             gameEventBus = appComponent.gameEventBus(),
+            frameMapper = appComponent.gameEventFrameMapper(),
         )
     }
 }

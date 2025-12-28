@@ -145,6 +145,7 @@ internal class SessionActor(
                 gameEventBus.publish(
                     GameEvent.RoundStarted(
                         sessionId = sessionId,
+                        questionId = round.question.questionId,
                         roundId = round.roundId,
                         roundNumber = result.roundNumber,
                         questionPrompt = round.question.prompt,

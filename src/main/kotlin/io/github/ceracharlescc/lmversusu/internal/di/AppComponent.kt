@@ -6,6 +6,7 @@ import io.github.ceracharlescc.lmversusu.internal.AppConfig
 import io.github.ceracharlescc.lmversusu.internal.application.port.GameEventBus
 import io.github.ceracharlescc.lmversusu.internal.presentation.ktor.api.ApiController
 import io.github.ceracharlescc.lmversusu.internal.presentation.ktor.game.GameController
+import io.github.ceracharlescc.lmversusu.internal.presentation.ktor.game.ws.GameEventFrameMapper
 import javax.inject.Singleton
 
 @Singleton
@@ -19,6 +20,7 @@ internal interface AppComponent {
     fun apiController(): ApiController
     fun gameController(): GameController
     fun gameEventBus(): GameEventBus
+    fun gameEventFrameMapper(): GameEventFrameMapper
 
     @Component.Builder
     interface Builder {
