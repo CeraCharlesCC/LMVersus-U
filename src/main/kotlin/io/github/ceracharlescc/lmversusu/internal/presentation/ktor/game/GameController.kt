@@ -55,10 +55,10 @@ internal class GameController @Inject constructor(
             return JoinResult.Failure(errorCode = "invalid_session", message = "sessionId is invalid")
         }
 
-        val parsedPlayerId = parseUuidOrNull(playerId)
-        if (parsedPlayerId == null) {
-            return JoinResult.Failure(errorCode = "invalid_player", message = "playerId is invalid")
-        }
+        val parsedPlayerId = parseUuidOrNull(playerId) ?: return JoinResult.Failure(
+            errorCode = "invalid_player",
+            message = "playerId is invalid"
+        )
 
         val resolvedSessionId = parsedSessionId ?: Uuid.random()
 
