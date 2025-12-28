@@ -6,7 +6,8 @@
         "modelName": "claude-sonnet-4.5",
         "displayName": "Sonnet 4.5"
     },
-    "datasetPath": "Datasets/lightweight/sonnet45_mmlu_pro_subset",
+    "datasetPath": "Datasets/models/lightweight/sonnet45_mmlu_pro_subset",
+    "questionSetPath": "Datasets/questions/mmlu-pro/",
     "streaming": {
         "revealDelayMs": 10000,
         "targetTokensPerSecond": 120,

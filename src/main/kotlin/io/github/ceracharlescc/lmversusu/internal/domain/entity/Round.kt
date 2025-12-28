@@ -11,6 +11,7 @@ internal data class Round(
     val releasedAt: Instant,
     val handicap: Duration,
     val deadline: Instant,
+    val nonceToken: String,
     val humanSubmission: Submission? = null,
     val llmSubmission: Submission? = null,
     val result: RoundResult? = null

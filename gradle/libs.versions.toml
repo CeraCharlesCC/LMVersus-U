@@ -1,9 +1,9 @@
 [versions]
-kotlin = "2.1.20"
+kotlin = "2.2.21"
 ktor = "3.3.3"
 logback = "1.4.14"
 flaxoosRateLimiting = "2.2.1"
-ksp = "2.1.20-1.0.32"
+ksp = "2.2.21-2.0.4"
 dagger = "2.57"
 
 openai-java = "4.12.0"

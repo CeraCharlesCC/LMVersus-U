@@ -4,5 +4,6 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 internal data class ServiceSession(
-    val id: String,
+    val playerId: String,
+    val issuedAtEpochMs: Long,
 )

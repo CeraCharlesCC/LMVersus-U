@@ -25,13 +25,18 @@ internal fun Application.module(appConfigOverride: AppConfig? = null) {
     configureAdministration()
     configureMonitoring()
     configureSecurity(appConfig.sessionCrypto)
-    configureHTTP()
+    configureFrontend()
+    configureHTTP(appConfig.serverConfig)
 
     configureRouting()
 
     routing {
         apiV1Routes(appComponent.apiController())
-        gameRoutes()
+        gameRoutes(
+            gameController = appComponent.gameController(),
+            gameEventBus = appComponent.gameEventBus(),
+            frameMapper = appComponent.gameEventFrameMapper(),
+        )
     }
 }
 

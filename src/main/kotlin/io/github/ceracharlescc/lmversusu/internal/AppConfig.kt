@@ -1,14 +1,29 @@
 package io.github.ceracharlescc.lmversusu.internal
 
 import kotlinx.serialization.Serializable
-import kotlin.reflect.full.memberProperties
 
 @Serializable
 internal data class AppConfig(
+    val serverConfig: ServerConfig = ServerConfig(),
     val logConfig: LogConfig = LogConfig(),
     val rateLimitConfig: RateLimitConfig = RateLimitConfig(),
     val sessionCrypto: SessionCryptoConfig = SessionCryptoConfig(),
 ) {
+
+    @Serializable
+    data class ServerConfig(
+        val bindHost: String = DEFAULT_BIND_HOST,
+        val bindPort: Int = DEFAULT_BIND_PORT,
+        val corsAllowedHosts: List<String> = CORS_ALLOWED_HOSTS,
+        val debug: Boolean = DEFAULT_DEBUG
+    ) {
+        companion object {
+            const val DEFAULT_BIND_HOST = "localhost"
+            const val DEFAULT_BIND_PORT = 8080
+            val CORS_ALLOWED_HOSTS = listOf<String>()
+            const val DEFAULT_DEBUG = false
+        }
+    }
 
     @Serializable
     data class LogConfig(
