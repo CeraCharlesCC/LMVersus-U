@@ -4,13 +4,13 @@ import io.github.ceracharlescc.lmversusu.internal.application.port.LocalizedQues
 import io.github.ceracharlescc.lmversusu.internal.application.port.QuestionLocalizer
 import io.github.ceracharlescc.lmversusu.internal.di.annotation.ConfigDirectory
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import org.slf4j.Logger
 import java.nio.file.Path
+import java.util.Optional
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.io.path.div
@@ -31,6 +31,7 @@ import kotlin.uuid.Uuid
  * - In-memory caching (both hits and misses) to avoid repeated disk I/O
  * - Safe fallback to canonical content on any error
  * - Validates choice count matches canonical
+ * - Thread-safe cache using ConcurrentHashMap
  */
 @Singleton
 internal class FileQuestionLocalizerImpl @Inject constructor(
@@ -38,8 +39,8 @@ internal class FileQuestionLocalizerImpl @Inject constructor(
     private val logger: Logger,
 ) : QuestionLocalizer {
     private val i18nBasePath: Path = configDir / "Datasets" / "i18n"
-    private val cache = mutableMapOf<CacheKey, TranslationFile?>()
-    private val mutex = Mutex()
+
+    private val cache = ConcurrentHashMap<CacheKey, Optional<TranslationFile>>()
     private val json = Json { ignoreUnknownKeys = true }
 
     override suspend fun localize(
@@ -54,10 +55,17 @@ internal class FileQuestionLocalizerImpl @Inject constructor(
         }
 
         val key = CacheKey(normalized, questionId)
-        val translation = mutex.withLock {
-            cache.getOrPut(key) {
-                loadTranslationFile(normalized, questionId)
-            }
+
+        val cached = cache[key]
+        val translation = if (cached != null) {
+            cached.orElse(null)
+        } else {
+            val loaded = loadTranslationFile(normalized, questionId)
+            val wrapped = Optional.ofNullable(loaded)
+            // putIfAbsent returns null if the key was absent (our value was inserted),
+            // or returns the existing value if another thread beat us to it
+            val existing = cache.putIfAbsent(key, wrapped)
+            existing?.orElse(null) ?: loaded
         }
 
         return applyTranslation(translation, canonicalPrompt, canonicalChoices)
