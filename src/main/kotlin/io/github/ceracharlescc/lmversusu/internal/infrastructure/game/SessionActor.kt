@@ -393,7 +393,7 @@ internal class SessionActor(
         }
 
     private fun buildJoinCode(sessionId: Uuid): String {
-        return sessionId.toString().replace("-", "").take(6).uppercase()
+        return sessionId.toString()
     }
 }
 
