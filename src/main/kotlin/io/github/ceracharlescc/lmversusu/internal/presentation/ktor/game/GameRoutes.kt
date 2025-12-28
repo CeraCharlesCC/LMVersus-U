@@ -47,9 +47,7 @@ internal fun Route.gameWebSocket(
             var clientLocale: String? = null  // Connection-scoped locale for i18n
 
             val listener = GameEventListener { event ->
-                val frame = runBlocking {
-                    frameMapper.toFrame(event, clientLocale)
-                } ?: return@GameEventListener
+                val frame = frameMapper.toFrame(event, clientLocale) ?: return@GameEventListener
                 sendFrame(json, frame)
             }
 
