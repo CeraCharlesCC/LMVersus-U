@@ -15,6 +15,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 import kotlin.math.ceil
+import kotlin.math.roundToInt
 import kotlin.uuid.Uuid
 
 /**
@@ -80,10 +81,20 @@ internal class LocalAnswerDao(
             }
 
             val reasoning = replay.llmReasoning.orEmpty()
-            val totalTokenCount = estimateTokenCount(reasoning)
 
-            for (chunk in chunkReasoning(reasoning)) {
-                val emittedTokenCount = estimateTokenCount(chunk)
+            val recordedTotalTokens = replay.replay?.reasoningTokenCount?.takeIf { it > 0 }
+            val totalTokenCount = recordedTotalTokens ?: estimateTokenCount(reasoning)
+
+            val chunks = chunkReasoning(reasoning).toList()
+
+            val emittedTokenCounts =
+                if (chunks.isEmpty()) emptyList() else allocateTokensProportionally(chunks, totalTokenCount)
+
+            for (i in chunks.indices) {
+                val chunk = chunks[i]
+                val emittedTokenCount =
+                    if (recordedTotalTokens != null) emittedTokenCounts[i] else estimateTokenCount(chunk)
+
                 emit(
                     LlmStreamEvent.ReasoningDelta(
                         deltaText = chunk,
@@ -97,13 +108,6 @@ internal class LocalAnswerDao(
         }
     }
 
-    /**
-     * Gets the complete replayed answer for the given question.
-     *
-     * @param questionId The UUID of the question to replay
-     * @return The complete [LlmAnswer] from the replay dataset
-     * @throws IllegalArgumentException if the questionId is not found in the dataset
-     */
     suspend fun getReplayAnswer(questionId: Uuid): LlmAnswer {
         val replay = loadReplay(questionId)
             ?: throw IllegalArgumentException("QuestionId $questionId not found in dataset $datasetDirectory")
@@ -166,6 +170,41 @@ internal class LocalAnswerDao(
                 index = end
             }
         }
+    }
+
+    private fun allocateTokensProportionally(chunks: List<String>, totalTokens: Int): List<Int> {
+        require(totalTokens >= 0) { "totalTokens must be non-negative, got $totalTokens" }
+        if (chunks.isEmpty()) return emptyList()
+        if (totalTokens == 0) return List(chunks.size) { 0 }
+
+        val totalChars = chunks.sumOf { it.length }.coerceAtLeast(1)
+
+        val out = IntArray(chunks.size)
+        var allocated = 0
+
+        for (i in chunks.indices) {
+            val remainingChunks = chunks.size - i
+            val remainingTokens = totalTokens - allocated
+
+            if (i == chunks.lastIndex) {
+                out[i] = remainingTokens.coerceAtLeast(0)
+                break
+            }
+
+            val ideal = (totalTokens.toDouble() * chunks[i].length.toDouble()) / totalChars.toDouble()
+            var n = ideal.roundToInt()
+
+            if (chunks[i].isNotEmpty()) n = n.coerceAtLeast(1)
+
+            val minReserveForLater = (remainingChunks - 1).coerceAtLeast(0)
+            val maxForThis = remainingTokens - minReserveForLater
+            n = if (maxForThis <= 0) 0 else n.coerceIn(0, maxForThis)
+
+            out[i] = n
+            allocated += n
+        }
+
+        return out.toList()
     }
 
     private fun estimateTokenCount(text: String): Int {
