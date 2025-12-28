@@ -15,8 +15,6 @@ internal object ConfigLoader {
     private const val CONFIG_FILE_NAME = "config.toml"
     private const val DEFAULT_CONFIG_RESOURCE = "config.default.toml"
 
-    private const val DEFAULT_API_KEY_PLACEHOLDER = "REPLACE_ME_WITH_API_KEY"
-
     private const val ENV_PREFIX = "ENV:"
 
     /**

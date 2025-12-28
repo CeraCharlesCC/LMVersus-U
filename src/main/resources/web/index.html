@@ -1,0 +1,788 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LMVersus-U Test Client</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+    <style>
+        :root {
+            --bg-primary: #0f0f23;
+            --bg-secondary: #1a1a2e;
+            --bg-tertiary: #16213e;
+            --accent: #6366f1;
+            --accent-hover: #818cf8;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --success: #22c55e;
+            --error: #ef4444;
+            --warning: #f59e0b;
+            --border: #334155;
+            --radius: 8px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            color: var(--accent);
+        }
+
+        /* Control Bar */
+        .control-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+            padding: 16px;
+            background: var(--bg-secondary);
+            border-radius: var(--radius);
+            margin-bottom: 20px;
+        }
+
+        .control-bar input,
+        .control-bar select {
+            padding: 10px 14px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            font-size: 0.9rem;
+        }
+
+        .control-bar input:focus,
+        .control-bar select:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .control-bar button {
+            padding: 10px 20px;
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: var(--radius);
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+
+        .control-bar button:hover:not(:disabled) {
+            background: var(--accent-hover);
+        }
+
+        .control-bar button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .status {
+            margin-left: auto;
+            padding: 8px 16px;
+            border-radius: var(--radius);
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        .status.connecting { background: var(--warning); color: black; }
+        .status.connected { background: var(--success); color: white; }
+        .status.disconnected { background: var(--error); color: white; }
+        .status.error { background: var(--error); color: white; }
+
+        /* Main Grid */
+        .game-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 900px) {
+            .game-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Panels */
+        .panel {
+            background: var(--bg-secondary);
+            border-radius: var(--radius);
+            padding: 20px;
+            border: 1px solid var(--border);
+        }
+
+        .panel-header {
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+            margin-bottom: 16px;
+            letter-spacing: 0.05em;
+        }
+
+        /* Question Panel */
+        #question-panel {
+            grid-column: 1 / -1;
+        }
+
+        #question-prompt {
+            font-size: 1.1rem;
+            line-height: 1.6;
+            margin-bottom: 20px;
+            min-height: 60px;
+            color: var(--text-secondary);
+        }
+
+        #question-prompt.active {
+            color: var(--text-primary);
+        }
+
+        .choices-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+        }
+
+        .choice-btn {
+            padding: 14px 20px;
+            background: var(--bg-tertiary);
+            border: 2px solid var(--border);
+            border-radius: var(--radius);
+            color: var(--text-primary);
+            cursor: pointer;
+            text-align: left;
+            font-size: 0.95rem;
+            transition: all 0.2s;
+        }
+
+        .choice-btn:hover:not(:disabled) {
+            border-color: var(--accent);
+            background: rgba(99, 102, 241, 0.1);
+        }
+
+        .choice-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .choice-btn.selected {
+            border-color: var(--accent);
+            background: rgba(99, 102, 241, 0.2);
+        }
+
+        .choice-btn.correct {
+            border-color: var(--success);
+            background: rgba(34, 197, 94, 0.2);
+        }
+
+        .choice-btn.incorrect {
+            border-color: var(--error);
+            background: rgba(239, 68, 68, 0.2);
+        }
+
+        /* LLM Reasoning Panel */
+        #reasoning-content {
+            height: 300px;
+            overflow-y: auto;
+            background: var(--bg-tertiary);
+            border-radius: var(--radius);
+            padding: 16px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.85rem;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        /* Result Panel */
+        .result-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .result-item:last-child {
+            border-bottom: none;
+        }
+
+        .result-label {
+            color: var(--text-secondary);
+        }
+
+        .result-value {
+            font-weight: 600;
+        }
+
+        .result-value.winner {
+            color: var(--success);
+        }
+
+        /* Event Log */
+        #event-log-panel {
+            grid-column: 1 / -1;
+        }
+
+        #event-log-toggle {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            padding: 6px 12px;
+            border-radius: var(--radius);
+            cursor: pointer;
+            font-size: 0.8rem;
+            margin-bottom: 12px;
+        }
+
+        #event-log {
+            height: 200px;
+            overflow-y: auto;
+            background: var(--bg-tertiary);
+            border-radius: var(--radius);
+            padding: 12px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.75rem;
+            display: none;
+        }
+
+        #event-log.visible {
+            display: block;
+        }
+
+        .log-entry {
+            padding: 4px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .log-entry.incoming {
+            color: var(--success);
+        }
+
+        .log-entry.outgoing {
+            color: var(--warning);
+        }
+
+        .log-entry.error {
+            color: var(--error);
+        }
+
+        /* Round Info */
+        #round-info {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+        }
+
+        #timer {
+            font-weight: bold;
+            color: var(--accent);
+        }
+
+        /* Truncation Notice */
+        .truncation-notice {
+            color: var(--warning);
+            font-style: italic;
+            margin-top: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎮 LMVersus-U Test Client</h1>
+
+        <!-- Control Bar -->
+        <div class="control-bar">
+            <input type="text" id="nickname" placeholder="Nickname" value="TestPlayer" />
+            <select id="model-select">
+                <option value="">Loading models...</option>
+            </select>
+            <button id="btn-join" disabled>Join Game</button>
+            <button id="btn-start-round" disabled>Start Round</button>
+            <span id="status" class="status disconnected">Disconnected</span>
+        </div>
+
+        <!-- Game Grid -->
+        <div class="game-grid">
+            <!-- Question Panel -->
+            <div class="panel" id="question-panel">
+                <div class="panel-header">Question</div>
+                <div id="round-info">Round: -- | Time: <span id="timer">--</span></div>
+                <div id="question-prompt">Waiting for game to start...</div>
+                <div class="choices-grid" id="choices"></div>
+            </div>
+
+            <!-- LLM Reasoning Panel -->
+            <div class="panel">
+                <div class="panel-header">LLM Reasoning</div>
+                <div id="reasoning-content"></div>
+                <div id="truncation-notice" class="truncation-notice" style="display: none;"></div>
+            </div>
+
+            <!-- Result Panel -->
+            <div class="panel">
+                <div class="panel-header">Round Result</div>
+                <div id="result-content">
+                    <div class="result-item">
+                        <span class="result-label">Winner</span>
+                        <span id="result-winner" class="result-value">--</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">Your Score</span>
+                        <span id="result-human-score" class="result-value">0</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">LLM Score</span>
+                        <span id="result-llm-score" class="result-value">0</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">Correct Answer</span>
+                        <span id="result-correct" class="result-value">--</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">You</span>
+                        <span id="result-human-correct" class="result-value">--</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">LLM</span>
+                        <span id="result-llm-correct" class="result-value">--</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Event Log Panel -->
+            <div class="panel" id="event-log-panel">
+                <button id="event-log-toggle">Toggle Event Log</button>
+                <div id="event-log"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- KaTeX for math rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+    <!-- Markdown-it for markdown rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/markdown-it@14/dist/markdown-it.min.js"></script>
+
+    <script>
+        // =====================
+        // State
+        // =====================
+        let playerId = null;
+        let sessionId = null;
+        let currentRoundId = null;
+        let currentNonceToken = null;
+        let ws = null;
+        let timerInterval = null;
+        let deadlineMs = null;
+
+        // DOM Elements
+        const nicknameInput = document.getElementById('nickname');
+        const modelSelect = document.getElementById('model-select');
+        const btnJoin = document.getElementById('btn-join');
+        const btnStartRound = document.getElementById('btn-start-round');
+        const statusEl = document.getElementById('status');
+        const questionPrompt = document.getElementById('question-prompt');
+        const roundInfo = document.getElementById('round-info');
+        const timerEl = document.getElementById('timer');
+        const choicesEl = document.getElementById('choices');
+        const reasoningContent = document.getElementById('reasoning-content');
+        const truncationNotice = document.getElementById('truncation-notice');
+        const eventLog = document.getElementById('event-log');
+        const eventLogToggle = document.getElementById('event-log-toggle');
+
+        // Result elements
+        const resultWinner = document.getElementById('result-winner');
+        const resultHumanScore = document.getElementById('result-human-score');
+        const resultLlmScore = document.getElementById('result-llm-score');
+        const resultCorrect = document.getElementById('result-correct');
+        const resultHumanCorrect = document.getElementById('result-human-correct');
+        const resultLlmCorrect = document.getElementById('result-llm-correct');
+
+        // Markdown parser
+        const md = window.markdownit({ html: false, breaks: true });
+
+        // =====================
+        // Logging
+        // =====================
+        function log(direction, data) {
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${direction}`;
+            const timestamp = new Date().toISOString().substr(11, 12);
+            entry.textContent = `[${timestamp}] ${direction.toUpperCase()}: ${typeof data === 'string' ? data : JSON.stringify(data)}`;
+            eventLog.appendChild(entry);
+            eventLog.scrollTop = eventLog.scrollHeight;
+        }
+
+        eventLogToggle.addEventListener('click', () => {
+            eventLog.classList.toggle('visible');
+        });
+
+        // =====================
+        // Status
+        // =====================
+        function setStatus(status, text) {
+            statusEl.className = `status ${status}`;
+            statusEl.textContent = text || status.charAt(0).toUpperCase() + status.slice(1);
+        }
+
+        // =====================
+        // Timer
+        // =====================
+        function startTimer() {
+            stopTimer();
+            timerInterval = setInterval(() => {
+                if (!deadlineMs) {
+                    timerEl.textContent = '--';
+                    return;
+                }
+                const remaining = Math.max(0, Math.floor((deadlineMs - Date.now()) / 1000));
+                timerEl.textContent = `${remaining}s`;
+                if (remaining <= 0) {
+                    stopTimer();
+                }
+            }, 100);
+        }
+
+        function stopTimer() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+        }
+
+        // =====================
+        // Session Bootstrap
+        // =====================
+        async function bootstrapSession() {
+            try {
+                const res = await fetch('/api/v1/player/session', { credentials: 'include' });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const data = await res.json();
+                playerId = data.playerId;
+                log('incoming', `Session: playerId=${playerId}`);
+                return true;
+            } catch (err) {
+                log('error', `Session bootstrap failed: ${err.message}`);
+                setStatus('error', 'Session Error');
+                return false;
+            }
+        }
+
+        // =====================
+        // Load Models
+        // =====================
+        async function loadModels() {
+            try {
+                const res = await fetch('/api/v1/models', { credentials: 'include' });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const data = await res.json();
+                modelSelect.innerHTML = '';
+                data.models.forEach(model => {
+                    const opt = document.createElement('option');
+                    opt.value = model.id;
+                    opt.textContent = `${model.displayName} (${model.mode})`;
+                    modelSelect.appendChild(opt);
+                });
+                btnJoin.disabled = false;
+                log('incoming', `Loaded ${data.models.length} models`);
+            } catch (err) {
+                log('error', `Load models failed: ${err.message}`);
+                modelSelect.innerHTML = '<option value="">Failed to load</option>';
+            }
+        }
+
+        // =====================
+        // WebSocket
+        // =====================
+        function connectWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `http://127.0.0.1:8080/ws/game`;
+            
+            setStatus('connecting', 'Connecting...');
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = () => {
+                setStatus('connected', 'Connected');
+                log('incoming', 'WebSocket connected');
+            };
+
+            ws.onclose = () => {
+                setStatus('disconnected', 'Disconnected');
+                log('incoming', 'WebSocket closed');
+                ws = null;
+                btnStartRound.disabled = true;
+            };
+
+            ws.onerror = (err) => {
+                setStatus('error', 'WS Error');
+                log('error', 'WebSocket error');
+            };
+
+            ws.onmessage = (event) => {
+                handleServerFrame(event.data);
+            };
+        }
+
+        function sendFrame(frame) {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                log('error', 'WebSocket not connected');
+                return;
+            }
+            const payload = JSON.stringify(frame);
+            ws.send(payload);
+            log('outgoing', frame);
+        }
+
+        // =====================
+        // Frame Handlers
+        // =====================
+        function handleServerFrame(data) {
+            let frame;
+            try {
+                frame = JSON.parse(data);
+            } catch (err) {
+                log('error', `Invalid JSON: ${data}`);
+                return;
+            }
+
+            // Don't log deltas to reduce noise
+            if (frame.type !== 'llm_reasoning_delta') {
+                log('incoming', frame);
+            }
+
+            switch (frame.type) {
+                case 'session_joined':
+                    handleSessionJoined(frame);
+                    break;
+                case 'session_error':
+                    handleSessionError(frame);
+                    break;
+                case 'round_started':
+                    handleRoundStarted(frame);
+                    break;
+                case 'llm_reasoning_delta':
+                    handleReasoningDelta(frame);
+                    break;
+                case 'llm_reasoning_truncated':
+                    handleReasoningTruncated(frame);
+                    break;
+                case 'llm_final_answer':
+                    handleLlmFinalAnswer(frame);
+                    break;
+                case 'llm_stream_error':
+                    handleLlmStreamError(frame);
+                    break;
+                case 'round_resolved':
+                    handleRoundResolved(frame);
+                    break;
+            }
+        }
+
+        function handleSessionJoined(frame) {
+            sessionId = frame.sessionId;
+            playerId = frame.playerId;
+            setStatus('connected', `Joined: ${frame.nickname}`);
+            btnStartRound.disabled = false;
+            btnJoin.disabled = true;
+        }
+
+        function handleSessionError(frame) {
+            setStatus('error', frame.errorCode);
+            alert(`Error: ${frame.message}`);
+        }
+
+        function handleRoundStarted(frame) {
+            currentRoundId = frame.roundId;
+            currentNonceToken = frame.nonceToken;
+            deadlineMs = frame.deadlineAtEpochMs;
+
+            // Update round info
+            roundInfo.textContent = `Round: ${frame.roundNumber} | Time: `;
+            roundInfo.appendChild(timerEl);
+            startTimer();
+
+            // Render question with markdown + math
+            questionPrompt.innerHTML = md.render(frame.questionPrompt);
+            questionPrompt.classList.add('active');
+            renderMathInElement(questionPrompt, {
+                delimiters: [
+                    { left: "$$", right: "$$", display: true },
+                    { left: "\\[", right: "\\]", display: true },
+                    { left: "\\(", right: "\\)", display: false },
+                    { left: "$", right: "$", display: false }
+                ]
+            });
+
+            // Render choices
+            choicesEl.innerHTML = '';
+            if (frame.choices && frame.choices.length > 0) {
+                const letters = 'ABCDEFGHIJ';
+                frame.choices.forEach((choice, idx) => {
+                    const btn = document.createElement('button');
+                    btn.className = 'choice-btn';
+                    btn.dataset.index = idx;
+                    btn.innerHTML = `<strong>${letters[idx]}.</strong> ${md.render(choice)}`;
+                    renderMathInElement(btn, {
+                        delimiters: [
+                            { left: "$$", right: "$$", display: true },
+                            { left: "\\[", right: "\\]", display: true },
+                            { left: "\\(", right: "\\)", display: false },
+                            { left: "$", right: "$", display: false }
+                        ]
+                    });
+                    btn.addEventListener('click', () => submitAnswer(idx));
+                    choicesEl.appendChild(btn);
+                });
+            }
+
+            // Clear reasoning
+            reasoningContent.textContent = '';
+            truncationNotice.style.display = 'none';
+
+            // Disable start round while in progress
+            btnStartRound.disabled = true;
+        }
+
+        function handleReasoningDelta(frame) {
+            reasoningContent.textContent += frame.deltaText;
+            reasoningContent.scrollTop = reasoningContent.scrollHeight;
+        }
+
+        function handleReasoningTruncated(frame) {
+            truncationNotice.textContent = `⚠️ Truncated: ${frame.droppedChars} characters dropped`;
+            truncationNotice.style.display = 'block';
+        }
+
+        function handleLlmFinalAnswer(frame) {
+            log('incoming', `LLM Final Answer: ${JSON.stringify(frame.finalAnswer)}`);
+            if (frame.reasoningSummary) {
+                reasoningContent.textContent += `\n\n--- SUMMARY ---\n${frame.reasoningSummary}`;
+            }
+        }
+
+        function handleLlmStreamError(frame) {
+            reasoningContent.textContent += `\n\n❌ ERROR: ${frame.message}`;
+        }
+
+        function handleRoundResolved(frame) {
+            stopTimer();
+            
+            // Update results
+            resultWinner.textContent = frame.winner;
+            resultWinner.className = 'result-value' + (frame.winner === 'HUMAN' ? ' winner' : '');
+            resultHumanScore.textContent = frame.humanScore.toFixed(1);
+            resultLlmScore.textContent = frame.llmScore.toFixed(1);
+            resultHumanCorrect.textContent = frame.humanCorrect ? '✅ Correct' : '❌ Wrong';
+            resultLlmCorrect.textContent = frame.llmCorrect ? '✅ Correct' : '❌ Wrong';
+
+            // Format correct answer
+            const answer = frame.correctAnswer;
+            if (answer.type === 'multiple_choice') {
+                const letters = 'ABCDEFGHIJ';
+                resultCorrect.textContent = letters[answer.choiceIndex];
+                
+                // Highlight correct/incorrect choices
+                document.querySelectorAll('.choice-btn').forEach(btn => {
+                    const idx = parseInt(btn.dataset.index);
+                    if (idx === answer.choiceIndex) {
+                        btn.classList.add('correct');
+                    }
+                });
+            } else if (answer.type === 'integer') {
+                resultCorrect.textContent = answer.value;
+            } else if (answer.type === 'free_text') {
+                resultCorrect.textContent = answer.text;
+            }
+
+            // Re-enable start round button
+            btnStartRound.disabled = false;
+        }
+
+        // =====================
+        // Actions
+        // =====================
+        function submitAnswer(choiceIndex) {
+            // Mark selected
+            document.querySelectorAll('.choice-btn').forEach(btn => {
+                btn.classList.remove('selected');
+                btn.disabled = true;
+            });
+            document.querySelector(`.choice-btn[data-index="${choiceIndex}"]`)?.classList.add('selected');
+
+            sendFrame({
+                type: 'submit_answer',
+                sessionId: sessionId,
+                playerId: playerId,
+                roundId: currentRoundId,
+                nonceToken: currentNonceToken,
+                answer: { type: 'multiple_choice', choiceIndex: choiceIndex },
+                clientSentAtEpochMs: Date.now()
+            });
+        }
+
+        // =====================
+        // Event Listeners
+        // =====================
+        btnJoin.addEventListener('click', () => {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                connectWebSocket();
+                // Wait for connection then join
+                const waitForOpen = setInterval(() => {
+                    if (ws && ws.readyState === WebSocket.OPEN) {
+                        clearInterval(waitForOpen);
+                        doJoin();
+                    }
+                }, 100);
+            } else {
+                doJoin();
+            }
+        });
+
+        function doJoin() {
+            sendFrame({
+                type: 'join_session',
+                sessionId: sessionId, // null for new session
+                opponentSpecId: modelSelect.value,
+                nickname: nicknameInput.value || 'Anonymous',
+                locale: navigator.language || 'en'
+            });
+        }
+
+        btnStartRound.addEventListener('click', () => {
+            sendFrame({
+                type: 'start_round_request',
+                sessionId: sessionId,
+                playerId: playerId
+            });
+        });
+
+        // =====================
+        // Init
+        // =====================
+        async function init() {
+            const sessionOk = await bootstrapSession();
+            if (sessionOk) {
+                await loadModels();
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>

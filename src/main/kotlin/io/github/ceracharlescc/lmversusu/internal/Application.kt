@@ -25,7 +25,8 @@ internal fun Application.module(appConfigOverride: AppConfig? = null) {
     configureAdministration()
     configureMonitoring()
     configureSecurity(appConfig.sessionCrypto)
-    configureHTTP()
+    configureFrontend()
+    configureHTTP(appConfig.serverConfig)
 
     configureRouting()
 
