@@ -86,6 +86,11 @@ internal class GameEventFrameMapper @Inject constructor(
             message = event.message,
         )
 
+        is GameEvent.SessionTerminated -> WsSessionTerminated(
+            sessionId = event.sessionId.toString(),
+            reason = event.reason,
+        )
+
         is GameEvent.SessionCreated,
         is GameEvent.SubmissionReceived,
         is GameEvent.LlmThinking,

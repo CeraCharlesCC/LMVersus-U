@@ -33,7 +33,12 @@ internal class SessionActor(
     private val llmStreamOrchestrator: LlmStreamOrchestrator,
     private val resultsRepository: ResultsRepository,
     private val clock: Clock,
+    private val onTerminate: (Uuid) -> Unit,
 ) {
+    companion object {
+        private const val CLEANUP_GRACE_PERIOD_MS = 60_000L
+    }
+
     val opponentSpecId: String = opponentSpec.id
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -53,6 +58,15 @@ internal class SessionActor(
         mailbox.trySend(command)
     }
 
+    /**
+     * Cancels the actor's coroutine scope and closes the mailbox channel.
+     * After calling this, the actor should be removed from the SessionManager.
+     */
+    fun shutdown() {
+        mailbox.close()
+        scope.cancel()
+    }
+
     private suspend fun handle(command: SessionCommand) {
         when (command) {
             is SessionCommand.JoinSession -> handleJoin(command)
@@ -60,6 +74,7 @@ internal class SessionActor(
             is SessionCommand.SubmitAnswer -> handleSubmitAnswer(command)
             is SessionCommand.StartLlmForRound -> handleStartLlm(command)
             is SessionCommand.LlmFinalAnswerReceived -> handleLlmFinalAnswer(command)
+            is SessionCommand.Timeout -> handleTimeout()
         }
     }
 
@@ -340,6 +355,17 @@ internal class SessionActor(
                 )
             )
             saveSessionResult(updatedSession, updatedRound, humanScore.points, llmScore.points)
+            // Schedule self-removal after grace period
+            scope.launch {
+                delay(CLEANUP_GRACE_PERIOD_MS)
+                gameEventBus.publish(
+                    GameEvent.SessionTerminated(
+                        sessionId = sessionId,
+                        reason = "completed",
+                    )
+                )
+                onTerminate(sessionId)
+            }
         }
     }
 
@@ -395,6 +421,20 @@ internal class SessionActor(
     private fun buildJoinCode(sessionId: Uuid): String {
         return sessionId.toString()
     }
+
+    private suspend fun handleTimeout() {
+        val currentSession = session ?: return
+        if (currentSession.isCompleted) return
+
+        session = currentSession.copy(state = SessionState.CANCELLED)
+        gameEventBus.publish(
+            GameEvent.SessionTerminated(
+                sessionId = sessionId,
+                reason = "timeout",
+            )
+        )
+        onTerminate(sessionId)
+    }
 }
 
 internal sealed interface SessionCommand {
@@ -426,4 +466,6 @@ internal sealed interface SessionCommand {
         val roundId: Uuid,
         val answer: Answer,
     ) : SessionCommand
+
+    data object Timeout : SessionCommand
 }

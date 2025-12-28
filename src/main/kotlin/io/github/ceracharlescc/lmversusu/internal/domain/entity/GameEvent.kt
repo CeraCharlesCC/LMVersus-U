@@ -93,4 +93,9 @@ internal sealed class GameEvent {
         val roundId: Uuid,
         val message: String,
     ) : GameEvent()
+
+    data class SessionTerminated(
+        override val sessionId: Uuid,
+        val reason: String,  // "timeout", "completed", "cancelled"
+    ) : GameEvent()
 }

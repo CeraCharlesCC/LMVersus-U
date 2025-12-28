@@ -8,6 +8,7 @@ import io.github.ceracharlescc.lmversusu.internal.application.usecase.StartRound
 import io.github.ceracharlescc.lmversusu.internal.application.usecase.SubmitAnswerUseCase
 import io.github.ceracharlescc.lmversusu.internal.domain.repository.OpponentSpecRepository
 import io.github.ceracharlescc.lmversusu.internal.domain.repository.ResultsRepository
+import kotlinx.coroutines.*
 import java.time.Clock
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
@@ -27,6 +28,11 @@ internal class SessionManager @Inject constructor(
     private val resultsRepository: ResultsRepository,
     private val clock: Clock,
 ) {
+    companion object {
+        /** Session idle timeout (10 minutes) */
+        private const val SESSION_TIMEOUT_MS = 10 * 60 * 1000L
+    }
+
     sealed interface JoinResult {
         data class Success(
             val sessionId: Uuid,
@@ -52,6 +58,8 @@ internal class SessionManager @Inject constructor(
     }
 
     private val actors = ConcurrentHashMap<Uuid, SessionActor>()
+    private val supervisorScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val timeoutJobs = ConcurrentHashMap<Uuid, Job>()
 
     suspend fun joinSession(
         sessionId: Uuid,
@@ -78,6 +86,7 @@ internal class SessionManager @Inject constructor(
                 llmStreamOrchestrator = llmStreamOrchestrator,
                 resultsRepository = resultsRepository,
                 clock = clock,
+                onTerminate = { id -> removeSession(id) },
             )
         }
 
@@ -96,6 +105,7 @@ internal class SessionManager @Inject constructor(
                 nickname = nickname,
             )
         )
+        scheduleTimeout(sessionId)
 
         return JoinResult.Success(
             sessionId = sessionId,
@@ -113,6 +123,7 @@ internal class SessionManager @Inject constructor(
                 message = "session not found",
             )
 
+        scheduleTimeout(sessionId)
         actor.submit(SessionCommand.StartNextRound(sessionId = sessionId, playerId = playerId))
         return CommandResult.Success(sessionId)
     }
@@ -132,6 +143,7 @@ internal class SessionManager @Inject constructor(
                 message = "session not found",
             )
 
+        scheduleTimeout(sessionId)
         actor.submit(
             SessionCommand.SubmitAnswer(
                 sessionId = sessionId,
@@ -143,5 +155,28 @@ internal class SessionManager @Inject constructor(
             )
         )
         return CommandResult.Success(sessionId)
+    }
+
+    private fun scheduleTimeout(sessionId: Uuid) {
+        timeoutJobs[sessionId]?.cancel()  // Reset existing
+        timeoutJobs[sessionId] = supervisorScope.launch {
+            delay(SESSION_TIMEOUT_MS)
+            actors[sessionId]?.submit(SessionCommand.Timeout)
+        }
+    }
+
+    private fun removeSession(sessionId: Uuid) {
+        timeoutJobs.remove(sessionId)?.cancel()
+        actors.remove(sessionId)?.shutdown()
+    }
+
+    /**
+     * Shuts down all sessions. Call this during application shutdown.
+     */
+    fun shutdownAll() {
+        supervisorScope.cancel()
+        actors.forEach { (_, actor) -> actor.shutdown() }
+        actors.clear()
+        timeoutJobs.clear()
     }
 }

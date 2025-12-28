@@ -31,6 +31,7 @@ internal data class WsPlayerJoined(
     val playerId: String,
     val nickname: String,
 ) : WsGameFrame
+
 @Serializable
 @SerialName("round_started")
 internal data class WsRoundStarted(
@@ -92,4 +93,11 @@ internal data class WsLlmFinalAnswer(
     val finalAnswer: Answer,
     val reasoningSummary: String? = null,
     val confidenceScore: Double? = null,
+) : WsGameFrame
+
+@Serializable
+@SerialName("session_terminated")
+internal data class WsSessionTerminated(
+    val sessionId: String,
+    val reason: String,
 ) : WsGameFrame
