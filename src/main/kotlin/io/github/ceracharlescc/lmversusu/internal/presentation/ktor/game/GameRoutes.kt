@@ -12,7 +12,6 @@ import io.ktor.server.websocket.webSocket
 import io.ktor.websocket.Frame
 import io.ktor.websocket.close
 import io.ktor.websocket.readText
-import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
