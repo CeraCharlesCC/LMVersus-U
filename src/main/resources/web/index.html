@@ -1,5 +1,6 @@
 <!doctype html>
 <html lang="en">
+
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -102,10 +103,25 @@
             font-weight: 500;
         }
 
-        .status.connecting { background: var(--warning); color: black; }
-        .status.connected { background: var(--success); color: white; }
-        .status.disconnected { background: var(--error); color: white; }
-        .status.error { background: var(--error); color: white; }
+        .status.connecting {
+            background: var(--warning);
+            color: black;
+        }
+
+        .status.connected {
+            background: var(--success);
+            color: white;
+        }
+
+        .status.disconnected {
+            background: var(--error);
+            color: white;
+        }
+
+        .status.error {
+            background: var(--error);
+            color: white;
+        }
 
         /* Main Grid */
         .game-grid {
@@ -203,11 +219,41 @@
             background: var(--bg-tertiary);
             border-radius: var(--radius);
             padding: 16px;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            word-wrap: break-word;
+        }
+
+        #reasoning-content pre {
+            background: var(--bg-primary);
+            padding: 12px;
+            border-radius: var(--radius);
+            overflow-x: auto;
             font-family: 'Consolas', 'Monaco', monospace;
             font-size: 0.85rem;
-            line-height: 1.5;
-            white-space: pre-wrap;
-            word-wrap: break-word;
+        }
+
+        #reasoning-content code {
+            font-family: 'Consolas', 'Monaco', monospace;
+            background: var(--bg-primary);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+        }
+
+        #reasoning-content pre code {
+            background: transparent;
+            padding: 0;
+        }
+
+        #reasoning-content p {
+            margin-bottom: 0.75em;
+        }
+
+        #reasoning-content ul,
+        #reasoning-content ol {
+            margin-left: 1.5em;
+            margin-bottom: 0.75em;
         }
 
         /* Result Panel */
@@ -302,6 +348,7 @@
         }
     </style>
 </head>
+
 <body>
     <div class="container">
         <h1>🎮 LMVersus-U Test Client</h1>
@@ -390,6 +437,7 @@
         let ws = null;
         let timerInterval = null;
         let deadlineMs = null;
+        let reasoningText = ''; // Accumulated raw reasoning text for Markdown+LaTeX rendering
 
         // DOM Elements
         const nicknameInput = document.getElementById('nickname');
@@ -513,7 +561,7 @@
         function connectWebSocket() {
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const wsUrl = `http://127.0.0.1:8080/ws/game`;
-            
+
             setStatus('connecting', 'Connecting...');
             ws = new WebSocket(wsUrl);
 
@@ -652,7 +700,8 @@
             }
 
             // Clear reasoning
-            reasoningContent.textContent = '';
+            reasoningText = '';
+            reasoningContent.innerHTML = '';
             truncationNotice.style.display = 'none';
 
             // Disable start round while in progress
@@ -660,7 +709,20 @@
         }
 
         function handleReasoningDelta(frame) {
-            reasoningContent.textContent += frame.deltaText;
+            reasoningText += frame.deltaText;
+            renderReasoningContent();
+        }
+
+        function renderReasoningContent() {
+            reasoningContent.innerHTML = md.render(reasoningText);
+            renderMathInElement(reasoningContent, {
+                delimiters: [
+                    { left: "$$", right: "$$", display: true },
+                    { left: "\\[", right: "\\]", display: true },
+                    { left: "\\(", right: "\\)", display: false },
+                    { left: "$", right: "$", display: false }
+                ]
+            });
             reasoningContent.scrollTop = reasoningContent.scrollHeight;
         }
 
@@ -672,17 +734,19 @@
         function handleLlmFinalAnswer(frame) {
             log('incoming', `LLM Final Answer: ${JSON.stringify(frame.finalAnswer)}`);
             if (frame.reasoningSummary) {
-                reasoningContent.textContent += `\n\n--- SUMMARY ---\n${frame.reasoningSummary}`;
+                reasoningText += `\n\n---\n\n**SUMMARY**\n\n${frame.reasoningSummary}`;
+                renderReasoningContent();
             }
         }
 
         function handleLlmStreamError(frame) {
-            reasoningContent.textContent += `\n\n❌ ERROR: ${frame.message}`;
+            reasoningText += `\n\n❌ **ERROR:** ${frame.message}`;
+            renderReasoningContent();
         }
 
         function handleRoundResolved(frame) {
             stopTimer();
-            
+
             // Update results
             resultWinner.textContent = frame.winner;
             resultWinner.className = 'result-value' + (frame.winner === 'HUMAN' ? ' winner' : '');
@@ -696,7 +760,7 @@
             if (answer.type === 'multiple_choice') {
                 const letters = 'ABCDEFGHIJ';
                 resultCorrect.textContent = letters[answer.choiceIndex];
-                
+
                 // Highlight correct/incorrect choices
                 document.querySelectorAll('.choice-btn').forEach(btn => {
                     const idx = parseInt(btn.dataset.index);
@@ -785,4 +849,5 @@
         init();
     </script>
 </body>
+
 </html>
