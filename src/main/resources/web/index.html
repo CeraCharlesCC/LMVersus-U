@@ -471,7 +471,7 @@
         function log(direction, data) {
             const entry = document.createElement('div');
             entry.className = `log-entry ${direction}`;
-            const timestamp = new Date().toISOString().substr(11, 12);
+            const timestamp = new Date().toISOString().substring(11, 12);
             entry.textContent = `[${timestamp}] ${direction.toUpperCase()}: ${typeof data === 'string' ? data : JSON.stringify(data)}`;
             eventLog.appendChild(entry);
             eventLog.scrollTop = eventLog.scrollHeight;
