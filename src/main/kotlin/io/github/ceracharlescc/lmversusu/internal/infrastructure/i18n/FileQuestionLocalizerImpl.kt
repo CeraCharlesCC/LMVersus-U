@@ -9,6 +9,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import org.slf4j.Logger
 import java.nio.file.Path
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -34,6 +35,7 @@ import kotlin.uuid.Uuid
 @Singleton
 internal class FileQuestionLocalizerImpl @Inject constructor(
     @ConfigDirectory configDir: Path,
+    private val logger: Logger,
 ) : QuestionLocalizer {
     private val i18nBasePath: Path = configDir / "Datasets" / "i18n"
     private val cache = mutableMapOf<CacheKey, TranslationFile?>()
@@ -70,7 +72,7 @@ internal class FileQuestionLocalizerImpl @Inject constructor(
                 val content = filePath.readText(Charsets.UTF_8)
                 json.decodeFromString<TranslationFile>(content)
             } catch (e: Exception) {
-                // Log once and cache miss to avoid repeated failures
+                logger.warn("Failed to load translation for locale='$locale', questionId='$questionId': ${e.message}")
                 null
             }
         }
