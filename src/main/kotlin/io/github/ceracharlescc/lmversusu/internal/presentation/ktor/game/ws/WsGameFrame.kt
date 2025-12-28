@@ -5,14 +5,11 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
-internal sealed interface WsGameFrame {
-    val type: String
-}
+internal sealed interface WsGameFrame
 
 @Serializable
 @SerialName("session_joined")
 internal data class WsSessionJoined(
-    override val type: String = "session_joined",
     val sessionId: String,
     val playerId: String,
     val nickname: String,
@@ -22,7 +19,6 @@ internal data class WsSessionJoined(
 @Serializable
 @SerialName("session_error")
 internal data class WsSessionError(
-    override val type: String = "session_error",
     val sessionId: String? = null,
     val errorCode: String,
     val message: String,
@@ -31,16 +27,13 @@ internal data class WsSessionError(
 @Serializable
 @SerialName("player_joined")
 internal data class WsPlayerJoined(
-    override val type: String = "player_joined",
     val sessionId: String,
     val playerId: String,
     val nickname: String,
 ) : WsGameFrame
-
 @Serializable
 @SerialName("round_started")
 internal data class WsRoundStarted(
-    override val type: String = "round_started",
     val sessionId: String,
     val questionId: String,
     val roundId: String,
@@ -56,7 +49,6 @@ internal data class WsRoundStarted(
 @Serializable
 @SerialName("round_resolved")
 internal data class WsRoundResolved(
-    override val type: String = "round_resolved",
     val sessionId: String,
     val roundId: String,
     val correctAnswer: Answer,
@@ -70,7 +62,6 @@ internal data class WsRoundResolved(
 @Serializable
 @SerialName("llm_reasoning_delta")
 internal data class WsLlmReasoningDelta(
-    override val type: String = "llm_reasoning_delta",
     val sessionId: String,
     val roundId: String,
     val deltaText: String,
@@ -80,7 +71,6 @@ internal data class WsLlmReasoningDelta(
 @Serializable
 @SerialName("llm_reasoning_truncated")
 internal data class WsLlmReasoningTruncated(
-    override val type: String = "llm_reasoning_truncated",
     val sessionId: String,
     val roundId: String,
     val droppedChars: Int,
@@ -89,7 +79,6 @@ internal data class WsLlmReasoningTruncated(
 @Serializable
 @SerialName("llm_stream_error")
 internal data class WsLlmStreamError(
-    override val type: String = "llm_stream_error",
     val sessionId: String,
     val roundId: String,
     val message: String,
@@ -98,7 +87,6 @@ internal data class WsLlmStreamError(
 @Serializable
 @SerialName("llm_final_answer")
 internal data class WsLlmFinalAnswer(
-    override val type: String = "llm_final_answer",
     val sessionId: String,
     val roundId: String,
     val finalAnswer: Answer,

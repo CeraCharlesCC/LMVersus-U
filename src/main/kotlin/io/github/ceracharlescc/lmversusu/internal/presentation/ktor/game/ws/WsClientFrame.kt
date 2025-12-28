@@ -5,14 +5,11 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
-internal sealed interface WsClientFrame {
-    val type: String
-}
+internal sealed interface WsClientFrame
 
 @Serializable
 @SerialName("join_session")
 internal data class WsJoinSession(
-    override val type: String = "join_session",
     val sessionId: String? = null,
     val opponentSpecId: String,
     val nickname: String,
@@ -22,7 +19,6 @@ internal data class WsJoinSession(
 @Serializable
 @SerialName("start_round_request")
 internal data class WsStartRoundRequest(
-    override val type: String = "start_round_request",
     val sessionId: String,
     val playerId: String,
 ) : WsClientFrame
@@ -30,7 +26,6 @@ internal data class WsStartRoundRequest(
 @Serializable
 @SerialName("submit_answer")
 internal data class WsSubmitAnswer(
-    override val type: String = "submit_answer",
     val sessionId: String,
     val playerId: String,
     val roundId: String,
@@ -42,7 +37,6 @@ internal data class WsSubmitAnswer(
 @Serializable
 @SerialName("ping")
 internal data class WsPing(
-    override val type: String = "ping",
     val sessionId: String? = null,
     val sentAtEpochMs: Long? = null,
 ) : WsClientFrame
