@@ -1,12 +1,12 @@
 package io.github.ceracharlescc.lmversusu.internal.infrastructure.repository
 
+import io.github.ceracharlescc.lmversusu.internal.di.annotation.ConfigDirectory
 import io.github.ceracharlescc.lmversusu.internal.domain.entity.OpponentSpec
 import io.github.ceracharlescc.lmversusu.internal.domain.repository.OpponentSpecRepository
 import kotlinx.serialization.json.Json
 import java.nio.file.Files
 import java.nio.file.Path
 import javax.inject.Inject
-import javax.inject.Named
 import javax.inject.Singleton
 import kotlin.io.path.extension
 import kotlin.io.path.isRegularFile
@@ -14,7 +14,7 @@ import kotlin.io.path.readText
 
 @Singleton
 internal class JsonOpponentSpecRepositoryImpl @Inject constructor(
-    @Named("configDirectory") private val configDirectory: Path
+    @param:ConfigDirectory private val configDirectory: Path
 ) : OpponentSpecRepository {
 
     private companion object {

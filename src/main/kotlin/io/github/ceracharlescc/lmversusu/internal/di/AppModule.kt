@@ -2,12 +2,12 @@ package io.github.ceracharlescc.lmversusu.internal.di
 
 import dagger.Module
 import dagger.Provides
+import io.github.ceracharlescc.lmversusu.internal.di.annotation.ConfigDirectory
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.time.Clock
-import javax.inject.Named
 import javax.inject.Singleton
 
 @Module
@@ -23,7 +23,7 @@ internal object AppModule {
 
     @Provides
     @Singleton
-    @Named("configDirectory")
+    @ConfigDirectory
     fun provideConfigDirectory(): Path {
         val configDirProperty = System.getProperty("lmversusu.configDir")
         return if (!configDirProperty.isNullOrBlank()) {

@@ -2,6 +2,7 @@ package io.github.ceracharlescc.lmversusu.internal.infrastructure.i18n
 
 import io.github.ceracharlescc.lmversusu.internal.application.port.LocalizedQuestion
 import io.github.ceracharlescc.lmversusu.internal.application.port.QuestionLocalizer
+import io.github.ceracharlescc.lmversusu.internal.di.annotation.ConfigDirectory
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -10,7 +11,6 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.nio.file.Path
 import javax.inject.Inject
-import javax.inject.Named
 import javax.inject.Singleton
 import kotlin.io.path.div
 import kotlin.io.path.exists
@@ -33,7 +33,7 @@ import kotlin.uuid.Uuid
  */
 @Singleton
 internal class FileQuestionLocalizerImpl @Inject constructor(
-    @Named("configdirectory") configDir: Path,
+    @ConfigDirectory configDir: Path,
 ) : QuestionLocalizer {
     private val i18nBasePath: Path = configDir / "Datasets" / "i18n"
     private val cache = mutableMapOf<CacheKey, TranslationFile?>()

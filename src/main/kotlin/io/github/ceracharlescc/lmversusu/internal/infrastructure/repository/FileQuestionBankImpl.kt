@@ -2,6 +2,7 @@ package io.github.ceracharlescc.lmversusu.internal.infrastructure.repository
 
 import io.github.ceracharlescc.lmversusu.internal.application.port.QuestionBank
 import io.github.ceracharlescc.lmversusu.internal.application.port.QuestionConstraints
+import io.github.ceracharlescc.lmversusu.internal.di.annotation.ConfigDirectory
 import io.github.ceracharlescc.lmversusu.internal.domain.entity.Question
 import io.github.ceracharlescc.lmversusu.internal.domain.entity.QuestionMetadata
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.Difficulty
@@ -17,14 +18,13 @@ import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
-import javax.inject.Named
 import javax.inject.Singleton
 import kotlin.random.Random
 import kotlin.uuid.Uuid
 
 @Singleton
 internal class FileQuestionBankImpl @Inject constructor(
-    @Named("configDirectory") private val configDirectory: Path,
+    @param:ConfigDirectory private val configDirectory: Path,
     private val logger: Logger,
 ) : QuestionBank {
 

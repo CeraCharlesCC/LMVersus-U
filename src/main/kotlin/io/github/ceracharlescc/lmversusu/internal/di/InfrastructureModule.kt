@@ -2,11 +2,7 @@ package io.github.ceracharlescc.lmversusu.internal.di
 
 import dagger.Binds
 import dagger.Module
-import io.github.ceracharlescc.lmversusu.internal.application.port.AnswerVerifier
-import io.github.ceracharlescc.lmversusu.internal.application.port.GameEventBus
-import io.github.ceracharlescc.lmversusu.internal.application.port.LlmPlayerGateway
-import io.github.ceracharlescc.lmversusu.internal.application.port.QuestionBank
-import io.github.ceracharlescc.lmversusu.internal.application.port.QuestionLocalizer
+import io.github.ceracharlescc.lmversusu.internal.application.port.*
 import io.github.ceracharlescc.lmversusu.internal.domain.repository.OpponentSpecRepository
 import io.github.ceracharlescc.lmversusu.internal.domain.repository.ResultsRepository
 import io.github.ceracharlescc.lmversusu.internal.infrastructure.game.InMemoryGameEventBusImpl
