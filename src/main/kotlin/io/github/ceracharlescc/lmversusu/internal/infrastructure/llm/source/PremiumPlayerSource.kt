@@ -29,6 +29,7 @@ internal class PremiumPlayerSource @Inject constructor(
                 apiKey = provider.apiKey,
                 apiUrl = provider.apiUrl,
                 compat = provider.compat,
+                extraBody = provider.extraBody,
             )
         }
     }

@@ -48,6 +48,7 @@ internal data class ProviderConfig(
     val apiUrl: String,
     val apiKey: String,
     val compat: ProviderCompat = ProviderCompat(),
+    val extraBody: Map<String, JsonElement>? = null,
 ) {
     private fun toSafeString(): String {
         val kClass = ProviderConfig::class

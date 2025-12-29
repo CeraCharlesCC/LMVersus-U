@@ -51,6 +51,7 @@ internal class OpenAIApiDao(
     val apiUrl: String,
     val apiKey: String,
     val compat: ProviderCompat = ProviderCompat(),
+    val extraBody: Map<String, kotlinx.serialization.json.JsonElement>? = null,
 ) {
     private companion object {
         const val CHARS_PER_TOKEN_ESTIMATE = 4.0
@@ -199,6 +200,7 @@ internal class OpenAIApiDao(
             try {
                 stream.stream().forEach { chunk ->
                     accumulator.accumulate(chunk)
+                    logger.debug("Received chat completion chunk: {}", chunk)
                     if (shouldUseRawReasoning(reasoning)) {
                         emitChatReasoningDelta(this@callbackFlow, chunk, maxTokens)
                     }
@@ -366,6 +368,10 @@ internal class OpenAIApiDao(
             ProviderStructuredOutput.NONE -> Unit
         }
 
+        extraBody?.forEach { (key, value) ->
+            builder.putAdditionalBodyProperty(key, toJsonValue(value))
+        }
+
         return builder.build()
     }
 
@@ -386,6 +392,10 @@ internal class OpenAIApiDao(
         }
 
         buildResponseTextConfig(structuredOutput)?.let { builder.text(it) }
+
+        extraBody?.forEach { (key, value) ->
+            builder.putAdditionalBodyProperty(key, toJsonValue(value))
+        }
 
         return builder.build()
     }
@@ -641,5 +651,28 @@ internal class OpenAIApiDao(
 
     private fun shouldUseRawReasoning(reasoning: ProviderReasoning): Boolean {
         return reasoning == ProviderReasoning.RAW_REASONING_FIELD || reasoning == ProviderReasoning.AUTO
+    }
+
+    private fun toJsonValue(element: kotlinx.serialization.json.JsonElement): JsonValue {
+        return JsonValue.from(element.toRawValue())
+    }
+
+    private fun kotlinx.serialization.json.JsonElement.toRawValue(): Any? {
+        return when (this) {
+            is kotlinx.serialization.json.JsonPrimitive -> {
+                if (isString) content
+                else {
+                    val contentLow = content.lowercase()
+                    if (contentLow == "true") true
+                    else if (contentLow == "false") false
+                    else if (contentLow == "null") null
+                    else content.toLongOrNull() ?: content.toDoubleOrNull() ?: content
+                }
+            }
+
+            is kotlinx.serialization.json.JsonObject -> this.mapValues { it.value.toRawValue() }
+            is kotlinx.serialization.json.JsonArray -> this.map { it.toRawValue() }
+            else -> null
+        }
     }
 }

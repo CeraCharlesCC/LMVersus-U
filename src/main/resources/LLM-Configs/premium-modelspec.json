@@ -14,6 +14,12 @@
             "apiProtocol": "CHAT_COMPLETIONS",
             "structuredOutput": "JSON_OBJECT",
             "reasoning": "RAW_REASONING_FIELD"
+        },
+        "extraBody": {
+            "guided_json": {
+                "type": "object",
+                "properties": {}
+            }
         }
     },
     "questionSetPath": "LLM-Configs/Datasets/questions/mmlu-pro/",
