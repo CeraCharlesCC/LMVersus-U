@@ -332,7 +332,6 @@ internal class OpenAIApiDao(
 
             ProviderReasoning.RAW_REASONING_FIELD -> {
                 val delta = event.reasoningTextDelta().getOrNull()?.delta()
-                // Preserve whitespace; do not use isBlank()
                 if (delta.isNullOrEmpty()) return
                 val emittedTokenCount = estimateTokenCount(delta)
                 scope.trySend(
@@ -347,7 +346,6 @@ internal class OpenAIApiDao(
             ProviderReasoning.SUMMARY_ONLY,
             ProviderReasoning.AUTO -> {
                 val delta = event.reasoningSummaryTextDelta().getOrNull()?.delta()
-                // Preserve whitespace; do not use isBlank()
                 if (delta.isNullOrEmpty()) return
                 val emittedTokenCount = estimateTokenCount(delta)
                 scope.trySend(
