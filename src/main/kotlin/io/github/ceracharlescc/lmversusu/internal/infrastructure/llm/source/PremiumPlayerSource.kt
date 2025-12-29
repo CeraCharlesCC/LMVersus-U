@@ -39,6 +39,7 @@ internal class PremiumPlayerSource @Inject constructor(
             model = spec.llmProfile.modelName,
             prompt = context.questionPrompt,
             choices = context.choices,
+            expectedKind = context.expectedAnswerKind,
             temperature = spec.llmProfile.temperature,
             maxTokens = spec.llmProfile.maxTokens,
         )
@@ -50,6 +51,7 @@ internal class PremiumPlayerSource @Inject constructor(
             model = spec.llmProfile.modelName,
             prompt = context.questionPrompt,
             choices = context.choices,
+            expectedKind = context.expectedAnswerKind,
             temperature = spec.llmProfile.temperature,
             maxTokens = spec.llmProfile.maxTokens,
         )

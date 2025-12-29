@@ -2,6 +2,7 @@ package io.github.ceracharlescc.lmversusu.internal.infrastructure.game
 
 import io.github.ceracharlescc.lmversusu.internal.application.port.AnswerVerifier
 import io.github.ceracharlescc.lmversusu.internal.application.port.GameEventBus
+import io.github.ceracharlescc.lmversusu.internal.application.port.ExpectedAnswerKind
 import io.github.ceracharlescc.lmversusu.internal.application.port.LlmPlayerGateway
 import io.github.ceracharlescc.lmversusu.internal.application.port.RoundContext
 import io.github.ceracharlescc.lmversusu.internal.application.service.LlmStreamOrchestrator
@@ -213,10 +214,17 @@ internal class SessionActor(
         )
 
         val job = scope.launch {
+            val expectedKind = when {
+                round.question.choices != null -> ExpectedAnswerKind.MULTIPLE_CHOICE
+                round.question.verifierSpec is VerifierSpec.IntegerRange -> ExpectedAnswerKind.INTEGER
+                else -> ExpectedAnswerKind.FREE_TEXT
+            }
+
             val roundContext = RoundContext(
                 questionId = round.question.questionId,
                 questionPrompt = round.question.prompt,
                 choices = round.question.choices,
+                expectedAnswerKind = expectedKind,
                 opponentSpec = opponentSpec,
             )
 

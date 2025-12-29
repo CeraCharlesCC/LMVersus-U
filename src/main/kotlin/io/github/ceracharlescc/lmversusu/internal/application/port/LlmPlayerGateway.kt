@@ -41,9 +41,16 @@ internal interface LlmPlayerGateway {
     suspend fun declaredQuestionSetPath(opponentSpec: OpponentSpec): String?
 }
 
+internal enum class ExpectedAnswerKind {
+    MULTIPLE_CHOICE,
+    INTEGER,
+    FREE_TEXT,
+}
+
 internal data class RoundContext(
     val questionId: Uuid,
     val questionPrompt: String,
     val choices: List<String>?,
+    val expectedAnswerKind: ExpectedAnswerKind,
     val opponentSpec: OpponentSpec,
 )

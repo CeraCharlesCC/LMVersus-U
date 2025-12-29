@@ -17,6 +17,7 @@ import com.openai.models.responses.ResponseCreateParams
 import com.openai.models.responses.ResponseFormatTextJsonSchemaConfig
 import com.openai.models.responses.ResponseStreamEvent
 import com.openai.models.responses.ResponseTextConfig
+import io.github.ceracharlescc.lmversusu.internal.application.port.ExpectedAnswerKind
 import io.github.ceracharlescc.lmversusu.internal.domain.entity.ProviderApiProtocol
 import io.github.ceracharlescc.lmversusu.internal.domain.entity.ProviderCompat
 import io.github.ceracharlescc.lmversusu.internal.domain.entity.ProviderReasoning
@@ -67,12 +68,18 @@ internal class OpenAIApiDao(
         isLenient = true
     }
 
+    private data class PromptParts(
+        val system: String,
+        val user: String,
+    )
+
     /**
      * Streams an answer from the LLM API.
      *
      * @param model The model identifier (e.g., "gpt-4o-mini")
      * @param prompt The question prompt to send to the model
      * @param choices Optional list of choices for multiple-choice questions
+     * @param expectedKind The expected answer type for deterministic JSON templates
      * @param temperature Sampling temperature
      * @param maxTokens Maximum tokens in the response
      * @return A flow of [LlmStreamEvent]s representing the streaming response
@@ -81,31 +88,34 @@ internal class OpenAIApiDao(
         model: String,
         prompt: String,
         choices: List<String>?,
+        expectedKind: ExpectedAnswerKind,
         temperature: Double,
         maxTokens: Int,
     ): Flow<LlmStreamEvent> {
         val resolvedProtocol = resolveApiProtocol()
         val resolvedStructuredOutput = resolveStructuredOutput()
         val resolvedReasoning = resolveReasoning()
-        val promptText = buildPrompt(prompt, choices)
+        val prompts = buildPromptParts(prompt, choices, expectedKind)
 
         return when (resolvedProtocol) {
             ProviderApiProtocol.RESPONSES -> streamViaResponses(
                 model = model,
-                prompt = promptText,
+                prompts = prompts,
                 temperature = temperature,
                 maxTokens = maxTokens,
                 structuredOutput = resolvedStructuredOutput,
                 reasoning = resolvedReasoning,
             )
+
             ProviderApiProtocol.CHAT_COMPLETIONS -> streamViaChatCompletions(
                 model = model,
-                prompt = promptText,
+                prompts = prompts,
                 temperature = temperature,
                 maxTokens = maxTokens,
                 structuredOutput = resolvedStructuredOutput,
                 reasoning = resolvedReasoning,
             )
+
             ProviderApiProtocol.AUTO -> error("Resolved protocol cannot be AUTO")
         }
     }
@@ -116,6 +126,7 @@ internal class OpenAIApiDao(
      * @param model The model identifier (e.g., "gpt-4o-mini")
      * @param prompt The question prompt to send to the model
      * @param choices Optional list of choices for multiple-choice questions
+     * @param expectedKind The expected answer type for deterministic JSON templates
      * @param temperature Sampling temperature
      * @param maxTokens Maximum tokens in the response
      * @return The complete [LlmAnswer]
@@ -124,19 +135,20 @@ internal class OpenAIApiDao(
         model: String,
         prompt: String,
         choices: List<String>?,
+        expectedKind: ExpectedAnswerKind,
         temperature: Double,
         maxTokens: Int,
     ): LlmAnswer {
         val resolvedProtocol = resolveApiProtocol()
         val resolvedStructuredOutput = resolveStructuredOutput()
-        val promptText = buildPrompt(prompt, choices)
+        val prompts = buildPromptParts(prompt, choices, expectedKind)
 
         return withContext(Dispatchers.IO) {
             when (resolvedProtocol) {
                 ProviderApiProtocol.RESPONSES -> {
                     val params = buildResponseParams(
                         model = model,
-                        prompt = promptText,
+                        prompts = prompts,
                         temperature = temperature,
                         maxTokens = maxTokens,
                         structuredOutput = resolvedStructuredOutput,
@@ -147,10 +159,11 @@ internal class OpenAIApiDao(
                     val summary = extractReasoningSummary(response)
                     applyReasoningSummaryIfMissing(parsed, summary)
                 }
+
                 ProviderApiProtocol.CHAT_COMPLETIONS -> {
                     val params = buildChatParams(
                         model = model,
-                        prompt = promptText,
+                        prompts = prompts,
                         temperature = temperature,
                         maxTokens = maxTokens,
                         structuredOutput = resolvedStructuredOutput,
@@ -159,6 +172,7 @@ internal class OpenAIApiDao(
                     val answerText = extractChatCompletionContent(completion)
                     parseLlmAnswer(answerText)
                 }
+
                 ProviderApiProtocol.AUTO -> error("Resolved protocol cannot be AUTO")
             }
         }
@@ -166,7 +180,7 @@ internal class OpenAIApiDao(
 
     private fun streamViaChatCompletions(
         model: String,
-        prompt: String,
+        prompts: PromptParts,
         temperature: Double,
         maxTokens: Int,
         structuredOutput: ProviderStructuredOutput,
@@ -174,7 +188,7 @@ internal class OpenAIApiDao(
     ): Flow<LlmStreamEvent> = callbackFlow {
         val params = buildChatParams(
             model = model,
-            prompt = prompt,
+            prompts = prompts,
             temperature = temperature,
             maxTokens = maxTokens,
             structuredOutput = structuredOutput,
@@ -213,7 +227,7 @@ internal class OpenAIApiDao(
 
     private fun streamViaResponses(
         model: String,
-        prompt: String,
+        prompts: PromptParts,
         temperature: Double,
         maxTokens: Int,
         structuredOutput: ProviderStructuredOutput,
@@ -221,7 +235,7 @@ internal class OpenAIApiDao(
     ): Flow<LlmStreamEvent> = callbackFlow {
         val params = buildResponseParams(
             model = model,
-            prompt = prompt,
+            prompts = prompts,
             temperature = temperature,
             maxTokens = maxTokens,
             structuredOutput = structuredOutput,
@@ -301,6 +315,7 @@ internal class OpenAIApiDao(
                     )
                 )
             }
+
             ProviderReasoning.SUMMARY_ONLY,
             ProviderReasoning.AUTO -> {
                 val delta = event.reasoningSummaryTextDelta().getOrNull()?.delta().orEmpty()
@@ -330,14 +345,15 @@ internal class OpenAIApiDao(
 
     private fun buildChatParams(
         model: String,
-        prompt: String,
+        prompts: PromptParts,
         temperature: Double,
         maxTokens: Int,
         structuredOutput: ProviderStructuredOutput,
     ): ChatCompletionCreateParams {
         val builder = ChatCompletionCreateParams.builder()
             .model(ChatModel.of(model))
-            .addUserMessage(prompt)
+            .addSystemMessage(prompts.system)
+            .addUserMessage(prompts.user)
             .temperature(temperature)
             .maxCompletionTokens(maxTokens.toLong())
 
@@ -346,6 +362,7 @@ internal class OpenAIApiDao(
             ProviderStructuredOutput.JSON_OBJECT -> builder.responseFormat(
                 ResponseFormatJsonObject.builder().build()
             )
+
             ProviderStructuredOutput.NONE -> Unit
         }
 
@@ -354,14 +371,16 @@ internal class OpenAIApiDao(
 
     private fun buildResponseParams(
         model: String,
-        prompt: String,
+        prompts: PromptParts,
         temperature: Double,
         maxTokens: Int,
         structuredOutput: ProviderStructuredOutput,
     ): ResponseCreateParams {
+        // For Responses API, combine system and user prompts into input
+        val combinedInput = "${prompts.system}\n\n${prompts.user}"
         val builder = ResponseCreateParams.builder().apply {
             model(ResponsesModel.ofString(model))
-            input(prompt)
+            input(combinedInput)
             temperature(temperature)
             maxOutputTokens(maxTokens.toLong())
         }
@@ -379,10 +398,12 @@ internal class OpenAIApiDao(
                 val schema = buildResponseJsonSchemaConfig()
                 ResponseTextConfig.builder().format(schema).build()
             }
+
             ProviderStructuredOutput.JSON_OBJECT -> {
                 val jsonObject = ResponseFormatJsonObject.builder().build()
                 ResponseTextConfig.builder().format(jsonObject).build()
             }
+
             ProviderStructuredOutput.NONE -> null
         }
     }
@@ -495,33 +516,59 @@ internal class OpenAIApiDao(
         return answer.copy(reasoningSummary = trimmedSummary)
     }
 
-    private fun buildPrompt(prompt: String, choices: List<String>?): String {
-        val builder = StringBuilder()
-        val basePrompt = prompt.trim()
-        if (basePrompt.isNotEmpty()) {
-            builder.append(basePrompt)
-        }
+    private fun buildPromptParts(
+        prompt: String,
+        choices: List<String>?,
+        expectedKind: ExpectedAnswerKind,
+    ): PromptParts {
+        val user = buildString {
+            append(prompt.trim())
 
-        if (!choices.isNullOrEmpty()) {
-            builder.append("\n\nChoices (0-based index):\n")
-            choices.forEachIndexed { index, choice ->
-                builder.append(index).append(") ").append(choice).append('\n')
+            if (!choices.isNullOrEmpty()) {
+                append("\n\nChoices (0-based index):\n")
+                choices.forEachIndexed { index, choice ->
+                    append(index).append(") ").append(choice).append('\n')
+                }
             }
-        }
+        }.trim()
 
-        if (builder.isNotEmpty()) {
-            builder.append('\n')
-        }
+        val system = buildString {
+            appendLine("You are the opponent player in a quiz game.")
+            appendLine("Return ONLY valid JSON (no markdown, no code fences, no extra text).")
+            appendLine("Output in this format:")
+            appendLine()
 
-        builder.append("Return only a JSON object that matches this schema:\n")
-        builder.append("{\"finalAnswer\":{\"type\":\"multiple_choice\",\"choiceIndex\":0},")
-        builder.append("\"reasoningSummary\":\"brief\",")
-        builder.append("\"confidenceScore\":0.0}\n")
-        builder.append("Use 0-based indexes for multiple_choice. ")
-        builder.append("For non-multiple choice, use type integer with value or free_text with text. ")
-        builder.append("Keep reasoningSummary brief.")
+            when (expectedKind) {
+                ExpectedAnswerKind.MULTIPLE_CHOICE -> {
+                    appendLine("""{"finalAnswer":{"type":"multiple_choice","choiceIndex":0},"reasoningSummary":"brief","confidenceScore":0.0}""")
+                    appendLine()
+                    appendLine("Rules:")
+                    appendLine("- choiceIndex MUST be a 0-based index into the provided choices.")
+                    appendLine("- reasoningSummary should be brief (1-2 sentences).")
+                    appendLine("- confidenceScore is optional; if present it must be between 0 and 1.")
+                }
 
-        return builder.toString()
+                ExpectedAnswerKind.INTEGER -> {
+                    appendLine("""{"finalAnswer":{"type":"integer","value":0},"reasoningSummary":"brief","confidenceScore":0.0}""")
+                    appendLine()
+                    appendLine("Rules:")
+                    appendLine("- value must be an integer.")
+                    appendLine("- reasoningSummary should be brief (1-2 sentences).")
+                    appendLine("- confidenceScore is optional; if present it must be between 0 and 1.")
+                }
+
+                ExpectedAnswerKind.FREE_TEXT -> {
+                    appendLine("""{"finalAnswer":{"type":"free_text","text":"..."},"reasoningSummary":"brief","confidenceScore":0.0}""")
+                    appendLine()
+                    appendLine("Rules:")
+                    appendLine("- text must be a plain string answer.")
+                    appendLine("- reasoningSummary should be brief (1-2 sentences).")
+                    appendLine("- confidenceScore is optional; if present it must be between 0 and 1.")
+                }
+            }
+        }.trim()
+
+        return PromptParts(system = system, user = user)
     }
 
     private fun llmAnswerJsonSchema(): Map<String, JsonValue> {
