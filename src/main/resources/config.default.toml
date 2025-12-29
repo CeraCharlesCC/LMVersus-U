@@ -19,7 +19,8 @@ debug = false
 # Logging Configuration
 # ------------------------------------------------------------
 [logConfig]
-level = "INFO"
+rootLogLevel = "INFO"
+appLogLevel = "DEBUG"
 format = "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
 
 # ------------------------------------------------------------
