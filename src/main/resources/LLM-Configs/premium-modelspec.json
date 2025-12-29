@@ -7,14 +7,19 @@
         "displayName": "Kimi K2"
     },
     "provider": {
-        "providerName": "some-provider",
-        "apiUrl": "https://provider.example/v1",
-        "apiKey": "ENV:KIMI_API_KEY"
+        "providerName": "kimi",
+        "apiUrl": "ENV:KIMI_API_URL",
+        "apiKey": "ENV:KIMI_API_KEY",
+        "compat": {
+            "apiProtocol": "CHAT_COMPLETIONS",
+            "structuredOutput": "JSON_OBJECT",
+            "reasoning": "RAW_REASONING_FIELD"
+        }
     },
-    "questionSetPath": "Datasets/questions/mmlu-pro/",
+    "questionSetPath": "LLM-Configs/Datasets/questions/mmlu-pro/",
     "streaming": {
-        "revealDelayMs": 10000,
-        "targetTokensPerSecond": 80,
+        "revealDelayMs": 1,
+        "targetTokensPerSecond": 20,
         "burstMultiplierOnFinal": 5.0,
         "maxBufferedChars": 200000
     }
