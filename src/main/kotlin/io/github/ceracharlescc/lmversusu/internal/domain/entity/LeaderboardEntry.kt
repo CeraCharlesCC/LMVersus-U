@@ -9,6 +9,8 @@ internal data class LeaderboardEntry(
     val sessionId: Uuid,
     val gameMode: GameMode,
     val difficulty: Difficulty,
+    val opponentLlmName: String,
+    val questionSetDisplayName: String,
     val rank: Int,
     val userId: Uuid,
     val nickname: String,

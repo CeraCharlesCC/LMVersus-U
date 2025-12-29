@@ -8,6 +8,7 @@
     },
     "datasetPath": "LLM-Configs/Datasets/models/lightweight/sonnet45_mmlu_pro_subset",
     "questionSetPath": "LLM-Configs/Datasets/questions/mmlu-pro/",
+    "questionSetDisplayName": "MMLU Pro",
     "streaming": {
         "revealDelayMs": 1000,
         "targetTokensPerSecond": 37,

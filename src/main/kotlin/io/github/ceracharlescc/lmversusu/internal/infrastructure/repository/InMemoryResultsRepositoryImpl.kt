@@ -17,6 +17,8 @@ internal class InMemoryResultsRepositoryImpl @Inject constructor() : ResultsRepo
             rank = 0,
             gameMode = result.gameMode,
             difficulty = result.difficulty,
+            opponentLlmName = result.llmProfileName,
+            questionSetDisplayName = result.questionSetDisplayName,
             userId = result.humanUserId,
             nickname = result.humanNickname,
             bestScore = result.humanScore,

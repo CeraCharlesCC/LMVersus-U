@@ -23,6 +23,7 @@
         }
     },
     "questionSetPath": "LLM-Configs/Datasets/questions/mmlu-pro/",
+    "questionSetDisplayName": "MMLU Pro",
     "streaming": {
         "revealDelayMs": 1,
         "targetTokensPerSecond": 20,
