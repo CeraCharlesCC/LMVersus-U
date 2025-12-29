@@ -1,6 +1,6 @@
 <configuration>
     <property name="LOG_LEVEL_ROOT" value="${lmversusu.root.log.level:-INFO}"/>
-    <property name="LOG_LEVEL_LMV" value="${lmversusu.lmversusu.log.level:-INFO}"/>
+    <property name="LOG_LEVEL_LMV" value="${lmversusu.app.log.level:-INFO}"/>
     <property name="LOG_PATTERN" value="${lmversusu.log.format:-%d{YYYY-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n}"/>
 
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
