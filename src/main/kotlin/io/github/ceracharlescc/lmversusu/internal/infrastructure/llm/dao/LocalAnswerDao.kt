@@ -1,3 +1,5 @@
+@file:OptIn(kotlin.uuid.ExperimentalUuidApi::class)
+
 package io.github.ceracharlescc.lmversusu.internal.infrastructure.llm.dao
 
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.Answer
@@ -104,6 +106,7 @@ internal class LocalAnswerDao(
                 )
             }
 
+            emit(LlmStreamEvent.ReasoningEnded)
             emit(LlmStreamEvent.FinalAnswer(buildAnswer(replay)))
         }
     }

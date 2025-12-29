@@ -17,6 +17,8 @@ internal sealed class LlmStreamEvent {
         val reason: String? = null,
     ) : LlmStreamEvent()
 
+    data object ReasoningEnded : LlmStreamEvent()
+
     data class Error(
         val message: String,
         val cause: Throwable? = null,

@@ -60,6 +60,7 @@ tasks.test {
 }
 
 tasks.register<JavaExec>("testRun") {
+    dependsOn("build")
     group = "application"
     description = "Runs the Ktor server as a manual integration test."
 

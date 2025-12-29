@@ -1,3 +1,5 @@
+@file:OptIn(kotlin.uuid.ExperimentalUuidApi::class)
+
 package io.github.ceracharlescc.lmversusu.internal.presentation.ktor.game.ws
 
 import io.github.ceracharlescc.lmversusu.internal.application.port.QuestionLocalizer
@@ -84,6 +86,22 @@ internal class GameEventFrameMapper @Inject constructor(
             sessionId = event.sessionId.toString(),
             roundId = event.roundId.toString(),
             message = event.message,
+        )
+
+        is GameEvent.LlmAnswerLockIn -> WsLlmAnswerLockIn(
+            sessionId = event.sessionId.toString(),
+            roundId = event.roundId.toString(),
+        )
+
+        is GameEvent.LlmReasoningEnded -> WsLlmReasoningEnded(
+            sessionId = event.sessionId.toString(),
+            roundId = event.roundId.toString(),
+        )
+
+        is GameEvent.LlmReasoningReveal -> WsLlmReasoningReveal(
+            sessionId = event.sessionId.toString(),
+            roundId = event.roundId.toString(),
+            fullReasoning = event.fullReasoning,
         )
 
         is GameEvent.SessionTerminated -> WsSessionTerminated(

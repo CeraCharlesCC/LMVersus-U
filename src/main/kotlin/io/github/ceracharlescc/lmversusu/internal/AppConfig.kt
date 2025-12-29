@@ -27,7 +27,8 @@ internal data class AppConfig(
 
     @Serializable
     data class LogConfig(
-        val level: String = DEFAULT_LOG_LEVEL,
+        val rootLogLevel: String = DEFAULT_LOG_LEVEL,
+        val appLogLevel: String = DEFAULT_LOG_LEVEL,
         val format: String = DEFAULT_LOG_FORMAT,
     ) {
         companion object {
