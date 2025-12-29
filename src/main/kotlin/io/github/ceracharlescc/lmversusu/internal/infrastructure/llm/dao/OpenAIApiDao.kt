@@ -156,9 +156,7 @@ internal class OpenAIApiDao(
                     )
                     val response = client.responses().create(params)
                     val answerText = extractResponseOutputText(response)
-                    val parsed = parseLlmAnswer(answerText)
-                    val summary = extractReasoningSummary(response)
-                    applyReasoningSummaryIfMissing(parsed, summary)
+                    parseLlmAnswer(answerText)
                 }
 
                 ProviderApiProtocol.CHAT_COMPLETIONS -> {
@@ -194,21 +192,71 @@ internal class OpenAIApiDao(
             maxTokens = maxTokens,
             structuredOutput = structuredOutput,
         )
+
+        val answerBuf = StringBuilder()
         val accumulator = ChatCompletionAccumulator.create()
+
         val stream = client.chat().completions().createStreaming(params)
         val job = launch(Dispatchers.IO) {
+            var terminalReason: ChatCompletionChunk.Choice.FinishReason? = null
             try {
-                stream.stream().forEach { chunk ->
+                for (chunk in stream.stream()) {
                     accumulator.accumulate(chunk)
                     logger.debug("Received chat completion chunk: {}", chunk)
-                    if (shouldUseRawReasoning(reasoning)) {
-                        emitChatReasoningDelta(this@callbackFlow, chunk, maxTokens)
+
+                    for (choice in chunk.choices()) {
+                        val delta = choice.delta()
+
+                        delta.content().getOrNull()?.let { piece ->
+                            answerBuf.append(piece)
+                        }
+
+                        if (shouldUseRawReasoning(reasoning)) {
+                            val r = extractRawReasoningDelta(delta)
+                            if (!r.isNullOrEmpty()) {
+                                trySend(
+                                    LlmStreamEvent.ReasoningDelta(
+                                        deltaText = r,
+                                        emittedTokenCount = estimateTokenCount(r),
+                                        totalTokenCount = maxTokens,
+                                    )
+                                )
+                            }
+                        }
+
+                        choice.finishReason().getOrNull()?.let { fr ->
+                            terminalReason = fr
+                        }
+                    }
+
+                    when (terminalReason) {
+                        ChatCompletionChunk.Choice.FinishReason.STOP,
+                        ChatCompletionChunk.Choice.FinishReason.LENGTH,
+                        ChatCompletionChunk.Choice.FinishReason.CONTENT_FILTER -> break
+                        else -> Unit
                     }
                 }
-                val completion = accumulator.chatCompletion()
-                val answerText = extractChatCompletionContent(completion)
-                val answer = parseLlmAnswer(answerText)
-                trySend(LlmStreamEvent.FinalAnswer(answer))
+
+                when (terminalReason) {
+                    ChatCompletionChunk.Choice.FinishReason.LENGTH,
+                    ChatCompletionChunk.Choice.FinishReason.CONTENT_FILTER -> {
+                        trySend(
+                            LlmStreamEvent.Error(
+                                message = "Chat completion was cut off due to $terminalReason",
+                                cause = null,
+                            )
+                        )
+                    }
+
+                    else -> {
+                        val answerText = answerBuf.toString().ifEmpty {
+                            val completion = accumulator.chatCompletion()
+                            extractChatCompletionContent(completion)
+                        }
+                        val answer = parseLlmAnswer(answerText)
+                        trySend(LlmStreamEvent.FinalAnswer(answer))
+                    }
+                }
             } catch (error: Exception) {
                 trySend(
                     LlmStreamEvent.Error(
@@ -221,6 +269,7 @@ internal class OpenAIApiDao(
                 close()
             }
         }
+
         awaitClose {
             stream.close()
             job.cancel()
@@ -243,19 +292,16 @@ internal class OpenAIApiDao(
             structuredOutput = structuredOutput,
         )
         val accumulator = ResponseAccumulator.create()
-        val summaryFromStream = StringBuilder()
         val stream = client.responses().createStreaming(params)
         val job = launch(Dispatchers.IO) {
             try {
                 stream.stream().forEach { event ->
                     accumulator.accumulate(event)
-                    emitResponseReasoningDelta(this@callbackFlow, event, reasoning, maxTokens, summaryFromStream)
+                    emitResponseReasoningDelta(this@callbackFlow, event, reasoning, maxTokens)
                 }
                 val response = accumulator.response()
                 val answerText = extractResponseOutputText(response)
-                val parsed = parseLlmAnswer(answerText)
-                val summary = extractReasoningSummary(response) ?: summaryFromStream.toString()
-                val answer = applyReasoningSummaryIfMissing(parsed, summary)
+                val answer = parseLlmAnswer(answerText)
                 trySend(LlmStreamEvent.FinalAnswer(answer))
             } catch (error: Exception) {
                 trySend(
@@ -275,39 +321,19 @@ internal class OpenAIApiDao(
         }
     }
 
-    private fun emitChatReasoningDelta(
-        scope: ProducerScope<LlmStreamEvent>,
-        chunk: ChatCompletionChunk,
-        maxTokens: Int,
-    ) {
-        chunk.choices().forEach { choice ->
-            val delta = choice.delta()
-            val deltaText = extractRawReasoningDelta(delta)
-            if (!deltaText.isNullOrBlank()) {
-                val emittedTokenCount = estimateTokenCount(deltaText)
-                scope.trySend(
-                    LlmStreamEvent.ReasoningDelta(
-                        deltaText = deltaText,
-                        emittedTokenCount = emittedTokenCount,
-                        totalTokenCount = maxTokens,
-                    )
-                )
-            }
-        }
-    }
-
     private fun emitResponseReasoningDelta(
         scope: ProducerScope<LlmStreamEvent>,
         event: ResponseStreamEvent,
         reasoning: ProviderReasoning,
         maxTokens: Int,
-        summaryFromStream: StringBuilder,
     ) {
         when (reasoning) {
             ProviderReasoning.NONE -> return
+
             ProviderReasoning.RAW_REASONING_FIELD -> {
-                val delta = event.reasoningTextDelta().getOrNull()?.delta().orEmpty()
-                if (delta.isBlank()) return
+                val delta = event.reasoningTextDelta().getOrNull()?.delta()
+                // Preserve whitespace; do not use isBlank()
+                if (delta.isNullOrEmpty()) return
                 val emittedTokenCount = estimateTokenCount(delta)
                 scope.trySend(
                     LlmStreamEvent.ReasoningDelta(
@@ -320,9 +346,9 @@ internal class OpenAIApiDao(
 
             ProviderReasoning.SUMMARY_ONLY,
             ProviderReasoning.AUTO -> {
-                val delta = event.reasoningSummaryTextDelta().getOrNull()?.delta().orEmpty()
-                if (delta.isBlank()) return
-                summaryFromStream.append(delta)
+                val delta = event.reasoningSummaryTextDelta().getOrNull()?.delta()
+                // Preserve whitespace; do not use isBlank()
+                if (delta.isNullOrEmpty()) return
                 val emittedTokenCount = estimateTokenCount(delta)
                 scope.trySend(
                     LlmStreamEvent.ReasoningDelta(
@@ -339,8 +365,8 @@ internal class OpenAIApiDao(
         val additional = delta._additionalProperties()
         for (field in RAW_REASONING_FIELDS) {
             val value = additional[field] ?: continue
-            val text = value.asString().getOrNull()?.trim()
-            if (!text.isNullOrEmpty()) return text
+            val text = value.asString().getOrNull()
+            if (text != null) return text
         }
         return null
     }
@@ -448,7 +474,7 @@ internal class OpenAIApiDao(
 
     private fun extractChatCompletionContent(completion: ChatCompletion): String {
         val message = completion.choices().firstOrNull()?.message()
-        return message?.content()?.getOrNull()?.trim().orEmpty()
+        return message?.content()?.getOrNull().orEmpty()
     }
 
     private fun extractResponseOutputText(response: Response): String {
@@ -457,36 +483,37 @@ internal class OpenAIApiDao(
             .flatMap { it.content() }
             .mapNotNull { it.outputText().getOrNull()?.text() }
 
-        return texts.joinToString("").trim()
+        return texts.joinToString("")
     }
 
-    private fun extractReasoningSummary(response: Response): String? {
-        val summaries = response.output()
-            .mapNotNull { it.reasoning().getOrNull() }
-            .flatMap { it.summary() }
-            .map { it.text() }
-
-        return summaries.joinToString("").trim().takeIf { it.isNotEmpty() }
-    }
-
-    private fun parseLlmAnswer(jsonText: String): LlmAnswer {
-        val trimmed = jsonText.trim()
+    private fun parseLlmAnswer(text: String): LlmAnswer {
+        val trimmed = text.trim()
         if (trimmed.isEmpty()) {
             throw IllegalArgumentException("Empty response payload from $providerName")
         }
 
-        val direct = runCatching { json.decodeFromString(LlmAnswer.serializer(), trimmed) }.getOrNull()
-        if (direct != null) return direct
+        runCatching { json.decodeFromString(LlmAnswer.serializer(), trimmed) }
+            .getOrNull()
+            ?.let { return it }
 
-        val extracted = extractFirstJsonObject(trimmed)
-            ?: throw IllegalArgumentException("Failed to locate JSON object in response from $providerName")
+        var start = trimmed.indexOf('{')
+        while (start != -1) {
+            val candidate = extractJsonObjectStartingAt(trimmed, start)
+            if (candidate != null) {
+                runCatching { json.decodeFromString(LlmAnswer.serializer(), candidate) }
+                    .getOrNull()
+                    ?.let { return it }
+            }
+            start = trimmed.indexOf('{', start + 1)
+        }
 
-        return json.decodeFromString(LlmAnswer.serializer(), extracted)
+        throw IllegalArgumentException(
+            "Failed to locate a valid LlmAnswer JSON object in response from $providerName"
+        )
     }
 
-    private fun extractFirstJsonObject(text: String): String? {
-        val start = text.indexOf('{')
-        if (start == -1) return null
+    private fun extractJsonObjectStartingAt(text: String, start: Int): String? {
+        if (start !in text.indices || text[start] != '{') return null
 
         var depth = 0
         var inString = false
@@ -494,6 +521,7 @@ internal class OpenAIApiDao(
 
         for (index in start until text.length) {
             val ch = text[index]
+
             if (inString) {
                 when {
                     escaped -> escaped = false
@@ -508,22 +536,12 @@ internal class OpenAIApiDao(
                 '{' -> depth += 1
                 '}' -> {
                     depth -= 1
-                    if (depth == 0) {
-                        return text.substring(start, index + 1)
-                    }
+                    if (depth == 0) return text.substring(start, index + 1)
                 }
             }
         }
 
         return null
-    }
-
-    private fun applyReasoningSummaryIfMissing(answer: LlmAnswer, summary: String?): LlmAnswer {
-        val existing = answer.reasoningSummary?.trim().orEmpty()
-        if (existing.isNotEmpty()) return answer
-        val trimmedSummary = summary?.trim().orEmpty()
-        if (trimmedSummary.isEmpty()) return answer
-        return answer.copy(reasoningSummary = trimmedSummary)
     }
 
     private fun buildPromptParts(
@@ -550,30 +568,24 @@ internal class OpenAIApiDao(
 
             when (expectedKind) {
                 ExpectedAnswerKind.MULTIPLE_CHOICE -> {
-                    appendLine("""{"finalAnswer":{"type":"multiple_choice","choiceIndex":0},"reasoningSummary":"brief","confidenceScore":0.0}""")
+                    appendLine("""{"finalAnswer":{"type":"multiple_choice","choiceIndex":0}}""")
                     appendLine()
                     appendLine("Rules:")
                     appendLine("- choiceIndex MUST be a 0-based index into the provided choices.")
-                    appendLine("- reasoningSummary should be brief (1-2 sentences).")
-                    appendLine("- confidenceScore is optional; if present it must be between 0 and 1.")
                 }
 
                 ExpectedAnswerKind.INTEGER -> {
-                    appendLine("""{"finalAnswer":{"type":"integer","value":0},"reasoningSummary":"brief","confidenceScore":0.0}""")
+                    appendLine("""{"finalAnswer":{"type":"integer","value":0}}""")
                     appendLine()
                     appendLine("Rules:")
                     appendLine("- value must be an integer.")
-                    appendLine("- reasoningSummary should be brief (1-2 sentences).")
-                    appendLine("- confidenceScore is optional; if present it must be between 0 and 1.")
                 }
 
                 ExpectedAnswerKind.FREE_TEXT -> {
-                    appendLine("""{"finalAnswer":{"type":"free_text","text":"..."},"reasoningSummary":"brief","confidenceScore":0.0}""")
+                    appendLine("""{"finalAnswer":{"type":"free_text","text":"..."}}""")
                     appendLine()
                     appendLine("Rules:")
                     appendLine("- text must be a plain string answer.")
-                    appendLine("- reasoningSummary should be brief (1-2 sentences).")
-                    appendLine("- confidenceScore is optional; if present it must be between 0 and 1.")
                 }
             }
         }.trim()
@@ -616,12 +628,6 @@ internal class OpenAIApiDao(
                 "finalAnswer" to mapOf(
                     "type" to "object",
                     "oneOf" to listOf(multipleChoice, integerAnswer, freeText),
-                ),
-                "reasoningSummary" to mapOf("type" to "string"),
-                "confidenceScore" to mapOf(
-                    "type" to "number",
-                    "minimum" to 0,
-                    "maximum" to 1,
                 ),
             ),
             "required" to listOf("finalAnswer"),
