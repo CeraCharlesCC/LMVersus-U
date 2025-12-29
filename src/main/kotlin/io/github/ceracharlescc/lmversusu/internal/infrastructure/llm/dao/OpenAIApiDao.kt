@@ -216,7 +216,7 @@ internal class OpenAIApiDao(
                             answerBuf.append(piece)
                         }
 
-                        if (shouldUseRawReasoning(reasoning)) {
+                        if (!reasoningEnded && shouldUseRawReasoning(reasoning)) {
                             val r = extractRawReasoningDelta(delta)
                             if (!r.isNullOrEmpty()) {
                                 trySend(
