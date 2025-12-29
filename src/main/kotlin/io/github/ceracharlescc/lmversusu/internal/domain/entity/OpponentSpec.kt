@@ -47,6 +47,7 @@ internal data class ProviderConfig(
     val providerName: String,
     val apiUrl: String,
     val apiKey: String,
+    val compat: ProviderCompat = ProviderCompat(),
 ) {
     private fun toSafeString(): String {
         val kClass = ProviderConfig::class
@@ -62,6 +63,35 @@ internal data class ProviderConfig(
     }
 
     override fun toString(): String = toSafeString()
+}
+
+@Serializable
+internal data class ProviderCompat(
+    val apiProtocol: ProviderApiProtocol = ProviderApiProtocol.AUTO,
+    val structuredOutput: ProviderStructuredOutput = ProviderStructuredOutput.JSON_OBJECT,
+    val reasoning: ProviderReasoning = ProviderReasoning.AUTO,
+)
+
+@Serializable
+internal enum class ProviderApiProtocol {
+    AUTO,
+    RESPONSES,
+    CHAT_COMPLETIONS,
+}
+
+@Serializable
+internal enum class ProviderStructuredOutput {
+    JSON_SCHEMA,
+    JSON_OBJECT,
+    NONE,
+}
+
+@Serializable
+internal enum class ProviderReasoning {
+    AUTO,
+    SUMMARY_ONLY,
+    RAW_REASONING_FIELD,
+    NONE,
 }
 
 internal object OpponentSpecModeSerializer : JsonContentPolymorphicSerializer<OpponentSpec>(OpponentSpec::class) {

@@ -7,12 +7,15 @@ import io.github.ceracharlescc.lmversusu.internal.domain.vo.streaming.LlmAnswer
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.streaming.LlmStreamEvent
 import io.github.ceracharlescc.lmversusu.internal.infrastructure.llm.dao.OpenAIApiDao
 import kotlinx.coroutines.flow.Flow
+import org.slf4j.Logger
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-internal class PremiumPlayerSource @Inject constructor() {
+internal class PremiumPlayerSource @Inject constructor(
+    private val logger: Logger
+) {
     private val daoByProvider = ConcurrentHashMap<ProviderConfig, OpenAIApiDao>()
 
     private fun daoFor(spec: OpponentSpec.Premium): OpenAIApiDao {
@@ -21,9 +24,11 @@ internal class PremiumPlayerSource @Inject constructor() {
 
         return daoByProvider.computeIfAbsent(provider) {
             OpenAIApiDao(
+                logger = logger,
                 providerName = provider.providerName,
                 apiKey = provider.apiKey,
-                apiUrl = provider.apiUrl
+                apiUrl = provider.apiUrl,
+                compat = provider.compat,
             )
         }
     }
