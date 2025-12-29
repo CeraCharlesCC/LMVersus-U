@@ -208,13 +208,14 @@ internal class LlmStreamOrchestrator @Inject constructor() {
                 while (true) {
                     val snapshot = lock.withLock {
                         val releasable = when {
-                            reasoningEnded || terminal != null || burstMode -> true
+                            reasoningEnded -> false
+                            terminal != null || burstMode -> true
                             policy.chunkDelay <= 0 -> true
                             buffer.size > policy.chunkDelay -> true
                             else -> false
                         }
 
-                        val nextDelta = if (buffer.isEmpty() || !releasable || reasoningEnded) {
+                        val nextDelta = if (buffer.isEmpty() || !releasable) {
                             null  // Don't release if reasoning has ended (frozen for reveal)
                         } else {
                             buffer.removeFirst().also {
