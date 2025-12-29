@@ -663,16 +663,17 @@ internal class OpenAIApiDao(
                 if (isString) content
                 else {
                     val contentLow = content.lowercase()
-                    if (contentLow == "true") true
-                    else if (contentLow == "false") false
-                    else if (contentLow == "null") null
-                    else content.toLongOrNull() ?: content.toDoubleOrNull() ?: content
+                    when (contentLow) {
+                        "true" -> true
+                        "false" -> false
+                        "null" -> null
+                        else -> content.toLongOrNull() ?: content.toDoubleOrNull() ?: content
+                    }
                 }
             }
 
             is kotlinx.serialization.json.JsonObject -> this.mapValues { it.value.toRawValue() }
             is kotlinx.serialization.json.JsonArray -> this.map { it.toRawValue() }
-            else -> null
         }
     }
 }
