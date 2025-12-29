@@ -7,8 +7,8 @@ import io.github.ceracharlescc.lmversusu.internal.utils.scaledBy
 import java.time.Duration
 
 internal object HandicapPolicy {
-    private val LIGHTWEIGHT_BASE_HANDICAP = Duration.ofSeconds(5)
-    private val PREMIUM_BASE_HANDICAP = Duration.ofSeconds(3)
+    private val LIGHTWEIGHT_BASE_HANDICAP = Duration.ofSeconds(3)
+    private val PREMIUM_BASE_HANDICAP = Duration.ofSeconds(1)
 
     private val DIFFICULTY_MULTIPLIERS = mapOf(
         Difficulty.EASY to 2.0,

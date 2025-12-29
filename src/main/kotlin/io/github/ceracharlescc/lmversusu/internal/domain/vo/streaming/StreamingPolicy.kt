@@ -8,4 +8,5 @@ internal data class StreamingPolicy(
     val targetTokensPerSecond: Int,
     val burstMultiplierOnFinal: Double,
     val maxBufferedChars: Int,
+    val chunkDelay: Int = 0,
 )

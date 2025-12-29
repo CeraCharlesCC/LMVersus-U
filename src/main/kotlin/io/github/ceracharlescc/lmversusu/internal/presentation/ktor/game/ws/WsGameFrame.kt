@@ -96,8 +96,31 @@ internal data class WsLlmFinalAnswer(
 ) : WsGameFrame
 
 @Serializable
+@SerialName("llm_answer_lock_in")
+internal data class WsLlmAnswerLockIn(
+    val sessionId: String,
+    val roundId: String,
+) : WsGameFrame
+
+@Serializable
+@SerialName("llm_reasoning_ended")
+internal data class WsLlmReasoningEnded(
+    val sessionId: String,
+    val roundId: String,
+) : WsGameFrame
+
+@Serializable
+@SerialName("llm_reasoning_reveal")
+internal data class WsLlmReasoningReveal(
+    val sessionId: String,
+    val roundId: String,
+    val fullReasoning: String,
+) : WsGameFrame
+
+@Serializable
 @SerialName("session_terminated")
 internal data class WsSessionTerminated(
     val sessionId: String,
     val reason: String,
 ) : WsGameFrame
+

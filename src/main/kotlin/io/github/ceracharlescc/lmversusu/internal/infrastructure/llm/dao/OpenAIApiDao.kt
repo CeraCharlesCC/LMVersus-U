@@ -199,6 +199,7 @@ internal class OpenAIApiDao(
         val stream = client.chat().completions().createStreaming(params)
         val job = launch(Dispatchers.IO) {
             var terminalReason: ChatCompletionChunk.Choice.FinishReason? = null
+            var reasoningEnded = false
             try {
                 for (chunk in stream.stream()) {
                     accumulator.accumulate(chunk)
@@ -208,6 +209,10 @@ internal class OpenAIApiDao(
                         val delta = choice.delta()
 
                         delta.content().getOrNull()?.let { piece ->
+                            if (!reasoningEnded && piece.isNotEmpty()) {
+                                reasoningEnded = true
+                                trySend(LlmStreamEvent.ReasoningEnded)
+                            }
                             answerBuf.append(piece)
                         }
 
@@ -233,6 +238,7 @@ internal class OpenAIApiDao(
                         ChatCompletionChunk.Choice.FinishReason.STOP,
                         ChatCompletionChunk.Choice.FinishReason.LENGTH,
                         ChatCompletionChunk.Choice.FinishReason.CONTENT_FILTER -> break
+
                         else -> Unit
                     }
                 }
@@ -302,6 +308,7 @@ internal class OpenAIApiDao(
                 val response = accumulator.response()
                 val answerText = extractResponseOutputText(response)
                 val answer = parseLlmAnswer(answerText)
+                trySend(LlmStreamEvent.ReasoningEnded)
                 trySend(LlmStreamEvent.FinalAnswer(answer))
             } catch (error: Exception) {
                 trySend(

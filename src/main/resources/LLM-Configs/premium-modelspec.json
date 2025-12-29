@@ -27,6 +27,7 @@
         "revealDelayMs": 1,
         "targetTokensPerSecond": 20,
         "burstMultiplierOnFinal": 5.0,
-        "maxBufferedChars": 200000
+        "maxBufferedChars": 200000,
+        "chunkDelay": 15
     }
 }

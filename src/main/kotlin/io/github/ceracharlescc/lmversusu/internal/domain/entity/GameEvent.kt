@@ -1,3 +1,5 @@
+@file:OptIn(kotlin.uuid.ExperimentalUuidApi::class)
+
 package io.github.ceracharlescc.lmversusu.internal.domain.entity
 
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.Answer
@@ -92,6 +94,36 @@ internal sealed class GameEvent {
         override val sessionId: Uuid,
         val roundId: Uuid,
         val message: String,
+    ) : GameEvent()
+
+    /**
+     * Emitted when the LLM has completed its final answer but the human player
+     * has not yet submitted. Used as a UI signal for timing displays or affordances.
+     * Idempotent within a round (emitted at most once).
+     */
+    data class LlmAnswerLockIn(
+        override val sessionId: Uuid,
+        val roundId: Uuid,
+    ) : GameEvent()
+
+    /**
+     * Marker event indicating the transition from reasoning to answer content.
+     * Emitted when the first answer content chunk is detected.
+     * After this, delayed reasoning release stops.
+     */
+    data class LlmReasoningEnded(
+        override val sessionId: Uuid,
+        val roundId: Uuid,
+    ) : GameEvent()
+
+    /**
+     * Full reasoning reveal emitted at round end (when both players have submitted).
+     * The frontend should overwrite any partial/delayed reasoning with this complete text.
+     */
+    data class LlmReasoningReveal(
+        override val sessionId: Uuid,
+        val roundId: Uuid,
+        val fullReasoning: String,
     ) : GameEvent()
 
     data class SessionTerminated(

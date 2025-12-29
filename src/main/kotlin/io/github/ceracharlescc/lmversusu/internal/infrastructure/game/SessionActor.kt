@@ -1,3 +1,5 @@
+@file:OptIn(kotlin.uuid.ExperimentalUuidApi::class)
+
 package io.github.ceracharlescc.lmversusu.internal.infrastructure.game
 
 import io.github.ceracharlescc.lmversusu.internal.application.port.AnswerVerifier
@@ -46,6 +48,14 @@ internal class SessionActor(
     private val mailbox = Channel<SessionCommand>(Channel.UNLIMITED)
     private val llmJobs = ConcurrentHashMap<Uuid, Job>()
     private var session: GameSession? = null
+
+    private data class RoundStreamState(
+        val fullReasoningBuilder: StringBuilder = StringBuilder(),
+        var lockInEmitted: Boolean = false,
+        var getWithheldReasoning: (suspend () -> String)? = null,
+    )
+
+    private val roundStreamStates = ConcurrentHashMap<Uuid, RoundStreamState>()
 
     init {
         scope.launch {
@@ -213,6 +223,8 @@ internal class SessionActor(
             )
         )
 
+        val streamState = roundStreamStates.computeIfAbsent(command.roundId) { RoundStreamState() }
+
         val job = scope.launch {
             val expectedKind = when {
                 round.question.choices != null -> ExpectedAnswerKind.MULTIPLE_CHOICE
@@ -229,12 +241,17 @@ internal class SessionActor(
             )
 
             val upstream = llmPlayerGateway.streamAnswer(roundContext)
-            val shaped = llmStreamOrchestrator.apply(opponentSpec.streaming, upstream)
+            val orchestrationResult = llmStreamOrchestrator.applyWithReveal(opponentSpec.streaming, upstream)
+
+            streamState.getWithheldReasoning = orchestrationResult.getWithheldReasoning
+
             var seq = StreamSeq(0)
 
-            shaped.collect { event ->
+            orchestrationResult.events.collect { event ->
                 when (event) {
                     is LlmStreamEvent.ReasoningDelta -> {
+                        streamState.fullReasoningBuilder.append(event.deltaText)
+
                         gameEventBus.publish(
                             GameEvent.LlmReasoningDelta(
                                 sessionId = sessionId,
@@ -252,6 +269,15 @@ internal class SessionActor(
                                 sessionId = sessionId,
                                 roundId = round.roundId,
                                 droppedChars = event.droppedChars,
+                            )
+                        )
+                    }
+
+                    is LlmStreamEvent.ReasoningEnded -> {
+                        gameEventBus.publish(
+                            GameEvent.LlmReasoningEnded(
+                                sessionId = sessionId,
+                                roundId = round.roundId,
                             )
                         )
                     }
@@ -303,6 +329,20 @@ internal class SessionActor(
         )
         if (result is SubmitAnswerUseCase.Result.Success) {
             session = result.session
+
+            // Check if human hasn't submitted yet - emit LlmAnswerLockIn idempotently
+            val updatedRound = result.session.rounds.firstOrNull { it.roundId == command.roundId }
+            val streamState = roundStreamStates[command.roundId]
+            if (updatedRound?.humanSubmission == null && streamState?.lockInEmitted == false) {
+                streamState.lockInEmitted = true
+                gameEventBus.publish(
+                    GameEvent.LlmAnswerLockIn(
+                        sessionId = sessionId,
+                        roundId = command.roundId,
+                    )
+                )
+            }
+
             resolveRoundIfReady(command.roundId)
         }
     }
@@ -351,6 +391,28 @@ internal class SessionActor(
                 winner = result.winner.name,
             )
         )
+
+        // Emit full reasoning reveal at round completion
+        val streamState = roundStreamStates.remove(roundId)
+        if (streamState != null) {
+            // Full reasoning = emitted reasoning + withheld reasoning
+            val fullReasoning = buildString {
+                append(streamState.fullReasoningBuilder.toString())
+                // Add withheld reasoning from orchestrator if available
+                streamState.getWithheldReasoning?.invoke()?.let { withheld ->
+                    if (withheld.isNotEmpty()) append(withheld)
+                }
+            }
+            if (fullReasoning.isNotEmpty()) {
+                gameEventBus.publish(
+                    GameEvent.LlmReasoningReveal(
+                        sessionId = sessionId,
+                        roundId = roundId,
+                        fullReasoning = fullReasoning,
+                    )
+                )
+            }
+        }
 
         if (updatedSession.isCompleted) {
             val (humanScore, llmScore) = updatedSession.calculateTotalScores()
