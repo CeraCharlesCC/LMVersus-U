@@ -9,7 +9,7 @@
         </encoder>
     </appender>
 
-    <root level="${LOG_LEVEL_ROOT':-INFO}">
+    <root level="${LOG_LEVEL_ROOT:-INFO}">
         <appender-ref ref="STDOUT"/>
     </root>
     <logger name="LMVersus-U" level="${LOG_LEVEL_LMV}"/>
