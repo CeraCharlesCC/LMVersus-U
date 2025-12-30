@@ -15,6 +15,7 @@ import io.github.ceracharlescc.lmversusu.internal.domain.policy.ScorePolicy
 import io.github.ceracharlescc.lmversusu.internal.domain.repository.ResultsRepository
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.Answer
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.VerifierSpec
+import io.github.ceracharlescc.lmversusu.internal.domain.vo.streaming.LlmAnswer
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.streaming.LlmStreamEvent
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.streaming.StreamSeq
 import kotlinx.coroutines.*
@@ -53,6 +54,9 @@ internal class SessionActor(
         val fullReasoningBuilder: StringBuilder = StringBuilder(),
         var lockInEmitted: Boolean = false,
         var getWithheldReasoning: (suspend () -> String)? = null,
+
+        var pendingFinalAnswer: LlmAnswer? = null,
+        var finalAnswerPublished: Boolean = false,
     )
 
     private val roundStreamStates = ConcurrentHashMap<Uuid, RoundStreamState>()
@@ -200,13 +204,18 @@ internal class SessionActor(
                         playerType = result.playerType,
                     )
                 )
+                if (result.playerType == Player.PlayerType.HUMAN) {
+                    publishFinalAnswerIfNeeded(command.roundId)
+                }
                 resolveRoundIfReady(command.roundId)
             }
 
             is SubmitAnswerUseCase.Result.Failure -> {
                 publishError(result.errorCode, result.message)
             }
+
         }
+
     }
 
     private suspend fun handleStartLlm(command: SessionCommand.StartLlmForRound) {
@@ -283,17 +292,10 @@ internal class SessionActor(
                     }
 
                     is LlmStreamEvent.FinalAnswer -> {
-                        gameEventBus.publish(
-                            GameEvent.LlmFinalAnswer(
-                                sessionId = sessionId,
-                                roundId = round.roundId,
-                                answer = event.answer,
-                            )
-                        )
                         submit(
                             SessionCommand.LlmFinalAnswerReceived(
                                 roundId = round.roundId,
-                                answer = event.answer.finalAnswer,
+                                answer = event.answer,
                             )
                         )
                     }
@@ -319,32 +321,52 @@ internal class SessionActor(
         val currentSession = session ?: return
         val round = currentSession.rounds.firstOrNull { it.roundId == command.roundId } ?: return
         val llmPlayerId = currentSession.players.llm.playerId
+
+        val streamState = roundStreamStates.computeIfAbsent(command.roundId) { RoundStreamState() }
+        streamState.pendingFinalAnswer = command.answer
+
         val result = submitAnswerUseCase.execute(
             session = currentSession,
             playerId = llmPlayerId,
             roundId = command.roundId,
             nonceToken = round.nonceToken,
-            answer = command.answer,
+            answer = command.answer.finalAnswer,
             clientSentAt = null,
         )
-        if (result is SubmitAnswerUseCase.Result.Success) {
-            session = result.session
 
-            // Check if human hasn't submitted yet - emit LlmAnswerLockIn idempotently
-            val updatedRound = result.session.rounds.firstOrNull { it.roundId == command.roundId }
-            val streamState = roundStreamStates[command.roundId]
-            if (updatedRound?.humanSubmission == null && streamState?.lockInEmitted == false) {
-                streamState.lockInEmitted = true
-                gameEventBus.publish(
-                    GameEvent.LlmAnswerLockIn(
-                        sessionId = sessionId,
-                        roundId = command.roundId,
-                    )
-                )
-            }
+        if (result !is SubmitAnswerUseCase.Result.Success) return
+        session = result.session
 
-            resolveRoundIfReady(command.roundId)
+        val updatedRound = result.session.rounds.firstOrNull { it.roundId == command.roundId } ?: return
+
+        // If human already submitted, publish final answer now (once)
+        if (updatedRound.humanSubmission != null) {
+            publishFinalAnswerIfNeeded(command.roundId)
+        } else if (!streamState.lockInEmitted) {
+            streamState.lockInEmitted = true
+            gameEventBus.publish(GameEvent.LlmAnswerLockIn(sessionId = sessionId, roundId = command.roundId))
         }
+
+        resolveRoundIfReady(command.roundId)
+    }
+
+    private suspend fun publishFinalAnswerIfNeeded(roundId: Uuid) {
+        val currentSession = session ?: return
+        val round = currentSession.rounds.firstOrNull { it.roundId == roundId } ?: return
+        val streamState = roundStreamStates[roundId] ?: return
+        val pending = streamState.pendingFinalAnswer ?: return
+
+        if (streamState.finalAnswerPublished) return
+        if (round.humanSubmission == null) return // hard gate
+
+        streamState.finalAnswerPublished = true
+        gameEventBus.publish(
+            GameEvent.LlmFinalAnswer(
+                sessionId = sessionId,
+                roundId = roundId,
+                answer = pending,
+            )
+        )
     }
 
     private suspend fun resolveRoundIfReady(roundId: Uuid) {
@@ -539,7 +561,7 @@ internal sealed interface SessionCommand {
 
     data class LlmFinalAnswerReceived(
         val roundId: Uuid,
-        val answer: Answer,
+        val answer: LlmAnswer,
     ) : SessionCommand
 
     data class Timeout(val reason: String = "timeout") : SessionCommand
