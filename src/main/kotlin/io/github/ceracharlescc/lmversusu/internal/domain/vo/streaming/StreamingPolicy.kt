@@ -4,9 +4,9 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 internal data class StreamingPolicy(
-    val revealDelayMs: Long,
-    val targetTokensPerSecond: Int,
-    val burstMultiplierOnFinal: Double,
-    val maxBufferedChars: Int,
+    val revealDelayMs: Long = 0,
+    val targetTokensPerSecond: Int = 0,
+    val burstMultiplierOnFinal: Double = 1.0,
+    val maxBufferedChars: Int = 200_000,
     val chunkDelay: Int = 0,
 )

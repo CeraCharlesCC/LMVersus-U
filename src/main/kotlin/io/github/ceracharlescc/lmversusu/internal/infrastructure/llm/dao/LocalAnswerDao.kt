@@ -37,7 +37,7 @@ internal class LocalAnswerDao(
     private companion object {
         const val MANIFEST_FILE_NAME = "manifest.json"
         const val REPLAYS_DIRECTORY_NAME = "replays"
-        const val REASONING_CHUNK_CHAR_LIMIT = 120
+        const val REASONING_CHUNK_CHAR_LIMIT = 5
         const val CHARS_PER_TOKEN_ESTIMATE = 4.0
     }
 
@@ -84,23 +84,14 @@ internal class LocalAnswerDao(
 
             val reasoning = replay.llmReasoning.orEmpty()
 
-            val recordedTotalTokens = replay.replay?.reasoningTokenCount?.takeIf { it > 0 }
-            val totalTokenCount = recordedTotalTokens ?: estimateTokenCount(reasoning)
-
             val chunks = chunkReasoning(reasoning).toList()
+            val totalTokenCount = chunks.size
 
-            val emittedTokenCounts =
-                if (chunks.isEmpty()) emptyList() else allocateTokensProportionally(chunks, totalTokenCount)
-
-            for (i in chunks.indices) {
-                val chunk = chunks[i]
-                val emittedTokenCount =
-                    if (recordedTotalTokens != null) emittedTokenCounts[i] else estimateTokenCount(chunk)
-
+            for (chunk in chunks) {
                 emit(
                     LlmStreamEvent.ReasoningDelta(
                         deltaText = chunk,
-                        emittedTokenCount = emittedTokenCount,
+                        emittedTokenCount = 1,
                         totalTokenCount = totalTokenCount,
                     )
                 )
@@ -173,46 +164,6 @@ internal class LocalAnswerDao(
                 index = end
             }
         }
-    }
-
-    private fun allocateTokensProportionally(chunks: List<String>, totalTokens: Int): List<Int> {
-        require(totalTokens >= 0) { "totalTokens must be non-negative, got $totalTokens" }
-        if (chunks.isEmpty()) return emptyList()
-        if (totalTokens == 0) return List(chunks.size) { 0 }
-
-        val totalChars = chunks.sumOf { it.length }.coerceAtLeast(1)
-
-        val out = IntArray(chunks.size)
-        var allocated = 0
-
-        for (i in chunks.indices) {
-            val remainingChunks = chunks.size - i
-            val remainingTokens = totalTokens - allocated
-
-            if (i == chunks.lastIndex) {
-                out[i] = remainingTokens.coerceAtLeast(0)
-                break
-            }
-
-            val ideal = (totalTokens.toDouble() * chunks[i].length.toDouble()) / totalChars.toDouble()
-            var n = ideal.roundToInt()
-
-            if (chunks[i].isNotEmpty()) n = n.coerceAtLeast(1)
-
-            val minReserveForLater = (remainingChunks - 1).coerceAtLeast(0)
-            val maxForThis = remainingTokens - minReserveForLater
-            n = if (maxForThis <= 0) 0 else n.coerceIn(0, maxForThis)
-
-            out[i] = n
-            allocated += n
-        }
-
-        return out.toList()
-    }
-
-    private fun estimateTokenCount(text: String): Int {
-        if (text.isEmpty()) return 0
-        return ceil(text.length / CHARS_PER_TOKEN_ESTIMATE).toInt().coerceAtLeast(1)
     }
 
     @Serializable

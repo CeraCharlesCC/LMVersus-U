@@ -203,7 +203,6 @@ internal class OpenAIApiDao(
             try {
                 for (chunk in stream.stream()) {
                     accumulator.accumulate(chunk)
-                    logger.debug("Received chat completion chunk: {}", chunk)
 
                     for (choice in chunk.choices()) {
                         val delta = choice.delta()

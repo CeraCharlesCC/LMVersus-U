@@ -20,6 +20,7 @@ import io.github.ceracharlescc.lmversusu.internal.domain.vo.streaming.LlmStreamE
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.streaming.StreamSeq
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
+import org.slf4j.Logger
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
@@ -27,6 +28,7 @@ import java.util.concurrent.ConcurrentHashMap
 import kotlin.uuid.Uuid
 
 internal class SessionActor(
+    private val logger: Logger,
     private val sessionId: Uuid,
     private val opponentSpec: OpponentSpec,
     private val gameEventBus: GameEventBus,
@@ -224,6 +226,7 @@ internal class SessionActor(
         if (!round.isInProgress) return
 
         if (llmJobs.containsKey(command.roundId)) return
+        logger.debug("Starting LLM for session {}, round {}", sessionId, command.roundId)
         gameEventBus.publish(
             GameEvent.LlmThinking(
                 sessionId = sessionId,
@@ -260,6 +263,7 @@ internal class SessionActor(
                 when (event) {
                     is LlmStreamEvent.ReasoningDelta -> {
                         streamState.fullReasoningBuilder.append(event.deltaText)
+                        logger.debug("Delta for session {}, round {}: {}", sessionId, round.roundId, event.deltaText)
 
                         gameEventBus.publish(
                             GameEvent.LlmReasoningDelta(
@@ -283,6 +287,7 @@ internal class SessionActor(
                     }
 
                     is LlmStreamEvent.ReasoningEnded -> {
+                        logger.debug(event.toString())
                         gameEventBus.publish(
                             GameEvent.LlmReasoningEnded(
                                 sessionId = sessionId,
@@ -292,6 +297,7 @@ internal class SessionActor(
                     }
 
                     is LlmStreamEvent.FinalAnswer -> {
+                        logger.debug(event.toString())
                         submit(
                             SessionCommand.LlmFinalAnswerReceived(
                                 roundId = round.roundId,
@@ -301,6 +307,10 @@ internal class SessionActor(
                     }
 
                     is LlmStreamEvent.Error -> {
+                        logger.error(
+                            "LLM stream error for session $sessionId, round ${round.roundId}: ${event.message}",
+                            event.cause
+                        )
                         gameEventBus.publish(
                             GameEvent.LlmStreamError(
                                 sessionId = sessionId,
@@ -426,6 +436,7 @@ internal class SessionActor(
                 }
             }
             if (fullReasoning.isNotEmpty()) {
+                logger.debug("Reasoning reveal for session {}, round {}: {}", sessionId, roundId, fullReasoning)
                 gameEventBus.publish(
                     GameEvent.LlmReasoningReveal(
                         sessionId = sessionId,

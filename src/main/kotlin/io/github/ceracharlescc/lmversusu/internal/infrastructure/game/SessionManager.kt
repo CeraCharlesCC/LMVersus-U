@@ -12,6 +12,7 @@ import io.github.ceracharlescc.lmversusu.internal.domain.entity.GameEvent
 import io.github.ceracharlescc.lmversusu.internal.domain.repository.OpponentSpecRepository
 import io.github.ceracharlescc.lmversusu.internal.domain.repository.ResultsRepository
 import kotlinx.coroutines.*
+import org.slf4j.Logger
 import java.time.Clock
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
@@ -21,6 +22,7 @@ import kotlin.uuid.Uuid
 
 @Singleton
 internal class SessionManager @Inject constructor(
+    private val logger: Logger,
     private val opponentSpecRepository: OpponentSpecRepository,
     private val gameEventBus: GameEventBus,
     private val startRoundUseCase: StartRoundUseCase,
@@ -95,6 +97,7 @@ internal class SessionManager @Inject constructor(
 
         val actor = actors.computeIfAbsent(sessionId) {
             SessionActor(
+                logger = logger,
                 sessionId = sessionId,
                 opponentSpec = opponentSpec,
                 gameEventBus = gameEventBus,
