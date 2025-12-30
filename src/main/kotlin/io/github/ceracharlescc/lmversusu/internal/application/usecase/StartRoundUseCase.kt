@@ -53,7 +53,10 @@ internal class StartRoundUseCase @Inject constructor(
 
         val releasedAt = Instant.now(clock)
         val handicap = HandicapPolicy.computeHandicap(question, session.mode)
-        val deadline = releasedAt.plus(handicap).plus(DEFAULT_ROUND_DURATION)
+        val roundDuration = question.roundTime
+            ?.takeIf { !it.isNegative && !it.isZero }
+            ?: DEFAULT_ROUND_DURATION
+        val deadline = releasedAt.plus(handicap).plus(roundDuration)
         val nonceToken = Uuid.random().toString()
         val round = Round(
             roundId = Uuid.random(),

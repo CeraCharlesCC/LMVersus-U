@@ -53,6 +53,7 @@ internal class GameEventFrameMapper @Inject constructor(
             humanScore = event.humanScore,
             llmScore = event.llmScore,
             winner = event.winner,
+            reason = event.reason.name,
         )
 
         is GameEvent.SessionError -> WsSessionError(

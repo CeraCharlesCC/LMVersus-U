@@ -6,7 +6,8 @@ internal data class RoundResult(
     val correctAnswer: Answer,
     val humanOutcome: PlayerOutcome,
     val llmOutcome: PlayerOutcome,
-    val winner: Winner
+    val winner: Winner,
+    val reason: RoundResolveReason = RoundResolveReason.NORMAL,
 )
 
 internal data class PlayerOutcome(

@@ -1,3 +1,5 @@
+@file:OptIn(kotlin.uuid.ExperimentalUuidApi::class)
+
 package io.github.ceracharlescc.lmversusu.internal.infrastructure.game
 
 import io.github.ceracharlescc.lmversusu.internal.application.port.AnswerVerifier
@@ -6,9 +8,11 @@ import io.github.ceracharlescc.lmversusu.internal.application.port.LlmPlayerGate
 import io.github.ceracharlescc.lmversusu.internal.application.service.LlmStreamOrchestrator
 import io.github.ceracharlescc.lmversusu.internal.application.usecase.StartRoundUseCase
 import io.github.ceracharlescc.lmversusu.internal.application.usecase.SubmitAnswerUseCase
+import io.github.ceracharlescc.lmversusu.internal.domain.entity.GameEvent
 import io.github.ceracharlescc.lmversusu.internal.domain.repository.OpponentSpecRepository
 import io.github.ceracharlescc.lmversusu.internal.domain.repository.ResultsRepository
 import kotlinx.coroutines.*
+import org.slf4j.Logger
 import java.time.Clock
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
@@ -18,6 +22,7 @@ import kotlin.uuid.Uuid
 
 @Singleton
 internal class SessionManager @Inject constructor(
+    private val logger: Logger,
     private val opponentSpecRepository: OpponentSpecRepository,
     private val gameEventBus: GameEventBus,
     private val startRoundUseCase: StartRoundUseCase,
@@ -29,8 +34,14 @@ internal class SessionManager @Inject constructor(
     private val clock: Clock,
 ) {
     companion object {
-        /** Session idle timeout (10 minutes) */
-        private const val SESSION_TIMEOUT_MS = 10 * 60 * 1000L
+        /** Session idle timeout - terminate abandoned sessions after no activity (10 minutes) */
+        internal const val IDLE_TIMEOUT_MS = 10 * 60 * 1000L
+
+        /** Maximum session lifespan - absolute limit regardless of activity (60 minutes) */
+        internal const val MAX_LIFESPAN_MS = 60 * 60 * 1000L
+
+        /** Grace period after round deadline before idle timeout applies (60 seconds) */
+        internal const val ROUND_GRACE_MS = 60_000L
     }
 
     sealed interface JoinResult {
@@ -57,9 +68,17 @@ internal class SessionManager @Inject constructor(
         ) : CommandResult
     }
 
+    sealed interface TouchResult {
+        data object Success : TouchResult
+        data object SessionNotFound : TouchResult
+    }
+
     private val actors = ConcurrentHashMap<Uuid, SessionActor>()
     private val supervisorScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    private val timeoutJobs = ConcurrentHashMap<Uuid, Job>()
+
+    private val idleTimeoutJobs = ConcurrentHashMap<Uuid, Job>()
+
+    private val maxLifespanJobs = ConcurrentHashMap<Uuid, Job>()
 
     suspend fun joinSession(
         sessionId: Uuid,
@@ -74,8 +93,11 @@ internal class SessionManager @Inject constructor(
                 message = "opponent spec not found",
             )
 
+        val isNewSession = !actors.containsKey(sessionId)
+
         val actor = actors.computeIfAbsent(sessionId) {
             SessionActor(
+                logger = logger,
                 sessionId = sessionId,
                 opponentSpec = opponentSpec,
                 gameEventBus = gameEventBus,
@@ -105,7 +127,11 @@ internal class SessionManager @Inject constructor(
                 nickname = nickname,
             )
         )
-        scheduleTimeout(sessionId)
+
+        if (isNewSession) {
+            scheduleMaxLifespan(sessionId)
+        }
+        scheduleIdleTimeout(sessionId)
 
         return JoinResult.Success(
             sessionId = sessionId,
@@ -123,7 +149,7 @@ internal class SessionManager @Inject constructor(
                 message = "session not found",
             )
 
-        scheduleTimeout(sessionId)
+        scheduleIdleTimeout(sessionId)
         actor.submit(SessionCommand.StartNextRound(sessionId = sessionId, playerId = playerId))
         return CommandResult.Success(sessionId)
     }
@@ -143,7 +169,7 @@ internal class SessionManager @Inject constructor(
                 message = "session not found",
             )
 
-        scheduleTimeout(sessionId)
+        scheduleIdleTimeout(sessionId)
         actor.submit(
             SessionCommand.SubmitAnswer(
                 sessionId = sessionId,
@@ -157,26 +183,50 @@ internal class SessionManager @Inject constructor(
         return CommandResult.Success(sessionId)
     }
 
-    private fun scheduleTimeout(sessionId: Uuid) {
-        timeoutJobs[sessionId]?.cancel()  // Reset existing
-        timeoutJobs[sessionId] = supervisorScope.launch {
-            delay(SESSION_TIMEOUT_MS)
-            actors[sessionId]?.submit(SessionCommand.Timeout)
+    suspend fun touchSession(sessionId: Uuid): TouchResult {
+        if (!actors.containsKey(sessionId)) {
+            return TouchResult.SessionNotFound
+        }
+        scheduleIdleTimeout(sessionId)
+        return TouchResult.Success
+    }
+
+    private fun scheduleIdleTimeout(sessionId: Uuid) {
+        idleTimeoutJobs[sessionId]?.cancel()
+        idleTimeoutJobs[sessionId] = supervisorScope.launch {
+            delay(IDLE_TIMEOUT_MS)
+            actors[sessionId]?.submit(SessionCommand.Timeout(reason = "timeout"))
+        }
+    }
+
+    private fun scheduleMaxLifespan(sessionId: Uuid) {
+        maxLifespanJobs[sessionId] = supervisorScope.launch {
+            delay(MAX_LIFESPAN_MS)
+            // Only terminate if session still exists
+            val actor = actors[sessionId]
+            if (actor != null) {
+                gameEventBus.publish(
+                    GameEvent.SessionTerminated(
+                        sessionId = sessionId,
+                        reason = "max_lifespan",
+                    )
+                )
+                removeSession(sessionId)
+            }
         }
     }
 
     private fun removeSession(sessionId: Uuid) {
-        timeoutJobs.remove(sessionId)?.cancel()
+        idleTimeoutJobs.remove(sessionId)?.cancel()
+        maxLifespanJobs.remove(sessionId)?.cancel()
         actors.remove(sessionId)?.shutdown()
     }
 
-    /**
-     * Shuts down all sessions. Call this during application shutdown.
-     */
     fun shutdownAll() {
         supervisorScope.cancel()
         actors.forEach { (_, actor) -> actor.shutdown() }
         actors.clear()
-        timeoutJobs.clear()
+        idleTimeoutJobs.clear()
+        maxLifespanJobs.clear()
     }
 }

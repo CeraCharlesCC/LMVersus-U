@@ -1,3 +1,5 @@
+@file:OptIn(kotlin.uuid.ExperimentalUuidApi::class)
+
 package io.github.ceracharlescc.lmversusu.internal.application.usecase
 
 import io.github.ceracharlescc.lmversusu.internal.domain.entity.GameSession
@@ -51,7 +53,7 @@ internal class SubmitAnswerUseCase @Inject constructor(
         }
 
         val now = Instant.now(clock)
-        if (player.type == Player.PlayerType.HUMAN && now.isAfter(round.deadline)) {
+        if (now.isAfter(round.deadline)) {
             return Result.Failure(errorCode = "deadline_passed", message = "round deadline has passed")
         }
 

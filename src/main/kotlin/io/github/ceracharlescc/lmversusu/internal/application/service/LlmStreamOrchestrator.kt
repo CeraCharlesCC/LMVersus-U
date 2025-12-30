@@ -25,45 +25,35 @@ import kotlin.math.ceil
  * ## Core Behavior
  *
  * 1. Reveal Delay: The orchestrator waits [StreamingPolicy.revealDelayMs] before
- *    emitting the first delta, allowing the upstream to accumulate initial content.
+ * emitting the first delta, allowing the upstream to accumulate initial content.
  *
  * 2. Chunk Delay: With [StreamingPolicy.chunkDelay] > 0, reasoning deltas are held
- *    back so the UI shows reasoning N chunks behind the live stream. Deltas are
- *    released only when at least `chunkDelay` newer chunks have been buffered.
+ * back so the UI shows reasoning N chunks behind the live stream. Deltas are
+ * released only when at least `chunkDelay` newer chunks have been buffered.
  *
- * 3. Reasoning Ended: When [LlmStreamEvent.ReasoningEnded] is received, any remaining
- *    buffered reasoning is frozen. These held-back deltas are concatenated and available
- *    for a "full reveal" emitted at round completion. The orchestrator emits
- *    [LlmStreamEvent.ReasoningEnded] downstream immediately upon receiving it.
+ * 3. Reasoning Ended: When [LlmStreamEvent.ReasoningEnded] is received, the orchestrator
+ * switches to a "drain" mode. It rapidly emits buffered reasoning until only
+ * [StreamingPolicy.chunkDelay] chunks remain. These remaining chunks are then
+ * withheld (frozen) and [LlmStreamEvent.ReasoningEnded] is emitted downstream.
  *
  * 4. Baseline Pacing: Deltas are emitted at approximately [StreamingPolicy.targetTokensPerSecond].
- *    If the policy specifies ≤ 0, pacing is disabled and deltas are forwarded immediately.
+ * If the policy specifies ≤ 0, pacing is disabled and deltas are forwarded immediately.
  *
  * 5. Burst Mode: Once a terminal event ([LlmStreamEvent.FinalAnswer] or
- *    [LlmStreamEvent.Error]) arrives, the emission rate accelerates by
- *    [StreamingPolicy.burstMultiplierOnFinal] to drain remaining buffered deltas quickly.
+ * [LlmStreamEvent.Error]) arrives, or when ReasoningEnded arrives, the emission rate
+ * accelerates by [StreamingPolicy.burstMultiplierOnFinal] to drain remaining deltas quickly.
  *
  * 6. Back-Pressure & Truncation: When the buffer grows beyond
- *    [StreamingPolicy.maxBufferedChars], the oldest deltas are dropped (and later
- *    reported as [LlmStreamEvent.ReasoningTruncated]) so that the UI always shows the
- *    most recent reasoning.
- *
- * ## maxBufferedChars Caveat
- *
- * The drop loop intentionally guarantees at least one delta remains in the buffer
- * (`buffer.size > 1` guard). This design choice preserves semantic integrity: the
- * orchestrator never tampers with the *content* of deltas (e.g., by splitting a large
- * chunk). As a consequence, a single chunk larger than `maxBufferedChars` will be
- * buffered in its entirety. In practice, LLM providers stream fine-grained token
- * deltas, so this edge-case is virtually unreachable under normal operation.
+ * [StreamingPolicy.maxBufferedChars], the oldest deltas are dropped (and later
+ * reported as [LlmStreamEvent.ReasoningTruncated]) so that the UI always shows the
+ * most recent reasoning.
  *
  * ## Implementation Notes
  *
  * - Concurrency model: The upstream flow is collected in a separate coroutine (`collector`).
- *   Shared state is protected by a [Mutex]. The emitter loop runs in the caller's coroutine.
+ * Shared state is protected by a [Mutex]. The emitter loop runs in the caller's coroutine.
  * - Cooperative cancellation: If the emitter breaks out of its loop (due to terminal event
- *   or upstream completion), the collector coroutine is explicitly cancelled.
- * - Timing: All `delay` calls honor the caller's [kotlin.coroutines.CoroutineContext]
+ * or upstream completion), the collector coroutine is explicitly cancelled.
  *
  * @see StreamingPolicy
  * @see LlmStreamEvent
@@ -110,7 +100,7 @@ internal class LlmStreamOrchestrator @Inject constructor() {
                 var upstreamTruncation: LlmStreamEvent.ReasoningTruncated? = null
                 var terminal: LlmStreamEvent? = null
                 var upstreamDone = false
-                var reasoningEnded = false  // Set when ReasoningEnded is received
+                var reasoningEnded = false
 
                 val updated = Channel<Unit>(Channel.CONFLATED)
                 val terminalArrived = Channel<Unit>(Channel.CONFLATED)
@@ -134,15 +124,7 @@ internal class LlmStreamOrchestrator @Inject constructor() {
                                     }
 
                                     is LlmStreamEvent.ReasoningEnded -> {
-                                        if (!reasoningEnded) {
-                                            reasoningEnded = true
-                                            // Capture all remaining buffered reasoning as withheld
-                                            withheldLock.withLock {
-                                                buffer.forEach { delta ->
-                                                    withheldReasoningBuilder.append(delta.deltaText)
-                                                }
-                                            }
-                                        }
+                                        if (!reasoningEnded) reasoningEnded = true
                                     }
 
                                     is LlmStreamEvent.FinalAnswer,
@@ -196,6 +178,7 @@ internal class LlmStreamOrchestrator @Inject constructor() {
 
                 var burstMode = false
                 var reasoningEndedEmitted = false
+                val holdBack = policy.chunkDelay.coerceAtLeast(0)
 
                 if (policy.revealDelayMs > 0) delay(policy.revealDelayMs)
 
@@ -204,14 +187,41 @@ internal class LlmStreamOrchestrator @Inject constructor() {
                 while (terminalArrived.tryReceive().isSuccess) {
                     burstMode = true
                 }
+                while (reasoningEndedArrived.tryReceive().isSuccess) {
+                    burstMode = true
+                }
 
                 while (true) {
+                    var tailToWithhold: List<LlmStreamEvent.ReasoningDelta> = emptyList()
+                    var shouldEmitReasoningEndedNow = false
+                    lock.withLock {
+                        if (reasoningEnded && !reasoningEndedEmitted && buffer.size <= holdBack) {
+                            reasoningEndedEmitted = true
+                            shouldEmitReasoningEndedNow = true
+                            if (buffer.isNotEmpty()) {
+                                tailToWithhold = buffer.toList()
+                                buffer.clear()
+                                bufferedChars = 0
+                            }
+                        }
+                    }
+                    if (shouldEmitReasoningEndedNow) {
+                        if (tailToWithhold.isNotEmpty()) {
+                            withheldLock.withLock {
+                                tailToWithhold.forEach { withheldReasoningBuilder.append(it.deltaText) }
+                            }
+                        }
+                        emit(LlmStreamEvent.ReasoningEnded)
+                    }
+
                     val snapshot = lock.withLock {
                         val releasable = when {
-                            reasoningEnded -> false
+                            // once we've emitted ReasoningEnded (i.e., stop point reached), never release more
+                            reasoningEndedEmitted -> false
+                            reasoningEnded -> buffer.size > holdBack
                             terminal != null || burstMode -> true
-                            policy.chunkDelay <= 0 -> true
-                            buffer.size > policy.chunkDelay -> true
+                            holdBack <= 0 -> true
+                            buffer.size > holdBack -> true
                             else -> false
                         }
 
@@ -250,11 +260,6 @@ internal class LlmStreamOrchestrator @Inject constructor() {
                         emit(LlmStreamEvent.ReasoningTruncated(droppedChars = snapshot.dropped))
                     }
 
-                    if (snapshot.reasoningEnded && !reasoningEndedEmitted) {
-                        reasoningEndedEmitted = true
-                        emit(LlmStreamEvent.ReasoningEnded)
-                    }
-
                     val delta = snapshot.delta
                     if (delta != null) {
                         emit(delta)
@@ -280,6 +285,7 @@ internal class LlmStreamOrchestrator @Inject constructor() {
                             if (!burstMode) {
                                 val interrupted = select<Boolean> {
                                     terminalArrived.onReceive { true }
+                                    reasoningEndedArrived.onReceive { true }
                                     onTimeout(waitMs) { false }
                                 }
                                 if (interrupted) burstMode = true

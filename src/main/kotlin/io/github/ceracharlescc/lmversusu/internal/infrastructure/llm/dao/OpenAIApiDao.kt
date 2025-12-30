@@ -12,11 +12,7 @@ import com.openai.models.ResponsesModel
 import com.openai.models.chat.completions.ChatCompletion
 import com.openai.models.chat.completions.ChatCompletionChunk
 import com.openai.models.chat.completions.ChatCompletionCreateParams
-import com.openai.models.responses.Response
-import com.openai.models.responses.ResponseCreateParams
-import com.openai.models.responses.ResponseFormatTextJsonSchemaConfig
-import com.openai.models.responses.ResponseStreamEvent
-import com.openai.models.responses.ResponseTextConfig
+import com.openai.models.responses.*
 import io.github.ceracharlescc.lmversusu.internal.application.port.ExpectedAnswerKind
 import io.github.ceracharlescc.lmversusu.internal.domain.entity.ProviderApiProtocol
 import io.github.ceracharlescc.lmversusu.internal.domain.entity.ProviderCompat
@@ -25,8 +21,8 @@ import io.github.ceracharlescc.lmversusu.internal.domain.entity.ProviderStructur
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.streaming.LlmAnswer
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.streaming.LlmStreamEvent
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.channels.ProducerScope
+import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.launch
@@ -203,7 +199,6 @@ internal class OpenAIApiDao(
             try {
                 for (chunk in stream.stream()) {
                     accumulator.accumulate(chunk)
-                    logger.debug("Received chat completion chunk: {}", chunk)
 
                     for (choice in chunk.choices()) {
                         val delta = choice.delta()

@@ -145,5 +145,10 @@ internal class GameController @Inject constructor(
         }
     }
 
+    suspend fun touchSession(sessionId: String): Boolean {
+        val parsedSessionId = parseUuidOrNull(sessionId) ?: return false
+        return sessionManager.touchSession(parsedSessionId) is SessionManager.TouchResult.Success
+    }
+
     private fun parseUuidOrNull(raw: String): Uuid? = runCatching { Uuid.parse(raw) }.getOrNull()
 }

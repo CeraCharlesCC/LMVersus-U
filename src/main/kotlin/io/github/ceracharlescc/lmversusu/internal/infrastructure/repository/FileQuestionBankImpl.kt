@@ -10,12 +10,14 @@ import io.github.ceracharlescc.lmversusu.internal.domain.vo.VerifierSpec
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import org.slf4j.Logger
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
+import java.time.Duration
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -156,6 +158,10 @@ internal class FileQuestionBankImpl @Inject constructor(
     }
 
     private fun QuestionFile.toDomainQuestion(questionId: Uuid): Question {
+        val roundTimeDuration = roundTimeSeconds
+            ?.takeIf { it > 0 }
+            ?.let { Duration.ofSeconds(it) }
+
         return Question(
             questionId = questionId,
             prompt = prompt,
@@ -163,6 +169,7 @@ internal class FileQuestionBankImpl @Inject constructor(
             difficulty = difficulty,
             verifierSpec = verifierSpec,
             metadata = metadata,
+            roundTime = roundTimeDuration,
         )
     }
 
@@ -194,5 +201,7 @@ internal class FileQuestionBankImpl @Inject constructor(
         val difficulty: Difficulty = Difficulty.MEDIUM,
         val verifierSpec: VerifierSpec,
         val metadata: QuestionMetadata? = null,
+        @SerialName("roundTime")
+        val roundTimeSeconds: Long? = null,
     )
 }
