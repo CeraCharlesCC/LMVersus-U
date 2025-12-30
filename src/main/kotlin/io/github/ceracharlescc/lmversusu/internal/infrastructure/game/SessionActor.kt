@@ -2,11 +2,7 @@
 
 package io.github.ceracharlescc.lmversusu.internal.infrastructure.game
 
-import io.github.ceracharlescc.lmversusu.internal.application.port.AnswerVerifier
-import io.github.ceracharlescc.lmversusu.internal.application.port.GameEventBus
-import io.github.ceracharlescc.lmversusu.internal.application.port.ExpectedAnswerKind
-import io.github.ceracharlescc.lmversusu.internal.application.port.LlmPlayerGateway
-import io.github.ceracharlescc.lmversusu.internal.application.port.RoundContext
+import io.github.ceracharlescc.lmversusu.internal.application.port.*
 import io.github.ceracharlescc.lmversusu.internal.application.service.LlmStreamOrchestrator
 import io.github.ceracharlescc.lmversusu.internal.application.usecase.StartRoundUseCase
 import io.github.ceracharlescc.lmversusu.internal.application.usecase.SubmitAnswerUseCase
@@ -14,6 +10,7 @@ import io.github.ceracharlescc.lmversusu.internal.domain.entity.*
 import io.github.ceracharlescc.lmversusu.internal.domain.policy.ScorePolicy
 import io.github.ceracharlescc.lmversusu.internal.domain.repository.ResultsRepository
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.Answer
+import io.github.ceracharlescc.lmversusu.internal.domain.vo.RoundResolveReason
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.VerifierSpec
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.streaming.LlmAnswer
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.streaming.LlmStreamEvent
@@ -50,6 +47,7 @@ internal class SessionActor(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val mailbox = Channel<SessionCommand>(Channel.UNLIMITED)
     private val llmJobs = ConcurrentHashMap<Uuid, Job>()
+    private val roundDeadlineJobs = ConcurrentHashMap<Uuid, Job>()
     private var session: GameSession? = null
 
     private data class RoundStreamState(
@@ -92,6 +90,7 @@ internal class SessionActor(
             is SessionCommand.StartLlmForRound -> handleStartLlm(command)
             is SessionCommand.LlmFinalAnswerReceived -> handleLlmFinalAnswer(command)
             is SessionCommand.Timeout -> handleTimeout(command)
+            is SessionCommand.RoundDeadlineReached -> handleRoundDeadlineReached(command.roundId)
         }
     }
 
@@ -175,6 +174,7 @@ internal class SessionActor(
                     )
                 )
                 scheduleLlmStart(round)
+                scheduleRoundDeadline(round)
             }
 
             is StartRoundUseCase.Result.Failure -> {
@@ -387,6 +387,9 @@ internal class SessionActor(
         val humanSubmission = round.humanSubmission ?: return
         val llmSubmission = round.llmSubmission ?: return
 
+        // Cancel the deadline job since round is resolving normally
+        roundDeadlineJobs.remove(roundId)?.cancel()
+
         val humanOutcome = answerVerifier.verify(round.question, humanSubmission)
         val llmOutcome = answerVerifier.verify(round.question, llmSubmission)
         val correctAnswer = correctAnswerFor(round.question)
@@ -395,6 +398,7 @@ internal class SessionActor(
             correctAnswer = correctAnswer,
             humanCorrect = humanOutcome.correct,
             llmCorrect = llmOutcome.correct,
+            reason = RoundResolveReason.NORMAL,
         )
 
         val updatedRound = round.copy(result = result)
@@ -421,6 +425,7 @@ internal class SessionActor(
                 humanScore = result.humanOutcome.score.points,
                 llmScore = result.llmOutcome.score.points,
                 winner = result.winner.name,
+                reason = result.reason,
             )
         )
 
@@ -519,6 +524,191 @@ internal class SessionActor(
         }
     }
 
+    /**
+     * Schedules a deadline timer for the given round.
+     * When the timer fires, the round will be force-resolved if it is still in progress.
+     */
+    private fun scheduleRoundDeadline(round: Round) {
+        roundDeadlineJobs[round.roundId]?.cancel()
+
+        val now = Instant.now(clock)
+        val delayMs = Duration.between(now, round.deadline).toMillis().coerceAtLeast(0L)
+
+        roundDeadlineJobs[round.roundId] = scope.launch {
+            delay(delayMs)
+            submit(SessionCommand.RoundDeadlineReached(roundId = round.roundId))
+        }
+    }
+
+    /**
+     * Handles a round deadline being reached.
+     * Force-resolves the round by assigning 0 points to any player who hasn't submitted.
+     */
+    private suspend fun handleRoundDeadlineReached(roundId: Uuid) {
+        val currentSession = session ?: return
+        val round = currentSession.rounds.firstOrNull { it.roundId == roundId } ?: return
+        if (!round.isInProgress) return
+
+        // If we fired slightly early due to clock issues, reschedule
+        val now = Instant.now(clock)
+        if (now.isBefore(round.deadline)) {
+            scheduleRoundDeadline(round)
+            return
+        }
+
+        logger.info("Round deadline reached for session {}, round {}", sessionId, roundId)
+
+        val humanMissing = (round.humanSubmission == null)
+        val llmMissing = (round.llmSubmission == null)
+
+        val reason = when {
+            humanMissing && llmMissing -> RoundResolveReason.TIMEOVER_BOTH
+            humanMissing -> RoundResolveReason.TIMEOVER_HUMAN
+            llmMissing -> RoundResolveReason.TIMEOVER_LLM
+            else -> RoundResolveReason.NORMAL
+        }
+
+        // Stop the LLM stream if it didn't finish by deadline
+        if (llmMissing) {
+            llmJobs.remove(roundId)?.cancel()
+        }
+
+        val correctAnswer = correctAnswerFor(round.question)
+
+        // Create timeout submissions for missing players
+        fun timeoutSubmission(playerId: Uuid): Submission =
+            Submission(
+                submissionId = Uuid.random(),
+                playerId = playerId,
+                answer = correctAnswer, // value doesn't matter since we force correct=false
+                serverReceivedAt = round.deadline, // makes responseTime == full time
+                clientSentAt = null,
+            )
+
+        val roundWithTimeoutSubs = round.copy(
+            humanSubmission = round.humanSubmission ?: timeoutSubmission(currentSession.players.human.playerId),
+            llmSubmission = round.llmSubmission ?: timeoutSubmission(currentSession.players.llm.playerId),
+        )
+
+        // Missing players are considered incorrect
+        val humanCorrect = if (humanMissing) false
+        else answerVerifier.verify(round.question, roundWithTimeoutSubs.humanSubmission!!).correct
+
+        val llmCorrect = if (llmMissing) false
+        else answerVerifier.verify(round.question, roundWithTimeoutSubs.llmSubmission!!).correct
+
+        val result = ScorePolicy.compute(
+            round = roundWithTimeoutSubs,
+            correctAnswer = correctAnswer,
+            humanCorrect = humanCorrect,
+            llmCorrect = llmCorrect,
+            reason = reason,
+        )
+
+        val finalizedRound = roundWithTimeoutSubs.copy(result = result)
+
+        val updatedRounds = currentSession.rounds.map { existing ->
+            if (existing.roundId == roundId) finalizedRound else existing
+        }
+
+        val updatedSession = currentSession.copy(
+            rounds = updatedRounds,
+            state = if (updatedRounds.size == GameSession.TOTAL_ROUNDS && updatedRounds.all { !it.isInProgress }) {
+                SessionState.COMPLETED
+            } else {
+                SessionState.IN_PROGRESS
+            }
+        )
+        session = updatedSession
+
+        // Cancel deadline job now that round is finalized
+        roundDeadlineJobs.remove(roundId)?.cancel()
+
+        // Publish final answer if LLM had one pending
+        publishFinalAnswerAtRoundEnd(roundId)
+
+        gameEventBus.publish(
+            GameEvent.RoundResolved(
+                sessionId = sessionId,
+                roundId = roundId,
+                correctAnswer = result.correctAnswer,
+                humanCorrect = humanCorrect,
+                llmCorrect = llmCorrect,
+                humanScore = result.humanOutcome.score.points,
+                llmScore = result.llmOutcome.score.points,
+                winner = result.winner.name,
+                reason = result.reason,
+            )
+        )
+
+        emitReasoningRevealAtRoundEnd(roundId)
+
+        if (updatedSession.isCompleted) {
+            val (humanScoreTotal, llmScoreTotal) = updatedSession.calculateTotalScores()
+            gameEventBus.publish(
+                GameEvent.SessionCompleted(
+                    sessionId = sessionId,
+                    humanTotalScore = humanScoreTotal.points,
+                    llmTotalScore = llmScoreTotal.points,
+                    humanWon = humanScoreTotal.points >= llmScoreTotal.points,
+                )
+            )
+            saveSessionResult(updatedSession, finalizedRound, humanScoreTotal.points, llmScoreTotal.points)
+            scope.launch {
+                delay(CLEANUP_GRACE_PERIOD_MS)
+                gameEventBus.publish(
+                    GameEvent.SessionTerminated(
+                        sessionId = sessionId,
+                        reason = "completed",
+                    )
+                )
+                onTerminate(sessionId)
+            }
+        }
+    }
+
+    /**
+     * Publish the LLM's final answer at round end (for timeout resolution).
+     */
+    private suspend fun publishFinalAnswerAtRoundEnd(roundId: Uuid) {
+        val streamState = roundStreamStates[roundId] ?: return
+        val pending = streamState.pendingFinalAnswer ?: return
+        if (streamState.finalAnswerPublished) return
+
+        streamState.finalAnswerPublished = true
+        gameEventBus.publish(
+            GameEvent.LlmFinalAnswer(
+                sessionId = sessionId,
+                roundId = roundId,
+                answer = pending,
+            )
+        )
+    }
+
+    /**
+     * Emit reasoning reveal at round end (for timeout resolution).
+     */
+    private suspend fun emitReasoningRevealAtRoundEnd(roundId: Uuid) {
+        val streamState = roundStreamStates.remove(roundId) ?: return
+
+        val withheld = runCatching { streamState.getWithheldReasoning?.invoke().orEmpty() }.getOrDefault("")
+        val fullReasoning = buildString {
+            append(streamState.fullReasoningBuilder.toString())
+            if (withheld.isNotEmpty()) append(withheld)
+        }
+
+        if (fullReasoning.isNotEmpty()) {
+            logger.debug("Reasoning reveal for session {}, round {}: {}", sessionId, roundId, fullReasoning)
+            gameEventBus.publish(
+                GameEvent.LlmReasoningReveal(
+                    sessionId = sessionId,
+                    roundId = roundId,
+                    fullReasoning = fullReasoning,
+                )
+            )
+        }
+    }
+
     private fun correctAnswerFor(question: Question): Answer =
         when (val spec = question.verifierSpec) {
             is VerifierSpec.MultipleChoice -> Answer.MultipleChoice(spec.correctIndex)
@@ -576,4 +766,8 @@ internal sealed interface SessionCommand {
     ) : SessionCommand
 
     data class Timeout(val reason: String = "timeout") : SessionCommand
+
+    data class RoundDeadlineReached(
+        val roundId: Uuid,
+    ) : SessionCommand
 }

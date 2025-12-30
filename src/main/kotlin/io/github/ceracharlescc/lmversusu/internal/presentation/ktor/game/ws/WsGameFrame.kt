@@ -58,6 +58,7 @@ internal data class WsRoundResolved(
     val humanScore: Double,
     val llmScore: Double,
     val winner: String,
+    val reason: String,
 ) : WsGameFrame
 
 @Serializable

@@ -16,13 +16,15 @@ internal object ScorePolicy {
      * @param correctAnswer The correct answer for verification
      * @param humanCorrect Whether the human answered correctly
      * @param llmCorrect Whether the LLM answered correctly
+     * @param reason The reason for round resolution (default NORMAL)
      * @return The computed round result
      */
     fun compute(
         round: Round,
         correctAnswer: Answer,
         humanCorrect: Boolean,
-        llmCorrect: Boolean
+        llmCorrect: Boolean,
+        reason: RoundResolveReason = RoundResolveReason.NORMAL,
     ): RoundResult {
         val humanSubmission = round.humanSubmission
         val llmSubmission = round.llmSubmission
@@ -51,7 +53,8 @@ internal object ScorePolicy {
             correctAnswer = correctAnswer,
             humanOutcome = humanOutcome,
             llmOutcome = llmOutcome,
-            winner = winner
+            winner = winner,
+            reason = reason,
         )
     }
 

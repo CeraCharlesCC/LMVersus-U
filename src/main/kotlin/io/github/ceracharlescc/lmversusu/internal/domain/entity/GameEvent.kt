@@ -3,10 +3,12 @@
 package io.github.ceracharlescc.lmversusu.internal.domain.entity
 
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.Answer
+import io.github.ceracharlescc.lmversusu.internal.domain.vo.RoundResolveReason
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.streaming.LlmAnswer
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.streaming.StreamSeq
 import java.time.Instant
 import kotlin.uuid.Uuid
+
 
 internal sealed class GameEvent {
     abstract val sessionId: Uuid
@@ -43,7 +45,8 @@ internal sealed class GameEvent {
         val llmCorrect: Boolean,
         val humanScore: Double,
         val llmScore: Double,
-        val winner: String
+        val winner: String,
+        val reason: RoundResolveReason,
     ) : GameEvent()
 
     data class SessionCompleted(
