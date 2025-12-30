@@ -1,6 +1,5 @@
 package io.github.ceracharlescc.lmversusu.internal.domain.vo
 
-
 internal enum class RoundResolveReason {
     /** Both players submitted before the deadline */
     NORMAL,
