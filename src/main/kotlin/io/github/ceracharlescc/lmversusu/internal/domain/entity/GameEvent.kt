@@ -9,7 +9,6 @@ import io.github.ceracharlescc.lmversusu.internal.domain.vo.streaming.StreamSeq
 import java.time.Instant
 import kotlin.uuid.Uuid
 
-
 internal sealed class GameEvent {
     abstract val sessionId: Uuid
 
