@@ -6,8 +6,8 @@ import io.ktor.server.websocket.WebSockets
 
 internal fun Application.configureSockets() {
     install(WebSockets) {
-        pingPeriodMillis = 15000
-        timeoutMillis = 15000
+        pingPeriodMillis = 15_000
+        timeoutMillis = 45_000
         maxFrameSize = Long.MAX_VALUE
         masking = false
     }

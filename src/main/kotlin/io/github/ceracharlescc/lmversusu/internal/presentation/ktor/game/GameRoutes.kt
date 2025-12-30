@@ -12,9 +12,15 @@ import io.ktor.server.websocket.webSocket
 import io.ktor.websocket.Frame
 import io.ktor.websocket.close
 import io.ktor.websocket.readText
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
+
+private const val HEARTBEAT_INTERVAL_MS = 30_000L
 
 @OptIn(ExperimentalUuidApi::class)
 internal fun Route.gameWebSocket(
@@ -44,17 +50,37 @@ internal fun Route.gameWebSocket(
             val json = Json { ignoreUnknownKeys = true }
             var subscribedSessionId: Uuid? = null
             var clientLocale: String? = null  // Connection-scoped locale for i18n
+            var heartbeatJob: Job? = null
 
             val listener = GameEventListener { event ->
                 val frame = frameMapper.toFrame(event, clientLocale) ?: return@GameEventListener
                 sendFrame(json, frame)
             }
 
+            suspend fun startHeartbeat(sessionId: String) {
+                heartbeatJob?.cancel()
+                heartbeatJob = launch {
+                    while (isActive) {
+                        delay(HEARTBEAT_INTERVAL_MS)
+                        gameController.touchSession(sessionId)
+                    }
+                }
+            }
+
+            suspend fun stopHeartbeat() {
+                heartbeatJob?.cancel()
+                heartbeatJob = null
+            }
+
             suspend fun subscribeTo(sessionId: Uuid) {
                 if (subscribedSessionId == sessionId) return
-                subscribedSessionId?.let { gameEventBus.unsubscribe(it, listener) }
+                subscribedSessionId?.let {
+                    gameEventBus.unsubscribe(it, listener)
+                    stopHeartbeat()
+                }
                 gameEventBus.subscribe(sessionId, listener)
                 subscribedSessionId = sessionId
+                startHeartbeat(sessionId.toString())
             }
 
             suspend fun sendError(sessionId: Uuid?, errorCode: String, message: String) {
@@ -157,6 +183,7 @@ internal fun Route.gameWebSocket(
                     }
                 }
             } finally {
+                stopHeartbeat()
                 subscribedSessionId?.let { gameEventBus.unsubscribe(it, listener) }
             }
         }

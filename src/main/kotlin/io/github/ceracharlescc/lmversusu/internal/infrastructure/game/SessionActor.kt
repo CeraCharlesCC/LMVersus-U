@@ -85,7 +85,7 @@ internal class SessionActor(
             is SessionCommand.SubmitAnswer -> handleSubmitAnswer(command)
             is SessionCommand.StartLlmForRound -> handleStartLlm(command)
             is SessionCommand.LlmFinalAnswerReceived -> handleLlmFinalAnswer(command)
-            is SessionCommand.Timeout -> handleTimeout()
+            is SessionCommand.Timeout -> handleTimeout(command)
         }
     }
 
@@ -497,7 +497,7 @@ internal class SessionActor(
         return sessionId.toString()
     }
 
-    private suspend fun handleTimeout() {
+    private suspend fun handleTimeout(command: SessionCommand.Timeout) {
         val currentSession = session ?: return
         if (currentSession.isCompleted) return
 
@@ -505,7 +505,7 @@ internal class SessionActor(
         gameEventBus.publish(
             GameEvent.SessionTerminated(
                 sessionId = sessionId,
-                reason = "timeout",
+                reason = command.reason,
             )
         )
         onTerminate(sessionId)
@@ -542,5 +542,5 @@ internal sealed interface SessionCommand {
         val answer: Answer,
     ) : SessionCommand
 
-    data object Timeout : SessionCommand
+    data class Timeout(val reason: String = "timeout") : SessionCommand
 }
