@@ -28,7 +28,7 @@ internal fun Application.module(appConfigOverride: AppConfig? = null) {
     configureFrontend()
     configureHTTP(appConfig.serverConfig)
 
-    configureRouting()
+    configureRouting(appComponent.logger())
 
     routing {
         apiV1Routes(appComponent.apiController())
