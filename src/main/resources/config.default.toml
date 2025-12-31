@@ -67,6 +67,6 @@ maxActiveSessions = 200
 #   Generate with: openssl rand -hex 32
 # ------------------------------------------------------------
 [sessionCrypto]
-enableSecureCookie = false
+enableSecureCookie = true
 encryptionKeyHex = ""
 signKeyHex = ""
