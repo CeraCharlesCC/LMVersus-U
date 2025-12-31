@@ -37,6 +37,7 @@ internal fun Application.module(appConfigOverride: AppConfig? = null) {
             gameEventBus = appComponent.gameEventBus(),
             frameMapper = appComponent.gameEventFrameMapper(),
             sessionLimitConfig = appConfig.sessionLimitConfig,
+            serverConfig = appConfig.serverConfig
         )
     }
 

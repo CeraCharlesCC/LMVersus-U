@@ -5,12 +5,15 @@ import io.github.ceracharlescc.lmversusu.internal.application.port.GameEventList
 import io.github.ceracharlescc.lmversusu.internal.domain.entity.ServiceSession
 import io.github.ceracharlescc.lmversusu.internal.AppConfig
 import io.github.ceracharlescc.lmversusu.internal.presentation.ktor.game.ws.*
+import io.ktor.http.HttpHeaders
+import io.ktor.server.application.serverConfig
 import io.ktor.server.plugins.origin
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.route
 import io.ktor.server.sessions.get
 import io.ktor.server.sessions.sessions
 import io.ktor.server.websocket.webSocket
+import io.ktor.websocket.CloseReason
 import io.ktor.websocket.Frame
 import io.ktor.websocket.close
 import io.ktor.websocket.readText
@@ -19,6 +22,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
+import java.net.URI
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
@@ -30,9 +34,29 @@ internal fun Route.gameWebSocket(
     gameEventBus: GameEventBus,
     frameMapper: GameEventFrameMapper,
     sessionLimitConfig: AppConfig.SessionLimitConfig,
+    serverConfig: AppConfig.ServerConfig
 ) {
     route("/ws") {
         webSocket("/game") {
+            val originHeader = call.request.headers[HttpHeaders.Origin]
+            val allowedHosts = serverConfig.corsAllowedHosts + listOf(
+                buildString {
+                    append(call.request.origin.remoteHost)
+                    val port = call.request.origin.remotePort
+                    if (port > 0) append(":").append(port)
+                }
+            )
+
+            if (!isAllowedWsOrigin(originHeader, allowedHosts)) {
+                close(
+                    CloseReason(
+                        CloseReason.Codes.VIOLATED_POLICY,
+                        "origin_not_allowed"
+                    )
+                )
+                return@webSocket
+            }
+
             val session = call.sessions.get<ServiceSession>()
             if (session == null) {
                 val json = Json { ignoreUnknownKeys = true }
@@ -102,11 +126,6 @@ internal fun Route.gameWebSocket(
                 )
             }
 
-            /**
-             * Validates that the playerId from the client frame matches the authenticated session.
-             * This check should happen before any UUID parsing to provide clear auth error messages.
-             * @return true if valid, false if mismatch (error already sent)
-             */
             suspend fun validatePlayerId(clientPlayerId: String): Boolean {
                 if (clientPlayerId != cookiePlayerId) {
                     sendError(null, "auth_mismatch", "PlayerId in request does not match session")
@@ -209,8 +228,15 @@ internal fun Route.gameRoutes(
     gameEventBus: GameEventBus,
     frameMapper: GameEventFrameMapper,
     sessionLimitConfig: AppConfig.SessionLimitConfig,
+    serverConfig: AppConfig.ServerConfig
 ) {
-    gameWebSocket(gameController, gameEventBus, frameMapper, sessionLimitConfig)
+    gameWebSocket(
+        gameController,
+        gameEventBus,
+        frameMapper,
+        sessionLimitConfig,
+        serverConfig
+    )
 }
 
 private suspend fun io.ktor.websocket.WebSocketSession.sendFrame(
@@ -239,4 +265,41 @@ private class ConnectionRateLimiter(
         count++
         return true
     }
+}
+
+
+private fun isAllowedWsOrigin(originHeader: String?, allowedHosts: List<String>): Boolean {
+    if (originHeader.isNullOrBlank()) return false
+
+    val uri = runCatching { URI(originHeader) }.getOrNull() ?: return false
+    val originHost = (uri.host ?: return false).lowercase()
+
+    val originPort = when {
+        uri.port != -1 -> uri.port
+        uri.scheme.equals("https", ignoreCase = true) -> 443
+        uri.scheme.equals("http", ignoreCase = true) -> 80
+        uri.scheme.equals("wss", ignoreCase = true) -> 443
+        uri.scheme.equals("ws", ignoreCase = true) -> 80
+        else -> -1
+    }
+
+    // Match rules:
+    // - If an allow entry includes ":port", require host+port match.
+    // - If an allow entry is just "host", match host regardless of port.
+    for (raw in allowedHosts) {
+        val entry = raw.trim().lowercase()
+        if (entry.isEmpty()) continue
+
+        val parts = entry.split(":", limit = 2)
+        val allowedHost = parts[0]
+        val allowedPort = parts.getOrNull(1)?.toIntOrNull()
+
+        if (allowedPort != null) {
+            if (originHost == allowedHost && originPort == allowedPort) return true
+        } else {
+            if (originHost == allowedHost) return true
+        }
+    }
+
+    return false
 }
