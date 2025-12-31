@@ -29,7 +29,7 @@ data class ErrorBody(
 
 internal fun Application.configureRouting(logger: Logger) {
     install(StatusPages) {
-        // 404 for unknown routes (no exception is thrown)
+        // 404 for unknown routes
         status(HttpStatusCode.NotFound) { call, _ ->
             call.respond(
                 HttpStatusCode.NotFound,
@@ -37,7 +37,7 @@ internal fun Application.configureRouting(logger: Logger) {
             )
         }
 
-        // 400: malformed JSON / body could not be converted to your DTO
+        // 400: malformed JSON
         exception<ContentTransformationException> { call, _ ->
             call.respond(
                 HttpStatusCode.BadRequest,
@@ -45,7 +45,7 @@ internal fun Application.configureRouting(logger: Logger) {
             )
         }
 
-        // 415: client sent an unsupported Content-Type (often shows up as this exception)
+        // 415: client sent an unsupported Content-Type
         exception<UnsupportedMediaTypeException> { call, _ ->
             call.respond(
                 HttpStatusCode.UnsupportedMediaType,

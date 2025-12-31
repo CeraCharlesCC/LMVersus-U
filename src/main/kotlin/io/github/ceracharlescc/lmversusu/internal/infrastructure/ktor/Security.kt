@@ -16,7 +16,7 @@ internal fun Application.configureSecurity(sessionCryptoConfig: AppConfig.Sessio
             cookie.path = "/"
             cookie.httpOnly = true
             cookie.secure = sessionCryptoConfig.enableSecureCookie
-            cookie.extensions["SameSite"] = "lax"
+            cookie.extensions["SameSite"] = "strict"
             cookie.maxAgeInSeconds = 60L * 24 * 60 * 60 // 60 days worth of seconds
             transform(
                 SessionTransportTransformerEncrypt(

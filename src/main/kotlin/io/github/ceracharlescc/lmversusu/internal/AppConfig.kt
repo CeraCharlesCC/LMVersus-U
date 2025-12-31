@@ -125,7 +125,7 @@ internal data class AppConfig(
         val signKeyHex: String = "",
     ) {
         companion object {
-            const val DEFAULT_SECURE_MODE = false
+            const val DEFAULT_SECURE_MODE = true
         }
 
         fun requireKeys(): Keys {

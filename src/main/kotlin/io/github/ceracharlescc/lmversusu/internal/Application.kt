@@ -39,5 +39,6 @@ internal fun Application.module(appConfigOverride: AppConfig? = null) {
             sessionLimitConfig = appConfig.sessionLimitConfig,
         )
     }
+
 }
 

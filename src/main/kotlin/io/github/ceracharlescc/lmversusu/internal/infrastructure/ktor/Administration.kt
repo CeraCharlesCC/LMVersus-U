@@ -8,6 +8,7 @@ import kotlin.time.Duration.Companion.seconds
 
 internal fun Application.configureAdministration() {
     install(RateLimiting) {
+
         rateLimiter {
             type = TokenBucket::class
             capacity = 100
