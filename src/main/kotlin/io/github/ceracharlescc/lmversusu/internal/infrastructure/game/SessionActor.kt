@@ -132,7 +132,7 @@ internal class SessionActor(
                 createdAt = clock.instant()
             )
             session = created
-            
+
             gameEventBus.authorizePlayer(sessionId, human.playerId)
 
             gameEventBus.publish(GameEvent.SessionCreated(sessionId = sessionId, joinCode = joinCode))
