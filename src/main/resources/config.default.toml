@@ -32,6 +32,33 @@ globalLlmWindowMillis = 60000
 globalLlmMaxRequests = 20
 
 # ------------------------------------------------------------
+# Session Limits Configuration
+# ------------------------------------------------------------
+[sessionLimitConfig]
+actorMailboxCapacity = 256
+websocketMessageWindowMillis = 5000
+websocketMessageMaxMessages = 20
+dailyWindowMillis = 86400000
+
+[sessionLimitConfig.premium]
+perPersonDailyLimit = 2
+perPersonWindowMillis = 60000
+perPersonWindowLimit = 2
+globalWindowMillis = 60000
+globalWindowLimit = 5
+globalDailyLimit = 100
+maxActiveSessions = 5
+
+[sessionLimitConfig.lightweight]
+perPersonDailyLimit = 20
+perPersonWindowMillis = 60000
+perPersonWindowLimit = 5
+globalWindowMillis = 60000
+globalWindowLimit = 60
+globalDailyLimit = 1000
+maxActiveSessions = 200
+
+# ------------------------------------------------------------
 # Session Crypto Configuration
 # ------------------------------------------------------------
 # encryptionKeyHex: 16 bytes (32 hex chars) for AES-128 encryption

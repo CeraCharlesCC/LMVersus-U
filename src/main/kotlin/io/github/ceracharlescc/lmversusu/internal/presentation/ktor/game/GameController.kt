@@ -1,5 +1,6 @@
 package io.github.ceracharlescc.lmversusu.internal.presentation.ktor.game
 
+import io.github.ceracharlescc.lmversusu.internal.domain.vo.ClientIdentity
 import io.github.ceracharlescc.lmversusu.internal.infrastructure.game.SessionManager
 import java.time.Instant
 import javax.inject.Inject
@@ -40,6 +41,7 @@ internal class GameController @Inject constructor(
     suspend fun joinSession(
         sessionId: String?,
         playerId: String,
+        clientIpAddress: String,
         opponentSpecId: String,
         nickname: String,
     ): JoinResult {
@@ -60,10 +62,15 @@ internal class GameController @Inject constructor(
             message = "playerId is invalid"
         )
 
+        val normalizedIpAddress = clientIpAddress.ifBlank { "unknown" }
+        val clientIdentity = ClientIdentity(
+            playerId = parsedPlayerId,
+            ipAddress = normalizedIpAddress,
+        )
         val resolvedSessionId = parsedSessionId ?: Uuid.random()
 
         return when (val result =
-            sessionManager.joinSession(resolvedSessionId, parsedPlayerId, nickname, opponentSpecId)) {
+            sessionManager.joinSession(resolvedSessionId, clientIdentity, nickname, opponentSpecId)) {
             is SessionManager.JoinResult.Success -> JoinResult.Success(
                 sessionId = result.sessionId,
                 playerId = result.playerId,

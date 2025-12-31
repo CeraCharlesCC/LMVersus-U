@@ -3,7 +3,9 @@ package io.github.ceracharlescc.lmversusu.internal.presentation.ktor.game
 import io.github.ceracharlescc.lmversusu.internal.application.port.GameEventBus
 import io.github.ceracharlescc.lmversusu.internal.application.port.GameEventListener
 import io.github.ceracharlescc.lmversusu.internal.domain.entity.ServiceSession
+import io.github.ceracharlescc.lmversusu.internal.AppConfig
 import io.github.ceracharlescc.lmversusu.internal.presentation.ktor.game.ws.*
+import io.ktor.server.plugins.origin
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.route
 import io.ktor.server.sessions.get
@@ -27,6 +29,7 @@ internal fun Route.gameWebSocket(
     gameController: GameController,
     gameEventBus: GameEventBus,
     frameMapper: GameEventFrameMapper,
+    sessionLimitConfig: AppConfig.SessionLimitConfig,
 ) {
     route("/ws") {
         webSocket("/game") {
@@ -46,11 +49,16 @@ internal fun Route.gameWebSocket(
             }
 
             val cookiePlayerId = session.playerId
+            val clientIpAddress = call.request.origin.remoteAddress
 
             val json = Json { ignoreUnknownKeys = true }
             var subscribedSessionId: Uuid? = null
             var clientLocale: String? = null  // Connection-scoped locale for i18n
             var heartbeatJob: Job? = null
+            val messageRateLimiter = ConnectionRateLimiter(
+                windowMillis = sessionLimitConfig.websocketMessageWindowMillis,
+                maxMessages = sessionLimitConfig.websocketMessageMaxMessages,
+            )
 
             val listener = GameEventListener { event ->
                 val frame = frameMapper.toFrame(event, clientLocale) ?: return@GameEventListener
@@ -110,6 +118,11 @@ internal fun Route.gameWebSocket(
             try {
                 for (frame in incoming) {
                     if (frame !is Frame.Text) continue
+                    if (!messageRateLimiter.tryConsume()) {
+                        sendError(null, "rate_limited", "too many websocket messages")
+                        close()
+                        break
+                    }
                     val text = frame.readText()
                     val clientFrame = runCatching {
                         json.decodeFromString(WsClientFrame.serializer(), text)
@@ -124,6 +137,7 @@ internal fun Route.gameWebSocket(
                             val result = gameController.joinSession(
                                 sessionId = clientFrame.sessionId,
                                 playerId = cookiePlayerId, // Use cookie playerId
+                                clientIpAddress = clientIpAddress,
                                 opponentSpecId = clientFrame.opponentSpecId,
                                 nickname = clientFrame.nickname,
                             )
@@ -194,8 +208,9 @@ internal fun Route.gameRoutes(
     gameController: GameController,
     gameEventBus: GameEventBus,
     frameMapper: GameEventFrameMapper,
+    sessionLimitConfig: AppConfig.SessionLimitConfig,
 ) {
-    gameWebSocket(gameController, gameEventBus, frameMapper)
+    gameWebSocket(gameController, gameEventBus, frameMapper, sessionLimitConfig)
 }
 
 private suspend fun io.ktor.websocket.WebSocketSession.sendFrame(
@@ -204,4 +219,24 @@ private suspend fun io.ktor.websocket.WebSocketSession.sendFrame(
 ) {
     val payload = json.encodeToString(WsGameFrame.serializer(), frame)
     outgoing.send(Frame.Text(payload))
+}
+
+private class ConnectionRateLimiter(
+    private val windowMillis: Long,
+    private val maxMessages: Int,
+) {
+    private var windowStartMs: Long = System.currentTimeMillis()
+    private var count: Int = 0
+
+    fun tryConsume(): Boolean {
+        if (windowMillis <= 0 || maxMessages <= 0) return true
+        val nowMs = System.currentTimeMillis()
+        if (nowMs - windowStartMs >= windowMillis) {
+            windowStartMs = nowMs
+            count = 0
+        }
+        if (count >= maxMessages) return false
+        count++
+        return true
+    }
 }

@@ -36,6 +36,7 @@ internal class SessionActor(
     private val llmStreamOrchestrator: LlmStreamOrchestrator,
     private val resultsRepository: ResultsRepository,
     private val clock: Clock,
+    private val mailboxCapacity: Int,
     private val onTerminate: (Uuid) -> Unit,
 ) {
     companion object {
@@ -43,9 +44,10 @@ internal class SessionActor(
     }
 
     val opponentSpecId: String = opponentSpec.id
+    val mode: GameMode = opponentSpec.mode
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    private val mailbox = Channel<SessionCommand>(Channel.UNLIMITED)
+    private val mailbox = Channel<SessionCommand>(mailboxCapacity)
     private val llmJobs = ConcurrentHashMap<Uuid, Job>()
     private val roundDeadlineJobs = ConcurrentHashMap<Uuid, Job>()
     private var session: GameSession? = null
@@ -71,8 +73,17 @@ internal class SessionActor(
         }
     }
 
-    fun submit(command: SessionCommand) {
-        mailbox.trySend(command)
+    fun submit(command: SessionCommand): Boolean {
+        return mailbox.trySend(command).isSuccess
+    }
+    private fun submitInternal(command: SessionCommand) {
+        if (mailbox.trySend(command).isSuccess) return
+        scope.launch {
+            runCatching { mailbox.send(command) }
+                .onFailure { throwable ->
+                    logger.warn("Failed to enqueue internal command for session {}", sessionId, throwable)
+                }
+        }
     }
 
     /**
@@ -301,7 +312,7 @@ internal class SessionActor(
 
                     is LlmStreamEvent.FinalAnswer -> {
                         logger.debug(event.toString())
-                        submit(
+                        submitInternal(
                             SessionCommand.LlmFinalAnswerReceived(
                                 roundId = round.roundId,
                                 answer = event.answer,
@@ -573,7 +584,7 @@ internal class SessionActor(
         val delayMs = round.handicap.toMillis().coerceAtLeast(0L)
         scope.launch {
             delay(delayMs)
-            submit(SessionCommand.StartLlmForRound(roundId = round.roundId))
+            submitInternal(SessionCommand.StartLlmForRound(roundId = round.roundId))
         }
     }
 
@@ -589,7 +600,7 @@ internal class SessionActor(
 
         roundDeadlineJobs[round.roundId] = scope.launch {
             delay(delayMs)
-            submit(SessionCommand.RoundDeadlineReached(roundId = round.roundId))
+            submitInternal(SessionCommand.RoundDeadlineReached(roundId = round.roundId))
         }
     }
 
