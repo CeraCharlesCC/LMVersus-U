@@ -28,6 +28,8 @@ dependencies {
     implementation(libs.dagger)
     ksp(libs.dagger.compiler)
 
+    implementation(libs.caffeine)
+
     implementation(libs.openai.java)
     implementation(libs.ktoml.core)
 
