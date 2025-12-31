@@ -10,8 +10,8 @@
 # Server Configuration
 # ------------------------------------------------------------
 [serverConfig]
-bindHost = "localhost"
-bindPort = 8080
+bindHost = "localhost" # Uninplemented yet
+bindPort = 8080 # Uninplemented yet
 corsAllowedHosts = []
 debug = false
 
@@ -19,14 +19,14 @@ debug = false
 # Logging Configuration
 # ------------------------------------------------------------
 [logConfig]
-rootLogLevel = "INFO"
-appLogLevel = "DEBUG"
-format = "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+rootLogLevel = "INFO" # Unimplemented yet
+appLogLevel = "DEBUG" # Unimplemented yet
+format = "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n" # Unimplemented yet
 
 # ------------------------------------------------------------
 # Rate Limiting Configuration
 # ------------------------------------------------------------
-[rateLimitConfig]
+[rateLimitConfig] # Unused yet
 globalLlmGateKey = "llm:global"
 globalLlmWindowMillis = 60000
 globalLlmMaxRequests = 20
