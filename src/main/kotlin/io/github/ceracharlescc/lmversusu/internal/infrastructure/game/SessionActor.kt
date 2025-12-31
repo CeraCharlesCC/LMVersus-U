@@ -61,6 +61,8 @@ internal class SessionActor(
 
     private val roundStreamStates = ConcurrentHashMap<Uuid, RoundStreamState>()
 
+    private var sessionResolvedEmitted: Boolean = false
+
     init {
         scope.launch {
             for (command in mailbox) {
@@ -454,6 +456,15 @@ internal class SessionActor(
 
         if (updatedSession.isCompleted) {
             val (humanScore, llmScore) = updatedSession.calculateTotalScores()
+            val now = Instant.now(clock)
+
+            // Emit SessionResolved immediately for end-of-match display
+            emitSessionResolved(
+                reason = "completed",
+                state = SessionState.COMPLETED,
+                resolvedAt = now,
+            )
+
             gameEventBus.publish(
                 GameEvent.SessionCompleted(
                     sessionId = sessionId,
@@ -512,6 +523,47 @@ internal class SessionActor(
                 sessionId = sessionId,
                 errorCode = errorCode,
                 message = message,
+            )
+        )
+    }
+
+    /**
+     * Emits a SessionResolved event exactly once per session.
+     * This is the single authoritative terminal summary that clients can rely on.
+     */
+    private suspend fun emitSessionResolved(
+        reason: String,
+        state: SessionState,
+        resolvedAt: Instant,
+    ) {
+        if (sessionResolvedEmitted) return
+        sessionResolvedEmitted = true
+
+        val currentSession = session ?: return
+        val (humanScore, llmScore) = currentSession.calculateTotalScores()
+        val roundsPlayed = currentSession.rounds.count { it.result != null }
+
+        val winner = when {
+            roundsPlayed == 0 -> GameEvent.MatchWinner.NONE
+            humanScore.points > llmScore.points -> GameEvent.MatchWinner.HUMAN
+            llmScore.points > humanScore.points -> GameEvent.MatchWinner.LLM
+            else -> GameEvent.MatchWinner.TIE
+        }
+
+        val durationMs = Duration.between(currentSession.createdAt, resolvedAt).toMillis()
+
+        gameEventBus.publish(
+            GameEvent.SessionResolved(
+                sessionId = sessionId,
+                state = state,
+                reason = reason,
+                humanTotalScore = humanScore.points,
+                llmTotalScore = llmScore.points,
+                winner = winner,
+                roundsPlayed = roundsPlayed,
+                totalRounds = GameSession.TOTAL_ROUNDS,
+                resolvedAt = resolvedAt,
+                durationMs = durationMs,
             )
         )
     }
@@ -645,6 +697,14 @@ internal class SessionActor(
 
         if (updatedSession.isCompleted) {
             val (humanScoreTotal, llmScoreTotal) = updatedSession.calculateTotalScores()
+            val now = Instant.now(clock)
+
+            emitSessionResolved(
+                reason = "completed",
+                state = SessionState.COMPLETED,
+                resolvedAt = now,
+            )
+
             gameEventBus.publish(
                 GameEvent.SessionCompleted(
                     sessionId = sessionId,
@@ -724,7 +784,16 @@ internal class SessionActor(
         val currentSession = session ?: return
         if (currentSession.isCompleted) return
 
+        val now = Instant.now(clock)
         session = currentSession.copy(state = SessionState.CANCELLED)
+
+        // Emit SessionResolved immediately with current scores before termination
+        emitSessionResolved(
+            reason = command.reason,
+            state = SessionState.CANCELLED,
+            resolvedAt = now,
+        )
+
         gameEventBus.publish(
             GameEvent.SessionTerminated(
                 sessionId = sessionId,

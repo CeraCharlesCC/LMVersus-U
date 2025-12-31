@@ -8,7 +8,6 @@ import io.github.ceracharlescc.lmversusu.internal.application.port.LlmPlayerGate
 import io.github.ceracharlescc.lmversusu.internal.application.service.LlmStreamOrchestrator
 import io.github.ceracharlescc.lmversusu.internal.application.usecase.StartRoundUseCase
 import io.github.ceracharlescc.lmversusu.internal.application.usecase.SubmitAnswerUseCase
-import io.github.ceracharlescc.lmversusu.internal.domain.entity.GameEvent
 import io.github.ceracharlescc.lmversusu.internal.domain.repository.OpponentSpecRepository
 import io.github.ceracharlescc.lmversusu.internal.domain.repository.ResultsRepository
 import kotlinx.coroutines.*
@@ -202,17 +201,8 @@ internal class SessionManager @Inject constructor(
     private fun scheduleMaxLifespan(sessionId: Uuid) {
         maxLifespanJobs[sessionId] = supervisorScope.launch {
             delay(MAX_LIFESPAN_MS)
-            // Only terminate if session still exists
-            val actor = actors[sessionId]
-            if (actor != null) {
-                gameEventBus.publish(
-                    GameEvent.SessionTerminated(
-                        sessionId = sessionId,
-                        reason = "max_lifespan",
-                    )
-                )
-                removeSession(sessionId)
-            }
+            // Route through actor to ensure SessionResolved is emitted
+            actors[sessionId]?.submit(SessionCommand.Timeout(reason = "max_lifespan"))
         }
     }
 

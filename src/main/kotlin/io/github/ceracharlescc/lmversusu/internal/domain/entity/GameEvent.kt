@@ -55,6 +55,26 @@ internal sealed class GameEvent {
         val humanWon: Boolean
     ) : GameEvent()
 
+    data class SessionResolved(
+        override val sessionId: Uuid,
+        val state: SessionState,
+        val reason: String,  // "completed", "timeout", "max_lifespan", "cancelled"
+        val humanTotalScore: Double,
+        val llmTotalScore: Double,
+        val winner: MatchWinner,
+        val roundsPlayed: Int,
+        val totalRounds: Int,
+        val resolvedAt: Instant,
+        val durationMs: Long,
+    ) : GameEvent()
+
+    enum class MatchWinner {
+        HUMAN,
+        LLM,
+        TIE,
+        NONE  // For cancelled matches with no rounds
+    }
+
     data class SessionError(
         override val sessionId: Uuid,
         val errorCode: String,
