@@ -39,15 +39,8 @@ internal fun Route.gameWebSocket(
     route("/ws") {
         webSocket("/game") {
             val originHeader = call.request.headers[HttpHeaders.Origin]
-            val allowedHosts = serverConfig.corsAllowedHosts + listOf(
-                buildString {
-                    append(call.request.origin.remoteHost)
-                    val port = call.request.origin.remotePort
-                    if (port > 0) append(":").append(port)
-                }
-            )
 
-            if (!isAllowedWsOrigin(originHeader, allowedHosts)) {
+            if (!isAllowedWsOrigin(originHeader, serverConfig.corsAllowedHosts)) {
                 close(
                     CloseReason(
                         CloseReason.Codes.VIOLATED_POLICY,
