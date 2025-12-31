@@ -1,15 +1,19 @@
 package io.github.ceracharlescc.lmversusu.internal.infrastructure.game
 
+import com.github.benmanes.caffeine.cache.Cache
+import com.github.benmanes.caffeine.cache.Caffeine
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
-import java.util.concurrent.ConcurrentHashMap
 
 internal class SessionLimitRegistry(
     private val clock: Clock,
+    evictionDuration: Duration = Duration.ofHours(25),
 ) {
     private val lock = Any()
-    private val counters = ConcurrentHashMap<String, WindowCounter>()
+    private val counters: Cache<String, WindowCounter> = Caffeine.newBuilder()
+        .expireAfterAccess(evictionDuration)
+        .build()
 
     data class LimitFailure(
         val errorCode: String,
@@ -41,7 +45,7 @@ internal class SessionLimitRegistry(
     }
 
     private fun counterFor(key: String): WindowCounter =
-        counters.computeIfAbsent(key) { WindowCounter() }
+        counters.get(key) { WindowCounter() }
 
     private class WindowCounter {
         private var windowStart: Instant = Instant.EPOCH
