@@ -1,6 +1,7 @@
 package io.github.ceracharlescc.lmversusu.internal.presentation.ktor.game
 
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.ClientIdentity
+import io.github.ceracharlescc.lmversusu.internal.utils.NicknameValidator
 import io.github.ceracharlescc.lmversusu.internal.infrastructure.game.SessionManager
 import java.time.Instant
 import javax.inject.Inject
@@ -48,8 +49,19 @@ internal class GameController @Inject constructor(
         if (opponentSpecId.isBlank()) {
             return JoinResult.Failure(errorCode = "invalid_opponent", message = "opponentSpecId is required")
         }
-        if (nickname.isBlank()) {
-            return JoinResult.Failure(errorCode = "invalid_nickname", message = "nickname is required")
+
+        val trimmedNickname = nickname.trim()
+        when (val validationResult = NicknameValidator.validate(trimmedNickname)) {
+            is NicknameValidator.ValidationResult.Invalid -> {
+                return JoinResult.Failure(
+                    errorCode = validationResult.errorCode,
+                    message = validationResult.message
+                )
+            }
+
+            is NicknameValidator.ValidationResult.Valid -> {
+                // Continue with join process
+            }
         }
 
         val parsedSessionId = sessionId?.let { parseUuidOrNull(it) }
@@ -70,7 +82,7 @@ internal class GameController @Inject constructor(
         val resolvedSessionId = parsedSessionId ?: Uuid.random()
 
         return when (val result =
-            sessionManager.joinSession(resolvedSessionId, clientIdentity, nickname, opponentSpecId)) {
+            sessionManager.joinSession(resolvedSessionId, clientIdentity, trimmedNickname, opponentSpecId)) {
             is SessionManager.JoinResult.Success -> JoinResult.Success(
                 sessionId = result.sessionId,
                 playerId = result.playerId,
