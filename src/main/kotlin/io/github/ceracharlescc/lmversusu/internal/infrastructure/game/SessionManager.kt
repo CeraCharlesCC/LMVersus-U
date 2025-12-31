@@ -318,7 +318,7 @@ internal class SessionManager @Inject constructor(
 
         val activeSessions = countActiveSessions(mode)
         val maxActive = limitContext.limitConfig.maxActiveSessions
-        if (maxActive > 0 && activeSessions >= maxActive) {
+        if (maxActive in 1..activeSessions) {
             return LimitFailure(
                 errorCode = "session_limit_exceeded",
                 message = "too many active ${limitContext.modeLabel} sessions",
