@@ -116,6 +116,7 @@ internal class SessionActor(
                 mode = opponentSpec.mode,
                 llmProfile = opponentSpec.llmProfile,
                 players = players,
+                createdAt = clock.instant()
             )
             session = created
 
