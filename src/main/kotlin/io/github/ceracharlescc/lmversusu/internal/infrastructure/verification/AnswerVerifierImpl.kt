@@ -27,7 +27,7 @@ internal class AnswerVerifierImpl @Inject constructor() : AnswerVerifier {
 
             is VerifierSpec.FreeResponse -> {
                 // TODO: verify by another LLM, reasoning + final answer rubric;
-                TODO("FreeResponse verification not implemented yet")
+                false // For now, always return false
             }
         }
         return VerificationOutcome(correct = correct)
