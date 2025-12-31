@@ -97,13 +97,18 @@ internal fun Route.gameWebSocket(
                 heartbeatJob = null
             }
 
-            suspend fun subscribeTo(sessionId: Uuid) {
+            suspend fun subscribeTo(sessionId: Uuid, playerId: Uuid) {
                 if (subscribedSessionId == sessionId) return
                 subscribedSessionId?.let {
                     gameEventBus.unsubscribe(it, listener)
                     stopHeartbeat()
                 }
-                gameEventBus.subscribe(sessionId, listener)
+
+                val authorized = gameEventBus.subscribe(sessionId, playerId, listener)
+                if (!authorized) {
+                    return
+                }
+
                 subscribedSessionId = sessionId
                 startHeartbeat(sessionId.toString())
             }
@@ -155,7 +160,7 @@ internal fun Route.gameWebSocket(
                             )
                             when (result) {
                                 is GameController.JoinResult.Success -> {
-                                    subscribeTo(result.sessionId)
+                                    subscribeTo(result.sessionId, result.playerId)
                                     sendFrame(
                                         json,
                                         WsSessionJoined(
@@ -183,7 +188,7 @@ internal fun Route.gameWebSocket(
                             if (result is GameController.CommandResult.Failure) {
                                 sendError(result.sessionId, result.errorCode, result.message)
                             } else if (result is GameController.CommandResult.Success) {
-                                subscribeTo(result.sessionId)
+                                subscribeTo(result.sessionId, Uuid.parse(cookiePlayerId))
                             }
                         }
 
@@ -201,7 +206,7 @@ internal fun Route.gameWebSocket(
                             if (result is GameController.CommandResult.Failure) {
                                 sendError(result.sessionId, result.errorCode, result.message)
                             } else if (result is GameController.CommandResult.Success) {
-                                subscribeTo(result.sessionId)
+                                subscribeTo(result.sessionId, Uuid.parse(cookiePlayerId))
                             }
                         }
 

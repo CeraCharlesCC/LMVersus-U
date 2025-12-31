@@ -1,3 +1,5 @@
+@file:OptIn(kotlin.uuid.ExperimentalUuidApi::class)
+
 package io.github.ceracharlescc.lmversusu.internal.infrastructure.game
 
 import io.github.ceracharlescc.lmversusu.internal.application.port.GameEventBus
@@ -17,6 +19,7 @@ internal class InMemoryGameEventBusImpl @Inject constructor(
     private val logger: Logger
 ) : GameEventBus {
     private val listenersBySession = ConcurrentHashMap<Uuid, CopyOnWriteArraySet<GameEventListener>>()
+    private val authorizedPlayersBySession = ConcurrentHashMap<Uuid, Uuid>()
 
     override suspend fun publish(event: GameEvent) {
         val sessionId = event.sessionId
@@ -34,11 +37,26 @@ internal class InMemoryGameEventBusImpl @Inject constructor(
         }
     }
 
-    override fun subscribe(sessionId: Uuid, listener: GameEventListener) {
+    override fun authorizePlayer(sessionId: Uuid, playerId: Uuid) {
+        authorizedPlayersBySession[sessionId] = playerId
+    }
+
+    override fun subscribe(sessionId: Uuid, playerId: Uuid, listener: GameEventListener): Boolean {
+        val authorized = authorizedPlayersBySession[sessionId]
+        if (authorized == null || authorized != playerId) {
+            logger.warn("Unauthorized subscription attempt: session={}, playerId={}", sessionId, playerId)
+            return false
+        }
         listenersBySession.computeIfAbsent(sessionId) { CopyOnWriteArraySet() }.add(listener)
+        return true
     }
 
     override fun unsubscribe(sessionId: Uuid, listener: GameEventListener) {
         listenersBySession[sessionId]?.remove(listener)
+    }
+
+    override fun revokeSession(sessionId: Uuid) {
+        authorizedPlayersBySession.remove(sessionId)
+        listenersBySession.remove(sessionId)
     }
 }

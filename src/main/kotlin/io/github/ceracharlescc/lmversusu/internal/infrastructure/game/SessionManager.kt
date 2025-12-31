@@ -136,11 +136,13 @@ internal class SessionManager @Inject constructor(
             )
         }
 
+        val response = CompletableDeferred<JoinResponse>()
         val accepted = actor.submit(
             SessionCommand.JoinSession(
                 sessionId = sessionId,
                 playerId = clientIdentity.playerId,
                 nickname = nickname,
+                response = response,
             )
         )
         if (!accepted) {
@@ -154,17 +156,43 @@ internal class SessionManager @Inject constructor(
             )
         }
 
-        if (isNewSession) {
-            scheduleMaxLifespan(sessionId)
-        }
-        scheduleIdleTimeout(sessionId)
+        return when (val joinResponse = withTimeoutOrNull(5000) { response.await() }) {
+            is JoinResponse.Accepted -> {
+                if (isNewSession) {
+                    scheduleMaxLifespan(sessionId)
+                }
+                scheduleIdleTimeout(sessionId)
 
-        return JoinResult.Success(
-            sessionId = sessionId,
-            playerId = clientIdentity.playerId,
-            opponentSpecId = opponentSpecId,
-            nickname = nickname,
-        )
+                JoinResult.Success(
+                    sessionId = sessionId,
+                    playerId = clientIdentity.playerId,
+                    opponentSpecId = opponentSpecId,
+                    nickname = nickname,
+                )
+            }
+
+            is JoinResponse.Rejected -> {
+                if (isNewSession) {
+                    removeSession(sessionId)
+                }
+                JoinResult.Failure(
+                    sessionId = sessionId,
+                    errorCode = joinResponse.errorCode,
+                    message = joinResponse.message,
+                )
+            }
+
+            null -> {
+                if (isNewSession) {
+                    removeSession(sessionId)
+                }
+                JoinResult.Failure(
+                    sessionId = sessionId,
+                    errorCode = "join_timeout",
+                    message = "session join timed out",
+                )
+            }
+        }
     }
 
     suspend fun startNextRound(sessionId: Uuid, playerId: Uuid): CommandResult {
@@ -251,6 +279,7 @@ internal class SessionManager @Inject constructor(
         idleTimeoutJobs.remove(sessionId)?.cancel()
         maxLifespanJobs.remove(sessionId)?.cancel()
         actors.remove(sessionId)?.shutdown()
+        gameEventBus.revokeSession(sessionId)
     }
 
     fun shutdownAll() {

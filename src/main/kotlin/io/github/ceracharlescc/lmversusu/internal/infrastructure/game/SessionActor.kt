@@ -16,6 +16,7 @@ import io.github.ceracharlescc.lmversusu.internal.domain.vo.streaming.LlmAnswer
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.streaming.LlmStreamEvent
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.streaming.StreamSeq
 import kotlinx.coroutines.*
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.channels.Channel
 import org.slf4j.Logger
 import java.time.Clock
@@ -76,6 +77,7 @@ internal class SessionActor(
     fun submit(command: SessionCommand): Boolean {
         return mailbox.trySend(command).isSuccess
     }
+
     private fun submitInternal(command: SessionCommand) {
         if (mailbox.trySend(command).isSuccess) return
         scope.launch {
@@ -130,6 +132,8 @@ internal class SessionActor(
                 createdAt = clock.instant()
             )
             session = created
+            
+            gameEventBus.authorizePlayer(sessionId, human.playerId)
 
             gameEventBus.publish(GameEvent.SessionCreated(sessionId = sessionId, joinCode = joinCode))
             gameEventBus.publish(
@@ -146,18 +150,22 @@ internal class SessionActor(
                     nickname = llm.nickname,
                 )
             )
+            command.response.complete(JoinResponse.Accepted)
             return
         }
 
         val existingSession = session ?: return
         if (existingSession.players.human.playerId != command.playerId) {
-            gameEventBus.publish(
-                GameEvent.SessionError(
-                    sessionId = sessionId,
+            // Return error directly via response channel instead of broadcasting to session bus
+            command.response.complete(
+                JoinResponse.Rejected(
                     errorCode = "session_taken",
                     message = "session already has a different human player",
                 )
             )
+        } else {
+            // Same player rejoining - allowed
+            command.response.complete(JoinResponse.Accepted)
         }
     }
 
@@ -816,11 +824,17 @@ internal class SessionActor(
     }
 }
 
+internal sealed interface JoinResponse {
+    data object Accepted : JoinResponse
+    data class Rejected(val errorCode: String, val message: String) : JoinResponse
+}
+
 internal sealed interface SessionCommand {
     data class JoinSession(
         val sessionId: Uuid,
         val playerId: Uuid,
         val nickname: String,
+        val response: CompletableDeferred<JoinResponse>,
     ) : SessionCommand
 
     data class StartNextRound(
