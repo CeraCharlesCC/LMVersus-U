@@ -30,10 +30,9 @@ class SessionManagerConcurrencyTest {
         // Setup strict limits
         val appConfig = AppConfig(
             sessionLimitConfig = AppConfig.SessionLimitConfig(
-                // Allow only 5 global lightweight sessions for this test
                 lightweight = AppConfig.ModeLimitConfig.lightweightDefaults().copy(
                     maxActiveSessions = ACTIVE_SESSIONS_LIMIT,
-                    perPersonWindowLimit = 100 // High per-person to test global cap first
+                    perPersonWindowLimit = 100,
                 )
             )
         )
@@ -47,7 +46,6 @@ class SessionManagerConcurrencyTest {
             every { streaming } returns mockk(relaxed = true)
         }
 
-        // Mock dependencies to avoid null pointers, deep logic mocked out
         val manager = SessionManager(
             logger = mockk(relaxed = true),
             appConfig = appConfig,
@@ -65,7 +63,6 @@ class SessionManagerConcurrencyTest {
         val attackerIp = "192.168.1.66"
 
         runBlocking(Dispatchers.Default) {
-            // Attempt to launch 20 concurrent joins
             val jobs = (1..20).map {
                 async {
                     manager.joinSession(
@@ -82,17 +79,14 @@ class SessionManagerConcurrencyTest {
             val successes = results.count { it is SessionManager.JoinResult.Success }
             val failures = results.count { it is SessionManager.JoinResult.Failure }
 
-            // Because maxActiveSessions = 5, we expect exactly 5 successes
             assertEquals(
                 ACTIVE_SESSIONS_LIMIT - 1,
                 successes,
                 "Should cap at ${ACTIVE_SESSIONS_LIMIT - 1} active sessions"
             ) // TODO: Currently in SessionManager we reserve one slot for checking (!)
-            // we should fix this but it's not critical; It's just not intuitive for the configuration.
-            // Fix1: just +1 in config resolver; Fix2: change SessionManager's logic error;
+
             assertTrue(failures >= 15, "Remaining attempts should fail")
 
-            // Verify specific error code for failures
             val limitError = results.filterIsInstance<SessionManager.JoinResult.Failure>()
                 .firstOrNull()
 
@@ -101,6 +95,7 @@ class SessionManagerConcurrencyTest {
 
         manager.shutdownAll()
     }
+
 
     @Test
     fun `Adversarial - Race Condition on Join Same Session`() {
