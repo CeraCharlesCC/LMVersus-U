@@ -67,6 +67,8 @@ maxActiveSessions = 200
 #   Generate with: openssl rand -hex 32
 # ------------------------------------------------------------
 [sessionCrypto]
+# When true, session cookies are marked "Secure" and will only be sent over HTTPS.
+# For local development over http://localhost, set this to false so session cookies work.
 enableSecureCookie = true
 encryptionKeyHex = ""
 signKeyHex = ""
