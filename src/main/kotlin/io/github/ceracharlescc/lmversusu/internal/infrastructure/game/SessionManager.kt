@@ -280,7 +280,7 @@ internal class SessionManager @Inject constructor(
         maxLifespanJobs[sessionId] = supervisorScope.launch {
             delay(MAX_LIFESPAN_MS)
             // Route through actor to ensure SessionResolved is emitted
-            actors[sessionId]?.submit(SessionCommand.Timeout(reason = "max_lifespan"))
+            actors[sessionId]?.submitCritical(SessionCommand.Timeout(reason = "max_lifespan"))
         }
     }
 

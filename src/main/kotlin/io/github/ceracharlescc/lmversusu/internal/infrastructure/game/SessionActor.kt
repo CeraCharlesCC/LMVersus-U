@@ -77,6 +77,10 @@ internal class SessionActor(
         return mailbox.trySend(command).isSuccess
     }
 
+    fun submitCritical(command: SessionCommand) {
+        submitInternal(command)
+    }
+
     private fun submitInternal(command: SessionCommand) {
         if (mailbox.trySend(command).isSuccess) return
         scope.launch {
