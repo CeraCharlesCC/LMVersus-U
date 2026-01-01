@@ -38,6 +38,7 @@ internal class SessionActor(
     private val clock: Clock,
     private val mailboxCapacity: Int,
     private val onTerminate: (Uuid) -> Unit,
+    private val dispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) {
     companion object {
         private const val CLEANUP_GRACE_PERIOD_MS = 60_000L
@@ -46,7 +47,7 @@ internal class SessionActor(
     val opponentSpecId: String = opponentSpec.id
     val mode: GameMode = opponentSpec.mode
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val scope = CoroutineScope(SupervisorJob() + dispatcher)
     private val mailbox = Channel<SessionCommand>(mailboxCapacity)
     private val llmJobs = ConcurrentHashMap<Uuid, Job>()
     private val roundDeadlineJobs = ConcurrentHashMap<Uuid, Job>()

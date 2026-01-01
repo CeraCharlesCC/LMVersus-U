@@ -1,5 +1,6 @@
 package io.github.ceracharlescc.lmversusu.internal
 
+import io.github.ceracharlescc.lmversusu.internal.di.AppComponent
 import io.github.ceracharlescc.lmversusu.internal.di.DaggerAppComponent
 import io.github.ceracharlescc.lmversusu.internal.infrastructure.ktor.*
 import io.github.ceracharlescc.lmversusu.internal.presentation.ktor.api.apiV1Routes
@@ -14,11 +15,15 @@ fun main(args: Array<String>) {
     EngineMain.main(args)
 }
 
-internal fun Application.module(appConfigOverride: AppConfig? = null) {
+internal fun Application.module(
+    appConfigOverride: AppConfig? = null,
+    appComponentProvider: ((AppConfig) -> AppComponent)? = null,
+) {
     val appConfig = appConfigOverride ?: ConfigLoader.load()
-    val appComponent = DaggerAppComponent.builder()
-        .appConfig(appConfig)
-        .build()
+    val appComponent = appComponentProvider?.invoke(appConfig)
+        ?: DaggerAppComponent.builder()
+            .appConfig(appConfig)
+            .build()
 
     configureSockets()
     configureSerialization()

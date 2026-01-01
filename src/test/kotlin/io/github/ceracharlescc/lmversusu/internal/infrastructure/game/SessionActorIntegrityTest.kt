@@ -11,11 +11,15 @@ import io.github.ceracharlescc.lmversusu.internal.domain.entity.*
 import io.github.ceracharlescc.lmversusu.internal.domain.repository.ResultsRepository
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.*
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.streaming.StreamingPolicy
+import io.github.ceracharlescc.lmversusu.internal.domain.vo.streaming.LlmAnswer
+import io.github.ceracharlescc.lmversusu.internal.domain.vo.streaming.LlmStreamEvent
 import io.mockk.*
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.emptyFlow
-import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
+import net.bytebuddy.matcher.ElementMatchers.any
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.slf4j.LoggerFactory
@@ -34,10 +38,13 @@ class SessionActorIntegrityTest {
 
     // Use fixed clock for deterministic timing tests
     private var fixedTime = Instant.parse("2024-01-01T12:00:00Z")
+    private var currentTestScheduler: kotlinx.coroutines.test.TestCoroutineScheduler? = null
     private val clock = object : Clock() {
         override fun getZone(): ZoneId = ZoneId.of("UTC")
         override fun withZone(zone: ZoneId?): Clock = this
-        override fun instant(): Instant = fixedTime
+        override fun instant(): Instant {
+            return fixedTime.plusMillis(currentTestScheduler?.currentTime ?: 0L)
+        }
     }
 
     private val humanId = Uuid.random()
@@ -59,7 +66,15 @@ class SessionActorIntegrityTest {
 
     @BeforeEach
     fun setup() {
-        every { llmGateway.streamAnswer(any()) } returns emptyFlow()
+        every { llmGateway.streamAnswer(any()) } returns kotlinx.coroutines.flow.flowOf(
+            LlmStreamEvent.FinalAnswer(
+                answer = LlmAnswer(
+                    finalAnswer = Answer.MultipleChoice(0),
+                    reasoningSummary = null,
+                    confidenceScore = null
+                )
+            )
+        )
 
         // Setup a dummy question
         coEvery { questionSelector.pickQuestionsForOpponent(any(), any(), any()) } returns listOf(
@@ -70,7 +85,9 @@ class SessionActorIntegrityTest {
                 roundTime = java.time.Duration.ofMinutes(1)
             )
         )
+    }
 
+    private fun createActor(dispatcher: kotlinx.coroutines.CoroutineDispatcher): SessionActor {
         val spec = mockk<OpponentSpec.Lightweight> {
             every { id } returns "test-spec"
             every { mode } returns GameMode.LIGHTWEIGHT
@@ -79,7 +96,7 @@ class SessionActorIntegrityTest {
             every { streaming } returns StreamingPolicy()
         }
 
-        actor = SessionActor(
+        return SessionActor(
             logger = LoggerFactory.getLogger("TestLogger"),
             sessionId = sessionId,
             opponentSpec = spec,
@@ -92,20 +109,30 @@ class SessionActorIntegrityTest {
             resultsRepository = resultsRepo,
             clock = clock,
             mailboxCapacity = 100,
-            onTerminate = {}
+            onTerminate = {},
+            dispatcher = dispatcher,
         )
     }
 
     @Test
     fun `Adversarial - Human cannot submit answer twice`() = runTest {
+        // Keep the bot from instantly finishing the round
+        every { llmGateway.streamAnswer(any()) } returns emptyFlow()
+
+        currentTestScheduler = testScheduler
+        actor = createActor(StandardTestDispatcher(testScheduler))
+
         joinSession()
+        testScheduler.runCurrent()
 
         startRound()
+        testScheduler.runCurrent()
 
         val roundStartedSlot = slot<GameEvent.RoundStarted>()
         coVerify { eventBus.publish(capture(roundStartedSlot)) }
         val roundEvent = roundStartedSlot.captured
 
+        // First submit (valid)
         actor.submit(
             SessionCommand.SubmitAnswer(
                 sessionId = sessionId,
@@ -116,52 +143,55 @@ class SessionActorIntegrityTest {
                 clientSentAt = null
             )
         )
+        testScheduler.runCurrent()
 
-        testScheduler.advanceUntilIdle()
-
-        // Double submit attempt for Human
-
+        // Second submit (should be rejected)
         actor.submit(
             SessionCommand.SubmitAnswer(
                 sessionId = sessionId,
                 playerId = humanId,
                 roundId = roundEvent.roundId,
                 nonceToken = roundEvent.nonceToken,
-                answer = Answer.MultipleChoice(1), // Different answer
+                answer = Answer.MultipleChoice(1),
                 clientSentAt = null
             )
         )
+        testScheduler.runCurrent()
 
-        testScheduler.advanceUntilIdle()
-
-        // verification: Should receive SessionError or simple rejection on second attempt
-        // The first one triggers SubmissionReceived
         coVerify(exactly = 1) {
-            eventBus.publish(match { it is GameEvent.SubmissionReceived && it.playerType == Player.PlayerType.HUMAN })
+            eventBus.publish(
+                match {
+                    it is GameEvent.SubmissionReceived &&
+                            it.playerType == Player.PlayerType.HUMAN
+                }
+            )
         }
 
-        // The second triggers an error
         coVerify {
-            eventBus.publish(match { it is GameEvent.SessionError && it.errorCode == "already_submitted" })
+            eventBus.publish(
+                match { it is GameEvent.SessionError && it.errorCode == "already_submitted" },
+            )
         }
     }
 
+
     @Test
     fun `Adversarial - Invalid Nonce Token Rejection`() = runTest {
-        joinSession()
-        startRound()
+        every { llmGateway.streamAnswer(any()) } returns emptyFlow()
 
-        // Wait for actor to process commands on Dispatchers.Default
-        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
-            kotlinx.coroutines.delay(50)
-        }
+        currentTestScheduler = testScheduler
+        actor = createActor(StandardTestDispatcher(testScheduler))
+
+        joinSession()
+        testScheduler.runCurrent()
+
+        startRound()
+        testScheduler.runCurrent()
 
         val roundStartedSlot = slot<GameEvent.RoundStarted>()
         coVerify { eventBus.publish(capture(roundStartedSlot)) }
         val roundEvent = roundStartedSlot.captured
 
-        // Attack: Client tries to automate submission but doesn't have the nonce yet,
-        // or tries to replay a nonce from a previous round.
         actor.submit(
             SessionCommand.SubmitAnswer(
                 sessionId = sessionId,
@@ -173,31 +203,37 @@ class SessionActorIntegrityTest {
             )
         )
 
-        // Allow the actor's Dispatchers.Default coroutine to process the command
-        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
-            kotlinx.coroutines.delay(50)
-            // TODO: Replace with injected CoroutineDispatcher test dispatcher (also in SessionActor)
-        }
-        testScheduler.advanceUntilIdle()
+        // Drain mailbox without fast-forwarding virtual time into deadline/cleanup timers
+        testScheduler.runCurrent()
 
         coVerify {
-            eventBus.publish(match { it is GameEvent.SessionError && it.errorCode == "invalid_nonce" })
+            eventBus.publish(
+                match { it is GameEvent.SessionError && it.errorCode == "invalid_nonce" },
+            )
         }
-        // Ensure NO submission was recorded
-        coVerify(exactly = 0) { eventBus.publish(match { it is GameEvent.SubmissionReceived }) }
+        coVerify(exactly = 0) {
+            eventBus.publish(match { it is GameEvent.SubmissionReceived })
+        }
     }
 
     @Test
     fun `Adversarial - Time Travel (Submission after deadline)`() = runTest {
+        every { llmGateway.streamAnswer(any()) } returns emptyFlow()
+
+        currentTestScheduler = testScheduler
+        actor = createActor(StandardTestDispatcher(testScheduler))
+
         joinSession()
+        testScheduler.runCurrent()
+
         startRound()
+        testScheduler.runCurrent()
 
         val roundStartedSlot = slot<GameEvent.RoundStarted>()
         coVerify { eventBus.publish(capture(roundStartedSlot)) }
         val roundEvent = roundStartedSlot.captured
 
-        // Move clock past deadline (Released + Handicap + Duration)
-        // Handicap ~2-3s, Duration 60s. Move 2 hours ahead.
+        // Move wall clock far past deadline (don’t advance testScheduler time)
         fixedTime = fixedTime.plusSeconds(7200)
 
         actor.submit(
@@ -211,16 +247,20 @@ class SessionActorIntegrityTest {
             )
         )
 
-        testScheduler.advanceUntilIdle()
+        testScheduler.runCurrent()
 
         coVerify {
-            eventBus.publish(match { it is GameEvent.SessionError && it.errorCode == "deadline_passed" })
+            eventBus.publish(
+                match { it is GameEvent.SessionError && it.errorCode == "deadline_passed" },
+            )
         }
     }
 
-    private suspend fun joinSession() {
+
+    private suspend fun TestScope.joinSession() {
         val deferred = CompletableDeferred<JoinResponse>()
         actor.submit(SessionCommand.JoinSession(sessionId, humanId, "Tester", deferred))
+        testScheduler.runCurrent()
         deferred.await()
     }
 
