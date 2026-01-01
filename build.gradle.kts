@@ -51,13 +51,21 @@ dependencies {
     implementation(libs.logback.classic)
     implementation(libs.ktor.server.config.yaml)
 
+    testImplementation(libs.junit.jupiter)
+    testRuntimeOnly(libs.junit.platform.launcher)
+
     testImplementation(libs.ktor.server.test.host)
     testImplementation(libs.ktor.client.content.negotiation)
-    testImplementation(libs.kotlin.test.junit)
+    testImplementation(libs.ktor.client.websockets)
+    testImplementation(libs.mockk)
+    testImplementation(libs.turbine)
     testImplementation(libs.kotlinx.coroutines.test)
+
+    testImplementation(libs.kotlin.test.junit5)
 }
 
 tasks.test {
+    useJUnitPlatform()
     jvmArgs("-Dlmversusu.configDir=${projectDir}")
 }
 

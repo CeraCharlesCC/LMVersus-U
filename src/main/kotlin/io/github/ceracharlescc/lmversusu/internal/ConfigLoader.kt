@@ -62,6 +62,11 @@ internal object ConfigLoader {
     private fun validateAndResolve(config: AppConfig, configDirectory: Path): AppConfig {
         val reasons = mutableListOf<String>()
 
+        val resolvedServerConfig = resolveServerConfig(
+            serverConfig = config.serverConfig,
+            reasons = reasons,
+        )
+
         val resolvedCrypto = resolveCryptoConfig(
             cryptoConfig = config.sessionCrypto,
             reasons = reasons,
@@ -78,7 +83,33 @@ internal object ConfigLoader {
         }
 
         return config.copy(
+            serverConfig = resolvedServerConfig,
             sessionCrypto = resolvedCrypto,
+        )
+    }
+
+    private fun resolveServerConfig(
+        serverConfig: AppConfig.ServerConfig,
+        reasons: MutableList<String>,
+    ): AppConfig.ServerConfig {
+        val bindHost = resolveSecret(serverConfig.bindHost, "serverConfig.bindHost", reasons)
+        val bindPort = resolveSecret(
+            serverConfig.bindPort.toString(),
+            "serverConfig.bindPort",
+            reasons
+        ).toIntOrNull()
+            ?: run {
+                val message = buildString {
+                    appendLine("Configuration is invalid:")
+                    appendLine("- 'serverConfig.bindPort' must be a valid integer.")
+                    appendLine()
+                    appendLine("Edit config.toml and restart the application.")
+                }
+                failStartup(message)
+            }
+        return serverConfig.copy(
+            bindHost = bindHost,
+            bindPort = bindPort,
         )
     }
 
