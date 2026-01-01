@@ -20,11 +20,11 @@ internal fun Application.configureAdministration() {
         }
 
         rateLimitExceededHandler = { limitedBy ->
-            respond(HttpStatusCode.TooManyRequests, "Rate limit exceeded: ${limitedBy.message}")
             response.headers.append("X-RateLimit-Limit", "${limitedBy.rateLimiter.capacity}")
             response.headers.append("X-RateLimit-Measured-by", limitedBy.rateLimiter.callVolumeUnit.name)
             response.headers.append("X-RateLimit-Reset", "${limitedBy.resetIn.inWholeMilliseconds}")
             response.headers.append("Retry-After", "${limitedBy.resetIn.inWholeSeconds}")
+            respond(HttpStatusCode.TooManyRequests, "Rate limit exceeded: ${limitedBy.message}")
         }
     }
 }
