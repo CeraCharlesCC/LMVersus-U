@@ -18,6 +18,8 @@ kotlinx-serialization = "1.8.1"
 junit-jupiter = "5.14.1"
 junit-platform = "1.14.1"
 kotlinx-coroutines-test = "1.10.2"
+mockk = "1.13.10"
+turbine = "1.1.0"
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
@@ -58,6 +60,9 @@ ktor-server-netty = { module = "io.ktor:ktor-server-netty" }
 ktor-server-config-yaml = { module = "io.ktor:ktor-server-config-yaml" }
 ktor-server-test-host = { module = "io.ktor:ktor-server-test-host" }
 ktor-client-content-negotiation = { module = "io.ktor:ktor-client-content-negotiation" }
+ktor-client-websockets = { module = "io.ktor:ktor-client-websockets" }
+mockk = { group = "io.mockk", name = "mockk", version.ref = "mockk" }
+turbine = { group = "app.cash.turbine", name = "turbine", version.ref = "turbine" }
 
 logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
 
@@ -65,3 +70,5 @@ flaxoos-ktor-server-rate-limiting = { module = "io.github.flaxoos:ktor-server-ra
 
 kotlin-test-junit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.ref = "kotlin" }
 kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "kotlinx-coroutines-test" }
+junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit-jupiter" }
+junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher", version.ref = "junit-platform" }
