@@ -45,6 +45,8 @@ internal class SessionManager @Inject constructor(
 
         /** Grace period after round deadline before idle timeout applies (60 seconds) */
         internal const val ROUND_GRACE_MS = 60_000L
+
+        internal const val JOIN_SESSION_TIMEOUT_MS = 5000L
     }
 
     sealed interface JoinResult {
@@ -156,7 +158,7 @@ internal class SessionManager @Inject constructor(
             )
         }
 
-        return when (val joinResponse = withTimeoutOrNull(5000) { response.await() }) {
+        return when (val joinResponse = withTimeoutOrNull(JOIN_SESSION_TIMEOUT_MS) { response.await() }) {
             is JoinResponse.Accepted -> {
                 if (isNewSession) {
                     scheduleMaxLifespan(sessionId)

@@ -97,22 +97,6 @@ internal fun Route.gameWebSocket(
                 heartbeatJob = null
             }
 
-            suspend fun subscribeTo(sessionId: Uuid, playerId: Uuid) {
-                if (subscribedSessionId == sessionId) return
-                subscribedSessionId?.let {
-                    gameEventBus.unsubscribe(it, listener)
-                    stopHeartbeat()
-                }
-
-                val authorized = gameEventBus.subscribe(sessionId, playerId, listener)
-                if (!authorized) {
-                    return
-                }
-
-                subscribedSessionId = sessionId
-                startHeartbeat(sessionId.toString())
-            }
-
             suspend fun sendError(sessionId: Uuid?, errorCode: String, message: String) {
                 sendFrame(
                     json,
@@ -122,6 +106,28 @@ internal fun Route.gameWebSocket(
                         message = message,
                     )
                 )
+            }
+
+            suspend fun subscribeTo(sessionId: Uuid, playerId: Uuid) {
+                if (subscribedSessionId == sessionId) return
+                subscribedSessionId?.let {
+                    gameEventBus.unsubscribe(it, listener)
+                    stopHeartbeat()
+                }
+
+                val authorized = gameEventBus.subscribe(sessionId, playerId, listener)
+                if (!authorized) {
+                    sendError(
+                        sessionId,
+                        "unauthorized",
+                        "You are not authorized to subscribe to this session"
+                    )
+
+                    return
+                }
+
+                subscribedSessionId = sessionId
+                startHeartbeat(sessionId.toString())
             }
 
             suspend fun validatePlayerId(clientPlayerId: String): Boolean {
