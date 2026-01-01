@@ -352,7 +352,7 @@ a{ color:inherit; }
 
 .arena{
     height: calc(100dvh - 56px);
-    padding: 12px 12px calc(12px + env(safe-area-inset-bottom));
+    padding: 12px 12px calc(env(safe-area-inset-bottom) + 2px);
     display:grid;
     grid-template-rows: auto auto 1fr auto;
     gap: 8px;
@@ -816,6 +816,37 @@ a{ color:inherit; }
         min-width: 0;
     }
 
+    /* Tighten vertical density on small phones */
+    .arena{
+        padding: 10px 10px calc(env(safe-area-inset-bottom) + 2px);
+        gap: 6px;
+    }
+    .topbar{ gap: 10px; }
+
+    .chip{ padding: 8px 10px; }
+    .chip-title{ font-size: 14px; }
+    .chip-sub{ font-size: 11px; margin-top: 1px; }
+    .status-pill{ padding: 4px 6px; font-size: 12px; }
+
+    .tab-btn2{ padding: 8px 10px; }
+
+    /* Timer: inline "label: value" on one row, progress bar below */
+    .timer{
+        padding: 6px 8px;
+        display: grid;
+        grid-template-columns: 1fr auto;
+        grid-template-rows: auto auto;
+        grid-template-areas:
+            "label value"
+            "bar bar";
+        column-gap: 10px;
+        row-gap: 6px;
+        align-items: baseline;
+    }
+    .timer-label {
+        grid-area: label;
+        font-size: 11px;
+    }
     /* bottom panel: stack on mobile */
     .bottom-state{
         flex-direction: column;
