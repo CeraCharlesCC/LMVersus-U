@@ -110,6 +110,19 @@ internal class GameEventFrameMapper @Inject constructor(
             reason = event.reason,
         )
 
+        is GameEvent.SessionResolved -> WsSessionResolved(
+            sessionId = event.sessionId.toString(),
+            state = event.state.name,
+            reason = event.reason,
+            humanTotalScore = event.humanTotalScore,
+            llmTotalScore = event.llmTotalScore,
+            winner = event.winner.name,
+            roundsPlayed = event.roundsPlayed,
+            totalRounds = event.totalRounds,
+            resolvedAtEpochMs = event.resolvedAt.toEpochMilli(),
+            durationMs = event.durationMs,
+        )
+
         is GameEvent.SessionCreated,
         is GameEvent.SubmissionReceived,
         is GameEvent.LlmThinking,

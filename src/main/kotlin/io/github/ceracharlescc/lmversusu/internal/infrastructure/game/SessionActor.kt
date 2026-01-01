@@ -36,6 +36,7 @@ internal class SessionActor(
     private val llmStreamOrchestrator: LlmStreamOrchestrator,
     private val resultsRepository: ResultsRepository,
     private val clock: Clock,
+    private val mailboxCapacity: Int,
     private val onTerminate: (Uuid) -> Unit,
 ) {
     companion object {
@@ -43,9 +44,10 @@ internal class SessionActor(
     }
 
     val opponentSpecId: String = opponentSpec.id
+    val mode: GameMode = opponentSpec.mode
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    private val mailbox = Channel<SessionCommand>(Channel.UNLIMITED)
+    private val mailbox = Channel<SessionCommand>(mailboxCapacity)
     private val llmJobs = ConcurrentHashMap<Uuid, Job>()
     private val roundDeadlineJobs = ConcurrentHashMap<Uuid, Job>()
     private var session: GameSession? = null
@@ -61,6 +63,8 @@ internal class SessionActor(
 
     private val roundStreamStates = ConcurrentHashMap<Uuid, RoundStreamState>()
 
+    private var sessionResolvedEmitted: Boolean = false
+
     init {
         scope.launch {
             for (command in mailbox) {
@@ -69,8 +73,22 @@ internal class SessionActor(
         }
     }
 
-    fun submit(command: SessionCommand) {
-        mailbox.trySend(command)
+    fun submit(command: SessionCommand): Boolean {
+        return mailbox.trySend(command).isSuccess
+    }
+
+    fun submitCritical(command: SessionCommand) {
+        submitInternal(command)
+    }
+
+    private fun submitInternal(command: SessionCommand) {
+        if (mailbox.trySend(command).isSuccess) return
+        scope.launch {
+            runCatching { mailbox.send(command) }
+                .onFailure { throwable ->
+                    logger.warn("Failed to enqueue internal command for session {}", sessionId, throwable)
+                }
+        }
     }
 
     /**
@@ -114,8 +132,11 @@ internal class SessionActor(
                 mode = opponentSpec.mode,
                 llmProfile = opponentSpec.llmProfile,
                 players = players,
+                createdAt = clock.instant()
             )
             session = created
+
+            gameEventBus.authorizePlayer(sessionId, human.playerId)
 
             gameEventBus.publish(GameEvent.SessionCreated(sessionId = sessionId, joinCode = joinCode))
             gameEventBus.publish(
@@ -132,18 +153,22 @@ internal class SessionActor(
                     nickname = llm.nickname,
                 )
             )
+            command.response.complete(JoinResponse.Accepted)
             return
         }
 
         val existingSession = session ?: return
         if (existingSession.players.human.playerId != command.playerId) {
-            gameEventBus.publish(
-                GameEvent.SessionError(
-                    sessionId = sessionId,
+            // Return error directly via response channel instead of broadcasting to session bus
+            command.response.complete(
+                JoinResponse.Rejected(
                     errorCode = "session_taken",
                     message = "session already has a different human player",
                 )
             )
+        } else {
+            // Same player rejoining - allowed
+            command.response.complete(JoinResponse.Accepted)
         }
     }
 
@@ -298,7 +323,7 @@ internal class SessionActor(
 
                     is LlmStreamEvent.FinalAnswer -> {
                         logger.debug(event.toString())
-                        submit(
+                        submitInternal(
                             SessionCommand.LlmFinalAnswerReceived(
                                 roundId = round.roundId,
                                 answer = event.answer,
@@ -454,6 +479,15 @@ internal class SessionActor(
 
         if (updatedSession.isCompleted) {
             val (humanScore, llmScore) = updatedSession.calculateTotalScores()
+            val now = Instant.now(clock)
+
+            // Emit SessionResolved immediately for end-of-match display
+            emitSessionResolved(
+                reason = "completed",
+                state = SessionState.COMPLETED,
+                resolvedAt = now,
+            )
+
             gameEventBus.publish(
                 GameEvent.SessionCompleted(
                     sessionId = sessionId,
@@ -516,11 +550,55 @@ internal class SessionActor(
         )
     }
 
+    /**
+     * Emits a SessionResolved event exactly once per session.
+     * This is the single authoritative terminal summary that clients can rely on.
+     */
+    private suspend fun emitSessionResolved(
+        reason: String,
+        state: SessionState,
+        resolvedAt: Instant,
+    ) {
+        if (sessionResolvedEmitted) return
+
+        val currentSession = session ?: return
+
+        val (humanScore, llmScore) = currentSession.calculateTotalScores()
+        val roundsPlayed = currentSession.rounds.count { it.result != null }
+
+        val winner = when {
+            roundsPlayed == 0 -> GameEvent.MatchWinner.NONE
+            humanScore.points > llmScore.points -> GameEvent.MatchWinner.HUMAN
+            llmScore.points > humanScore.points -> GameEvent.MatchWinner.LLM
+            else -> GameEvent.MatchWinner.TIE
+        }
+
+        val durationMs = Duration.between(currentSession.createdAt, resolvedAt).toMillis()
+
+        gameEventBus.publish(
+            GameEvent.SessionResolved(
+                sessionId = sessionId,
+                state = state,
+                reason = reason,
+                humanTotalScore = humanScore.points,
+                llmTotalScore = llmScore.points,
+                winner = winner,
+                roundsPlayed = roundsPlayed,
+                totalRounds = GameSession.TOTAL_ROUNDS,
+                resolvedAt = resolvedAt,
+                durationMs = durationMs,
+            )
+        )
+
+        sessionResolvedEmitted = true
+    }
+
+
     private fun scheduleLlmStart(round: Round) {
         val delayMs = round.handicap.toMillis().coerceAtLeast(0L)
         scope.launch {
             delay(delayMs)
-            submit(SessionCommand.StartLlmForRound(roundId = round.roundId))
+            submitInternal(SessionCommand.StartLlmForRound(roundId = round.roundId))
         }
     }
 
@@ -536,7 +614,7 @@ internal class SessionActor(
 
         roundDeadlineJobs[round.roundId] = scope.launch {
             delay(delayMs)
-            submit(SessionCommand.RoundDeadlineReached(roundId = round.roundId))
+            submitInternal(SessionCommand.RoundDeadlineReached(roundId = round.roundId))
         }
     }
 
@@ -645,6 +723,14 @@ internal class SessionActor(
 
         if (updatedSession.isCompleted) {
             val (humanScoreTotal, llmScoreTotal) = updatedSession.calculateTotalScores()
+            val now = Instant.now(clock)
+
+            emitSessionResolved(
+                reason = "completed",
+                state = SessionState.COMPLETED,
+                resolvedAt = now,
+            )
+
             gameEventBus.publish(
                 GameEvent.SessionCompleted(
                     sessionId = sessionId,
@@ -724,7 +810,16 @@ internal class SessionActor(
         val currentSession = session ?: return
         if (currentSession.isCompleted) return
 
+        val now = Instant.now(clock)
         session = currentSession.copy(state = SessionState.CANCELLED)
+
+        // Emit SessionResolved immediately with current scores before termination
+        emitSessionResolved(
+            reason = command.reason,
+            state = SessionState.CANCELLED,
+            resolvedAt = now,
+        )
+
         gameEventBus.publish(
             GameEvent.SessionTerminated(
                 sessionId = sessionId,
@@ -735,11 +830,17 @@ internal class SessionActor(
     }
 }
 
+internal sealed interface JoinResponse {
+    data object Accepted : JoinResponse
+    data class Rejected(val errorCode: String, val message: String) : JoinResponse
+}
+
 internal sealed interface SessionCommand {
     data class JoinSession(
         val sessionId: Uuid,
         val playerId: Uuid,
         val nickname: String,
+        val response: CompletableDeferred<JoinResponse>,
     ) : SessionCommand
 
     data class StartNextRound(

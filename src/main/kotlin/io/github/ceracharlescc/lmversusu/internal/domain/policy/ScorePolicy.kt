@@ -32,8 +32,9 @@ internal object ScorePolicy {
         val humanTime = humanSubmission?.responseTimeFrom(round.releasedAt) ?: Duration.ZERO
         val llmTime = llmSubmission?.responseTimeFrom(round.releasedAt) ?: Duration.ZERO
 
-        val humanScore = calculateScore(humanCorrect, humanTime, round.handicap)
-        val llmScore = calculateScore(llmCorrect, llmTime, round.handicap)
+        val roundTimeLimit = Duration.between(round.releasedAt, round.deadline)
+        val humanScore = calculateScore(humanCorrect, humanTime, roundTimeLimit)
+        val llmScore = calculateScore(llmCorrect, llmTime, roundTimeLimit)
 
         val humanOutcome = PlayerOutcome(
             correct = humanCorrect,
@@ -61,14 +62,15 @@ internal object ScorePolicy {
     private fun calculateScore(
         correct: Boolean,
         responseTime: Duration,
-        handicap: Duration
+        roundTimeLimit: Duration
     ): Score {
         val correctnessPoints = if (correct) CORRECT_ANSWER_POINTS else INCORRECT_ANSWER_POINTS
 
         // Speed bonus: faster response = more bonus, capped at MAX_SPEED_BONUS
         // Only award speed bonus for correct answers
+        // Time window = (deadline - releasedAt), coerced to at least 30s to avoid division edge cases
         val speedBonus = if (correct) {
-            val maxTimeMs = handicap.toMillis().coerceAtLeast(30_000)
+            val maxTimeMs = roundTimeLimit.toMillis().coerceAtLeast(30_000)
             val responseFraction = 1.0 - (responseTime.toMillis().toDouble() / maxTimeMs).coerceIn(0.0, 1.0)
             MAX_SPEED_BONUS * responseFraction
         } else {

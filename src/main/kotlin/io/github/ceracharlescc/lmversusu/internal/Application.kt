@@ -28,7 +28,7 @@ internal fun Application.module(appConfigOverride: AppConfig? = null) {
     configureFrontend()
     configureHTTP(appConfig.serverConfig)
 
-    configureRouting()
+    configureRouting(appComponent.logger())
 
     routing {
         apiV1Routes(appComponent.apiController())
@@ -36,7 +36,10 @@ internal fun Application.module(appConfigOverride: AppConfig? = null) {
             gameController = appComponent.gameController(),
             gameEventBus = appComponent.gameEventBus(),
             frameMapper = appComponent.gameEventFrameMapper(),
+            sessionLimitConfig = appConfig.sessionLimitConfig,
+            serverConfig = appConfig.serverConfig
         )
     }
+
 }
 

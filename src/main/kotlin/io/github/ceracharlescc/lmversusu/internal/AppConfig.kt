@@ -7,6 +7,7 @@ internal data class AppConfig(
     val serverConfig: ServerConfig = ServerConfig(),
     val logConfig: LogConfig = LogConfig(),
     val rateLimitConfig: RateLimitConfig = RateLimitConfig(),
+    val sessionLimitConfig: SessionLimitConfig = SessionLimitConfig(),
     val sessionCrypto: SessionCryptoConfig = SessionCryptoConfig(),
 ) {
 
@@ -68,13 +69,63 @@ internal data class AppConfig(
     }
 
     @Serializable
+    data class SessionLimitConfig(
+        val actorMailboxCapacity: Int = DEFAULT_ACTOR_MAILBOX_CAPACITY,
+        val websocketMessageWindowMillis: Long = DEFAULT_WEBSOCKET_MESSAGE_WINDOW_MILLIS,
+        val websocketMessageMaxMessages: Int = DEFAULT_WEBSOCKET_MESSAGE_MAX_MESSAGES,
+        val dailyWindowMillis: Long = DEFAULT_DAILY_WINDOW_MILLIS,
+        val premium: ModeLimitConfig = ModeLimitConfig.premiumDefaults(),
+        val lightweight: ModeLimitConfig = ModeLimitConfig.lightweightDefaults(),
+    ) {
+        companion object {
+            const val DEFAULT_ACTOR_MAILBOX_CAPACITY = 256
+            const val DEFAULT_WEBSOCKET_MESSAGE_WINDOW_MILLIS = 5_000L
+            const val DEFAULT_WEBSOCKET_MESSAGE_MAX_MESSAGES = 20
+            const val DEFAULT_DAILY_WINDOW_MILLIS = 86_400_000L
+        }
+    }
+
+    @Serializable
+    data class ModeLimitConfig(
+        val perPersonDailyLimit: Int,
+        val perPersonWindowMillis: Long,
+        val perPersonWindowLimit: Int,
+        val globalWindowMillis: Long,
+        val globalWindowLimit: Int,
+        val globalDailyLimit: Int,
+        val maxActiveSessions: Int,
+    ) {
+        companion object {
+            fun premiumDefaults(): ModeLimitConfig = ModeLimitConfig(
+                perPersonDailyLimit = 2,
+                perPersonWindowMillis = 60_000L,
+                perPersonWindowLimit = 2,
+                globalWindowMillis = 60_000L,
+                globalWindowLimit = 5,
+                globalDailyLimit = 100,
+                maxActiveSessions = 5,
+            )
+
+            fun lightweightDefaults(): ModeLimitConfig = ModeLimitConfig(
+                perPersonDailyLimit = 20,
+                perPersonWindowMillis = 60_000L,
+                perPersonWindowLimit = 5,
+                globalWindowMillis = 60_000L,
+                globalWindowLimit = 60,
+                globalDailyLimit = 1_000,
+                maxActiveSessions = 200,
+            )
+        }
+    }
+
+    @Serializable
     data class SessionCryptoConfig(
         val enableSecureCookie: Boolean = DEFAULT_SECURE_MODE,
         val encryptionKeyHex: String = "",
         val signKeyHex: String = "",
     ) {
         companion object {
-            const val DEFAULT_SECURE_MODE = false
+            const val DEFAULT_SECURE_MODE = true
         }
 
         fun requireKeys(): Keys {

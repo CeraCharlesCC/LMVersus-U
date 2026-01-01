@@ -119,9 +119,23 @@ internal data class WsLlmReasoningReveal(
 ) : WsGameFrame
 
 @Serializable
+@SerialName("session_resolved")
+internal data class WsSessionResolved(
+    val sessionId: String,
+    val state: String,
+    val reason: String,
+    val humanTotalScore: Double,
+    val llmTotalScore: Double,
+    val winner: String,
+    val roundsPlayed: Int,
+    val totalRounds: Int,
+    val resolvedAtEpochMs: Long,
+    val durationMs: Long,
+) : WsGameFrame
+
+@Serializable
 @SerialName("session_terminated")
 internal data class WsSessionTerminated(
     val sessionId: String,
     val reason: String,
 ) : WsGameFrame
-

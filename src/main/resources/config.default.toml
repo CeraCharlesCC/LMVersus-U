@@ -10,8 +10,8 @@
 # Server Configuration
 # ------------------------------------------------------------
 [serverConfig]
-bindHost = "localhost"
-bindPort = 8080
+bindHost = "localhost" # Unimplemented yet
+bindPort = 8080 # Unimplemented yet
 corsAllowedHosts = []
 debug = false
 
@@ -19,17 +19,44 @@ debug = false
 # Logging Configuration
 # ------------------------------------------------------------
 [logConfig]
-rootLogLevel = "INFO"
-appLogLevel = "DEBUG"
-format = "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+rootLogLevel = "INFO" # Unimplemented yet
+appLogLevel = "DEBUG" # Unimplemented yet
+format = "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n" # Unimplemented yet
 
 # ------------------------------------------------------------
 # Rate Limiting Configuration
 # ------------------------------------------------------------
-[rateLimitConfig]
+[rateLimitConfig] # Unused yet
 globalLlmGateKey = "llm:global"
 globalLlmWindowMillis = 60000
 globalLlmMaxRequests = 20
+
+# ------------------------------------------------------------
+# Session Limits Configuration
+# ------------------------------------------------------------
+[sessionLimitConfig]
+actorMailboxCapacity = 256
+websocketMessageWindowMillis = 5000
+websocketMessageMaxMessages = 20
+dailyWindowMillis = 86400000
+
+[sessionLimitConfig.premium]
+perPersonDailyLimit = 2
+perPersonWindowMillis = 60000
+perPersonWindowLimit = 2
+globalWindowMillis = 60000
+globalWindowLimit = 5
+globalDailyLimit = 100
+maxActiveSessions = 5
+
+[sessionLimitConfig.lightweight]
+perPersonDailyLimit = 20
+perPersonWindowMillis = 60000
+perPersonWindowLimit = 5
+globalWindowMillis = 60000
+globalWindowLimit = 60
+globalDailyLimit = 1000
+maxActiveSessions = 200
 
 # ------------------------------------------------------------
 # Session Crypto Configuration
@@ -40,6 +67,8 @@ globalLlmMaxRequests = 20
 #   Generate with: openssl rand -hex 32
 # ------------------------------------------------------------
 [sessionCrypto]
-enableSecureCookie = false
+# When true, session cookies are marked "Secure" and will only be sent over HTTPS.
+# For local development over http://localhost, set this to false so session cookies work.
+enableSecureCookie = true
 encryptionKeyHex = ""
 signKeyHex = ""

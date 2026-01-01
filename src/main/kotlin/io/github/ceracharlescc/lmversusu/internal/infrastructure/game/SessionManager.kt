@@ -2,15 +2,17 @@
 
 package io.github.ceracharlescc.lmversusu.internal.infrastructure.game
 
+import io.github.ceracharlescc.lmversusu.internal.AppConfig
 import io.github.ceracharlescc.lmversusu.internal.application.port.AnswerVerifier
 import io.github.ceracharlescc.lmversusu.internal.application.port.GameEventBus
 import io.github.ceracharlescc.lmversusu.internal.application.port.LlmPlayerGateway
 import io.github.ceracharlescc.lmversusu.internal.application.service.LlmStreamOrchestrator
 import io.github.ceracharlescc.lmversusu.internal.application.usecase.StartRoundUseCase
 import io.github.ceracharlescc.lmversusu.internal.application.usecase.SubmitAnswerUseCase
-import io.github.ceracharlescc.lmversusu.internal.domain.entity.GameEvent
+import io.github.ceracharlescc.lmversusu.internal.domain.entity.GameMode
 import io.github.ceracharlescc.lmversusu.internal.domain.repository.OpponentSpecRepository
 import io.github.ceracharlescc.lmversusu.internal.domain.repository.ResultsRepository
+import io.github.ceracharlescc.lmversusu.internal.domain.vo.ClientIdentity
 import kotlinx.coroutines.*
 import org.slf4j.Logger
 import java.time.Clock
@@ -23,6 +25,7 @@ import kotlin.uuid.Uuid
 @Singleton
 internal class SessionManager @Inject constructor(
     private val logger: Logger,
+    private val appConfig: AppConfig,
     private val opponentSpecRepository: OpponentSpecRepository,
     private val gameEventBus: GameEventBus,
     private val startRoundUseCase: StartRoundUseCase,
@@ -42,6 +45,8 @@ internal class SessionManager @Inject constructor(
 
         /** Grace period after round deadline before idle timeout applies (60 seconds) */
         internal const val ROUND_GRACE_MS = 60_000L
+
+        internal const val JOIN_SESSION_TIMEOUT_MS = 5000L
     }
 
     sealed interface JoinResult {
@@ -79,10 +84,11 @@ internal class SessionManager @Inject constructor(
     private val idleTimeoutJobs = ConcurrentHashMap<Uuid, Job>()
 
     private val maxLifespanJobs = ConcurrentHashMap<Uuid, Job>()
+    private val sessionLimitRegistry = SessionLimitRegistry(clock)
 
     suspend fun joinSession(
         sessionId: Uuid,
-        playerId: Uuid,
+        clientIdentity: ClientIdentity,
         nickname: String,
         opponentSpecId: String,
     ): JoinResult {
@@ -93,23 +99,41 @@ internal class SessionManager @Inject constructor(
                 message = "opponent spec not found",
             )
 
-        val isNewSession = !actors.containsKey(sessionId)
+        val mailboxCapacity = appConfig.sessionLimitConfig.actorMailboxCapacity.coerceAtLeast(1)
+        val newActor = SessionActor(
+            logger = logger,
+            sessionId = sessionId,
+            opponentSpec = opponentSpec,
+            gameEventBus = gameEventBus,
+            startRoundUseCase = startRoundUseCase,
+            submitAnswerUseCase = submitAnswerUseCase,
+            answerVerifier = answerVerifier,
+            llmPlayerGateway = llmPlayerGateway,
+            llmStreamOrchestrator = llmStreamOrchestrator,
+            resultsRepository = resultsRepository,
+            clock = clock,
+            mailboxCapacity = mailboxCapacity,
+            onTerminate = { id -> removeSession(id) },
+        )
 
-        val actor = actors.computeIfAbsent(sessionId) {
-            SessionActor(
-                logger = logger,
-                sessionId = sessionId,
-                opponentSpec = opponentSpec,
-                gameEventBus = gameEventBus,
-                startRoundUseCase = startRoundUseCase,
-                submitAnswerUseCase = submitAnswerUseCase,
-                answerVerifier = answerVerifier,
-                llmPlayerGateway = llmPlayerGateway,
-                llmStreamOrchestrator = llmStreamOrchestrator,
-                resultsRepository = resultsRepository,
-                clock = clock,
-                onTerminate = { id -> removeSession(id) },
-            )
+        val existingActor = actors.putIfAbsent(sessionId, newActor)
+        val isNewSession = existingActor == null
+        val actor = existingActor ?: newActor
+
+        if (!isNewSession) {
+            newActor.shutdown()
+        }
+
+        if (isNewSession) {
+            val limitFailure = checkSessionCreationLimits(clientIdentity, opponentSpec.mode)
+            if (limitFailure != null) {
+                removeSession(sessionId)
+                return JoinResult.Failure(
+                    sessionId = sessionId,
+                    errorCode = limitFailure.errorCode,
+                    message = limitFailure.message,
+                )
+            }
         }
 
         if (actor.opponentSpecId != opponentSpecId) {
@@ -120,25 +144,63 @@ internal class SessionManager @Inject constructor(
             )
         }
 
-        actor.submit(
+        val response = CompletableDeferred<JoinResponse>()
+        val accepted = actor.submit(
             SessionCommand.JoinSession(
                 sessionId = sessionId,
-                playerId = playerId,
+                playerId = clientIdentity.playerId,
                 nickname = nickname,
+                response = response,
             )
         )
-
-        if (isNewSession) {
-            scheduleMaxLifespan(sessionId)
+        if (!accepted) {
+            if (isNewSession) {
+                removeSession(sessionId)
+            }
+            return JoinResult.Failure(
+                sessionId = sessionId,
+                errorCode = "session_busy",
+                message = "session is busy, please retry",
+            )
         }
-        scheduleIdleTimeout(sessionId)
 
-        return JoinResult.Success(
-            sessionId = sessionId,
-            playerId = playerId,
-            opponentSpecId = opponentSpecId,
-            nickname = nickname,
-        )
+        return when (val joinResponse = withTimeoutOrNull(JOIN_SESSION_TIMEOUT_MS) { response.await() }) {
+            is JoinResponse.Accepted -> {
+                if (isNewSession) {
+                    scheduleMaxLifespan(sessionId)
+                }
+                scheduleIdleTimeout(sessionId)
+
+                JoinResult.Success(
+                    sessionId = sessionId,
+                    playerId = clientIdentity.playerId,
+                    opponentSpecId = opponentSpecId,
+                    nickname = nickname,
+                )
+            }
+
+            is JoinResponse.Rejected -> {
+                if (isNewSession) {
+                    removeSession(sessionId)
+                }
+                JoinResult.Failure(
+                    sessionId = sessionId,
+                    errorCode = joinResponse.errorCode,
+                    message = joinResponse.message,
+                )
+            }
+
+            null -> {
+                if (isNewSession) {
+                    removeSession(sessionId)
+                }
+                JoinResult.Failure(
+                    sessionId = sessionId,
+                    errorCode = "join_timeout",
+                    message = "session join timed out",
+                )
+            }
+        }
     }
 
     suspend fun startNextRound(sessionId: Uuid, playerId: Uuid): CommandResult {
@@ -150,7 +212,13 @@ internal class SessionManager @Inject constructor(
             )
 
         scheduleIdleTimeout(sessionId)
-        actor.submit(SessionCommand.StartNextRound(sessionId = sessionId, playerId = playerId))
+        if (!actor.submit(SessionCommand.StartNextRound(sessionId = sessionId, playerId = playerId))) {
+            return CommandResult.Failure(
+                sessionId = sessionId,
+                errorCode = "session_busy",
+                message = "session is busy, please retry",
+            )
+        }
         return CommandResult.Success(sessionId)
     }
 
@@ -170,16 +238,24 @@ internal class SessionManager @Inject constructor(
             )
 
         scheduleIdleTimeout(sessionId)
-        actor.submit(
-            SessionCommand.SubmitAnswer(
-                sessionId = sessionId,
-                playerId = playerId,
-                roundId = roundId,
-                nonceToken = nonceToken,
-                answer = answer,
-                clientSentAt = clientSentAt,
+        if (
+            !actor.submit(
+                SessionCommand.SubmitAnswer(
+                    sessionId = sessionId,
+                    playerId = playerId,
+                    roundId = roundId,
+                    nonceToken = nonceToken,
+                    answer = answer,
+                    clientSentAt = clientSentAt,
+                )
             )
-        )
+        ) {
+            return CommandResult.Failure(
+                sessionId = sessionId,
+                errorCode = "session_busy",
+                message = "session is busy, please retry",
+            )
+        }
         return CommandResult.Success(sessionId)
     }
 
@@ -200,19 +276,11 @@ internal class SessionManager @Inject constructor(
     }
 
     private fun scheduleMaxLifespan(sessionId: Uuid) {
+        maxLifespanJobs[sessionId]?.cancel()
         maxLifespanJobs[sessionId] = supervisorScope.launch {
             delay(MAX_LIFESPAN_MS)
-            // Only terminate if session still exists
-            val actor = actors[sessionId]
-            if (actor != null) {
-                gameEventBus.publish(
-                    GameEvent.SessionTerminated(
-                        sessionId = sessionId,
-                        reason = "max_lifespan",
-                    )
-                )
-                removeSession(sessionId)
-            }
+            // Route through actor to ensure SessionResolved is emitted
+            actors[sessionId]?.submitCritical(SessionCommand.Timeout(reason = "max_lifespan"))
         }
     }
 
@@ -220,6 +288,7 @@ internal class SessionManager @Inject constructor(
         idleTimeoutJobs.remove(sessionId)?.cancel()
         maxLifespanJobs.remove(sessionId)?.cancel()
         actors.remove(sessionId)?.shutdown()
+        gameEventBus.revokeSession(sessionId)
     }
 
     fun shutdownAll() {
@@ -228,5 +297,143 @@ internal class SessionManager @Inject constructor(
         actors.clear()
         idleTimeoutJobs.clear()
         maxLifespanJobs.clear()
+    }
+
+    private data class LimitContext(
+        val limitConfig: AppConfig.ModeLimitConfig,
+        val modeLabel: String,
+    )
+
+    private data class LimitFailure(
+        val errorCode: String,
+        val message: String,
+    )
+
+    private fun checkSessionCreationLimits(
+        clientIdentity: ClientIdentity,
+        mode: GameMode,
+    ): LimitFailure? {
+        val limitContext = when (mode) {
+            GameMode.PREMIUM -> LimitContext(
+                limitConfig = appConfig.sessionLimitConfig.premium,
+                modeLabel = "premium",
+            )
+
+            GameMode.LIGHTWEIGHT -> LimitContext(
+                limitConfig = appConfig.sessionLimitConfig.lightweight,
+                modeLabel = "lightweight",
+            )
+        }
+
+        val activeSessions = countActiveSessions(mode)
+        val maxActive = limitContext.limitConfig.maxActiveSessions
+        if (maxActive in 1..activeSessions) {
+            return LimitFailure(
+                errorCode = "session_limit_exceeded",
+                message = "too many active ${limitContext.modeLabel} sessions",
+            )
+        }
+
+        val ipAddress = clientIdentity.ipAddress.ifBlank { "unknown" }
+        val playerKey = clientIdentity.playerId.toString()
+        val modePrefix = "mode:${limitContext.modeLabel}"
+        val dailyWindowMillis = appConfig.sessionLimitConfig.dailyWindowMillis
+
+        val entries = buildList {
+            val perPersonDailyLimit = limitContext.limitConfig.perPersonDailyLimit
+            if (perPersonDailyLimit > 0) {
+                add(
+                    SessionLimitRegistry.LimitEntry(
+                        key = "$modePrefix:person:ip:$ipAddress:daily",
+                        windowMillis = dailyWindowMillis,
+                        limit = perPersonDailyLimit,
+                        failure = SessionLimitRegistry.LimitFailure(
+                            errorCode = "session_limit_exceeded",
+                            message = "daily ${limitContext.modeLabel} session limit reached",
+                        ),
+                    )
+                )
+                add(
+                    SessionLimitRegistry.LimitEntry(
+                        key = "$modePrefix:person:player:$playerKey:daily",
+                        windowMillis = dailyWindowMillis,
+                        limit = perPersonDailyLimit,
+                        failure = SessionLimitRegistry.LimitFailure(
+                            errorCode = "session_limit_exceeded",
+                            message = "daily ${limitContext.modeLabel} session limit reached",
+                        ),
+                    )
+                )
+            }
+
+            val perPersonWindowLimit = limitContext.limitConfig.perPersonWindowLimit
+            val perPersonWindowMillis = limitContext.limitConfig.perPersonWindowMillis
+            if (perPersonWindowLimit > 0 && perPersonWindowMillis > 0) {
+                add(
+                    SessionLimitRegistry.LimitEntry(
+                        key = "$modePrefix:person:ip:$ipAddress:window",
+                        windowMillis = perPersonWindowMillis,
+                        limit = perPersonWindowLimit,
+                        failure = SessionLimitRegistry.LimitFailure(
+                            errorCode = "rate_limited",
+                            message = "session creation rate limited",
+                        ),
+                    )
+                )
+                add(
+                    SessionLimitRegistry.LimitEntry(
+                        key = "$modePrefix:person:player:$playerKey:window",
+                        windowMillis = perPersonWindowMillis,
+                        limit = perPersonWindowLimit,
+                        failure = SessionLimitRegistry.LimitFailure(
+                            errorCode = "rate_limited",
+                            message = "session creation rate limited",
+                        ),
+                    )
+                )
+            }
+
+            val globalWindowLimit = limitContext.limitConfig.globalWindowLimit
+            val globalWindowMillis = limitContext.limitConfig.globalWindowMillis
+            if (globalWindowLimit > 0 && globalWindowMillis > 0) {
+                add(
+                    SessionLimitRegistry.LimitEntry(
+                        key = "$modePrefix:global:window",
+                        windowMillis = globalWindowMillis,
+                        limit = globalWindowLimit,
+                        failure = SessionLimitRegistry.LimitFailure(
+                            errorCode = "rate_limited",
+                            message = "global ${limitContext.modeLabel} session rate limit reached",
+                        ),
+                    )
+                )
+            }
+
+            val globalDailyLimit = limitContext.limitConfig.globalDailyLimit
+            if (globalDailyLimit > 0) {
+                add(
+                    SessionLimitRegistry.LimitEntry(
+                        key = "$modePrefix:global:daily",
+                        windowMillis = dailyWindowMillis,
+                        limit = globalDailyLimit,
+                        failure = SessionLimitRegistry.LimitFailure(
+                            errorCode = "session_limit_exceeded",
+                            message = "global daily ${limitContext.modeLabel} session limit reached",
+                        ),
+                    )
+                )
+            }
+        }
+
+        val failure = sessionLimitRegistry.tryAcquire(entries)
+        if (failure != null) {
+            return LimitFailure(errorCode = failure.errorCode, message = failure.message)
+        }
+
+        return null
+    }
+
+    private fun countActiveSessions(mode: GameMode): Int {
+        return actors.values.count { actor -> actor.mode == mode }
     }
 }

@@ -6,6 +6,8 @@ flaxoosRateLimiting = "2.2.1"
 ksp = "2.2.21-2.0.4"
 dagger = "2.57"
 
+caffeine = "3.2.3"
+
 openai-java = "4.12.0"
 ktoml-core = "0.7.1"
 
@@ -30,10 +32,11 @@ kotlin-reflect = { group = "org.jetbrains.kotlin", name = "kotlin-reflect", vers
 kotlinx-coroutines = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
 
-
 dagger = { group = "com.google.dagger", name = "dagger", version.ref = "dagger" }
 dagger-compiler = { group = "com.google.dagger", name = "dagger-compiler", version.ref = "dagger" }
 javax-inject = { group = "javax.inject", name = "javax.inject", version = "1" }
+
+caffeine = { group = "com.github.ben-manes.caffeine", name = "caffeine", version.ref = "caffeine" }
 
 openai-java = { group = "com.openai", name = "openai-java", version.ref = "openai-java" }
 ktoml-core = { group = "com.akuleshov7", name = "ktoml-core", version.ref = "ktoml-core" }

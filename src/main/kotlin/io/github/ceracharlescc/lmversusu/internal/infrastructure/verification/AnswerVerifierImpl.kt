@@ -26,13 +26,8 @@ internal class AnswerVerifierImpl @Inject constructor() : AnswerVerifier {
             }
 
             is VerifierSpec.FreeResponse -> {
-                val text = (answer as? Answer.FreeText)?.text?.trim().orEmpty()
-                if (spec.expectedKeywords.isEmpty()) {
-                    text.isNotBlank()
-                } else {
-                    val normalized = text.lowercase()
-                    spec.expectedKeywords.all { keyword -> normalized.contains(keyword.lowercase()) }
-                }
+                // TODO: verify by another LLM, reasoning + final answer rubric;
+                false // For now, always return false
             }
         }
         return VerificationOutcome(correct = correct)

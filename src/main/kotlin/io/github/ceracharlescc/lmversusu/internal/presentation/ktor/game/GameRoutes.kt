@@ -3,12 +3,16 @@ package io.github.ceracharlescc.lmversusu.internal.presentation.ktor.game
 import io.github.ceracharlescc.lmversusu.internal.application.port.GameEventBus
 import io.github.ceracharlescc.lmversusu.internal.application.port.GameEventListener
 import io.github.ceracharlescc.lmversusu.internal.domain.entity.ServiceSession
+import io.github.ceracharlescc.lmversusu.internal.AppConfig
 import io.github.ceracharlescc.lmversusu.internal.presentation.ktor.game.ws.*
+import io.ktor.http.HttpHeaders
+import io.ktor.server.plugins.origin
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.route
 import io.ktor.server.sessions.get
 import io.ktor.server.sessions.sessions
 import io.ktor.server.websocket.webSocket
+import io.ktor.websocket.CloseReason
 import io.ktor.websocket.Frame
 import io.ktor.websocket.close
 import io.ktor.websocket.readText
@@ -17,6 +21,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
+import java.net.URI
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
@@ -27,9 +32,23 @@ internal fun Route.gameWebSocket(
     gameController: GameController,
     gameEventBus: GameEventBus,
     frameMapper: GameEventFrameMapper,
+    sessionLimitConfig: AppConfig.SessionLimitConfig,
+    serverConfig: AppConfig.ServerConfig
 ) {
     route("/ws") {
         webSocket("/game") {
+            val originHeader = call.request.headers[HttpHeaders.Origin]
+
+            if (!isAllowedWsOrigin(originHeader, serverConfig.corsAllowedHosts)) {
+                close(
+                    CloseReason(
+                        CloseReason.Codes.VIOLATED_POLICY,
+                        "origin_not_allowed"
+                    )
+                )
+                return@webSocket
+            }
+
             val session = call.sessions.get<ServiceSession>()
             if (session == null) {
                 val json = Json { ignoreUnknownKeys = true }
@@ -46,11 +65,16 @@ internal fun Route.gameWebSocket(
             }
 
             val cookiePlayerId = session.playerId
+            val clientIpAddress = call.request.origin.remoteAddress
 
             val json = Json { ignoreUnknownKeys = true }
             var subscribedSessionId: Uuid? = null
             var clientLocale: String? = null  // Connection-scoped locale for i18n
             var heartbeatJob: Job? = null
+            val messageRateLimiter = ConnectionRateLimiter(
+                windowMillis = sessionLimitConfig.websocketMessageWindowMillis,
+                maxMessages = sessionLimitConfig.websocketMessageMaxMessages,
+            )
 
             val listener = GameEventListener { event ->
                 val frame = frameMapper.toFrame(event, clientLocale) ?: return@GameEventListener
@@ -72,17 +96,6 @@ internal fun Route.gameWebSocket(
                 heartbeatJob = null
             }
 
-            suspend fun subscribeTo(sessionId: Uuid) {
-                if (subscribedSessionId == sessionId) return
-                subscribedSessionId?.let {
-                    gameEventBus.unsubscribe(it, listener)
-                    stopHeartbeat()
-                }
-                gameEventBus.subscribe(sessionId, listener)
-                subscribedSessionId = sessionId
-                startHeartbeat(sessionId.toString())
-            }
-
             suspend fun sendError(sessionId: Uuid?, errorCode: String, message: String) {
                 sendFrame(
                     json,
@@ -94,11 +107,28 @@ internal fun Route.gameWebSocket(
                 )
             }
 
-            /**
-             * Validates that the playerId from the client frame matches the authenticated session.
-             * This check should happen before any UUID parsing to provide clear auth error messages.
-             * @return true if valid, false if mismatch (error already sent)
-             */
+            suspend fun subscribeTo(sessionId: Uuid, playerId: Uuid) {
+                if (subscribedSessionId == sessionId) return
+                subscribedSessionId?.let {
+                    gameEventBus.unsubscribe(it, listener)
+                    stopHeartbeat()
+                }
+
+                val authorized = gameEventBus.subscribe(sessionId, playerId, listener)
+                if (!authorized) {
+                    sendError(
+                        sessionId,
+                        "unauthorized",
+                        "You are not authorized to subscribe to this session"
+                    )
+
+                    return
+                }
+
+                subscribedSessionId = sessionId
+                startHeartbeat(sessionId.toString())
+            }
+
             suspend fun validatePlayerId(clientPlayerId: String): Boolean {
                 if (clientPlayerId != cookiePlayerId) {
                     sendError(null, "auth_mismatch", "PlayerId in request does not match session")
@@ -110,6 +140,11 @@ internal fun Route.gameWebSocket(
             try {
                 for (frame in incoming) {
                     if (frame !is Frame.Text) continue
+                    if (!messageRateLimiter.tryConsume()) {
+                        sendError(null, "rate_limited", "too many websocket messages")
+                        close()
+                        break
+                    }
                     val text = frame.readText()
                     val clientFrame = runCatching {
                         json.decodeFromString(WsClientFrame.serializer(), text)
@@ -124,12 +159,13 @@ internal fun Route.gameWebSocket(
                             val result = gameController.joinSession(
                                 sessionId = clientFrame.sessionId,
                                 playerId = cookiePlayerId, // Use cookie playerId
+                                clientIpAddress = clientIpAddress,
                                 opponentSpecId = clientFrame.opponentSpecId,
                                 nickname = clientFrame.nickname,
                             )
                             when (result) {
                                 is GameController.JoinResult.Success -> {
-                                    subscribeTo(result.sessionId)
+                                    subscribeTo(result.sessionId, result.playerId)
                                     sendFrame(
                                         json,
                                         WsSessionJoined(
@@ -157,7 +193,11 @@ internal fun Route.gameWebSocket(
                             if (result is GameController.CommandResult.Failure) {
                                 sendError(result.sessionId, result.errorCode, result.message)
                             } else if (result is GameController.CommandResult.Success) {
-                                subscribeTo(result.sessionId)
+                                try {
+                                    subscribeTo(result.sessionId, Uuid.parse(cookiePlayerId))
+                                } catch (exception: IllegalArgumentException) {
+                                    sendError(null, "invalid_player", "PlayerId is invalid")
+                                }
                             }
                         }
 
@@ -175,7 +215,11 @@ internal fun Route.gameWebSocket(
                             if (result is GameController.CommandResult.Failure) {
                                 sendError(result.sessionId, result.errorCode, result.message)
                             } else if (result is GameController.CommandResult.Success) {
-                                subscribeTo(result.sessionId)
+                                try {
+                                    subscribeTo(result.sessionId, Uuid.parse(cookiePlayerId))
+                                } catch (exception: IllegalArgumentException) {
+                                    sendError(null, "invalid_player", "PlayerId is invalid")
+                                }
                             }
                         }
 
@@ -194,8 +238,16 @@ internal fun Route.gameRoutes(
     gameController: GameController,
     gameEventBus: GameEventBus,
     frameMapper: GameEventFrameMapper,
+    sessionLimitConfig: AppConfig.SessionLimitConfig,
+    serverConfig: AppConfig.ServerConfig
 ) {
-    gameWebSocket(gameController, gameEventBus, frameMapper)
+    gameWebSocket(
+        gameController,
+        gameEventBus,
+        frameMapper,
+        sessionLimitConfig,
+        serverConfig
+    )
 }
 
 private suspend fun io.ktor.websocket.WebSocketSession.sendFrame(
@@ -204,4 +256,65 @@ private suspend fun io.ktor.websocket.WebSocketSession.sendFrame(
 ) {
     val payload = json.encodeToString(WsGameFrame.serializer(), frame)
     outgoing.send(Frame.Text(payload))
+}
+
+/**
+ * A simple, non-thread-safe rate limiter for a single connection.
+ * It relies on being called from a single thread, like Ktor's WebSocket `incoming` loop.
+ */
+private class ConnectionRateLimiter(
+    private val windowMillis: Long,
+    private val maxMessages: Int,
+) {
+    private var windowStartMs: Long = System.currentTimeMillis()
+    private var count: Int = 0
+
+    fun tryConsume(): Boolean {
+        if (windowMillis <= 0 || maxMessages <= 0) return true
+        val nowMs = System.currentTimeMillis()
+        if (nowMs - windowStartMs >= windowMillis) {
+            windowStartMs = nowMs
+            count = 0
+        }
+        if (count >= maxMessages) return false
+        count++
+        return true
+    }
+}
+
+
+private fun isAllowedWsOrigin(originHeader: String?, allowedHosts: List<String>): Boolean {
+    if (originHeader.isNullOrBlank()) return false
+
+    val uri = runCatching { URI(originHeader) }.getOrNull() ?: return false
+    val originHost = (uri.host ?: return false).lowercase()
+
+    val originPort = when {
+        uri.port != -1 -> uri.port
+        uri.scheme.equals("https", ignoreCase = true) -> 443
+        uri.scheme.equals("http", ignoreCase = true) -> 80
+        uri.scheme.equals("wss", ignoreCase = true) -> 443
+        uri.scheme.equals("ws", ignoreCase = true) -> 80
+        else -> -1
+    }
+
+    // Match rules:
+    // - If an allow entry includes ":port", require host+port match.
+    // - If an allow entry is just "host", match host regardless of port.
+    for (raw in allowedHosts) {
+        val entry = raw.trim().lowercase()
+        if (entry.isEmpty()) continue
+
+        val parts = entry.split(":", limit = 2)
+        val allowedHost = parts[0]
+        val allowedPort = parts.getOrNull(1)?.toIntOrNull()
+
+        if (allowedPort != null) {
+            if (originHost == allowedHost && originPort == allowedPort) return true
+        } else {
+            if (originHost == allowedHost) return true
+        }
+    }
+
+    return false
 }
