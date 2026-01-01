@@ -46,6 +46,7 @@ const I18N = {
         question: "Question",
         reasoning: "LLM",
         answer: "Your answer",
+        bottomPanel: "Controls",
         submit: "Submit",
         next: "Next",
         deadline: "Deadline",
@@ -139,6 +140,7 @@ const I18N = {
         question: "問題",
         reasoning: "LLM",
         answer: "あなたの回答",
+        bottomPanel: "操作パネル",
         submit: "送信",
         next: "次へ",
         deadline: "締切",
@@ -436,7 +438,7 @@ function initStaticText() {
 
     $("#qTitle").textContent = t("question");
     $("#rTitle").textContent = t("reasoning");
-    $("#aTitle").textContent = t("answer");
+    $("#bpTitle").textContent = t("bottomPanel");
     $("#btnStartRound").textContent = t("startRound");
     $("#preRoundHint").textContent = t("preRoundHint");
     $("#btnSubmit").textContent = t("submit");
