@@ -99,35 +99,41 @@ internal class SessionManager @Inject constructor(
                 message = "opponent spec not found",
             )
 
-        val isNewSession = !actors.containsKey(sessionId)
+        val mailboxCapacity = appConfig.sessionLimitConfig.actorMailboxCapacity.coerceAtLeast(1)
+        val newActor = SessionActor(
+            logger = logger,
+            sessionId = sessionId,
+            opponentSpec = opponentSpec,
+            gameEventBus = gameEventBus,
+            startRoundUseCase = startRoundUseCase,
+            submitAnswerUseCase = submitAnswerUseCase,
+            answerVerifier = answerVerifier,
+            llmPlayerGateway = llmPlayerGateway,
+            llmStreamOrchestrator = llmStreamOrchestrator,
+            resultsRepository = resultsRepository,
+            clock = clock,
+            mailboxCapacity = mailboxCapacity,
+            onTerminate = { id -> removeSession(id) },
+        )
+
+        val existingActor = actors.putIfAbsent(sessionId, newActor)
+        val isNewSession = existingActor == null
+        val actor = existingActor ?: newActor
+
+        if (!isNewSession) {
+            newActor.shutdown()
+        }
+
         if (isNewSession) {
             val limitFailure = checkSessionCreationLimits(clientIdentity, opponentSpec.mode)
             if (limitFailure != null) {
+                removeSession(sessionId)
                 return JoinResult.Failure(
                     sessionId = sessionId,
                     errorCode = limitFailure.errorCode,
                     message = limitFailure.message,
                 )
             }
-        }
-
-        val actor = actors.computeIfAbsent(sessionId) {
-            val mailboxCapacity = appConfig.sessionLimitConfig.actorMailboxCapacity.coerceAtLeast(1)
-            SessionActor(
-                logger = logger,
-                sessionId = sessionId,
-                opponentSpec = opponentSpec,
-                gameEventBus = gameEventBus,
-                startRoundUseCase = startRoundUseCase,
-                submitAnswerUseCase = submitAnswerUseCase,
-                answerVerifier = answerVerifier,
-                llmPlayerGateway = llmPlayerGateway,
-                llmStreamOrchestrator = llmStreamOrchestrator,
-                resultsRepository = resultsRepository,
-                clock = clock,
-                mailboxCapacity = mailboxCapacity,
-                onTerminate = { id -> removeSession(id) },
-            )
         }
 
         if (actor.opponentSpecId != opponentSpecId) {
