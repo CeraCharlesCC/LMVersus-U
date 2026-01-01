@@ -97,7 +97,7 @@ class SessionActorIntegrityTest {
     }
 
     @Test
-    fun `Adversarial - Cannot submit answer for the LLM`() = runTest {
+    fun `Adversarial - Human cannot submit answer twice`() = runTest {
         joinSession()
 
         startRound()
