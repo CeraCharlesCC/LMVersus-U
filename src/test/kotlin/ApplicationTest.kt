@@ -54,20 +54,21 @@ class ApplicationTest {
 
         val client = createClient {
             install(ContentNegotiation) {
-                json(
-                    Json {
-                        ignoreUnknownKeys = true
-                    }
-                )
+                json(Json { ignoreUnknownKeys = true })
             }
             defaultRequest {
                 accept(ContentType.Application.Json)
             }
         }
-        
-        client.get("/api/v1/models").apply {
-            println(bodyAsText())
-            assert(status == HttpStatusCode.OK)
+
+        val resp = client.get("/api/v1/models")
+        val body = resp.bodyAsText()
+
+        println("STATUS: ${resp.status}")
+        println("BODY:\n$body")
+
+        assert(resp.status == HttpStatusCode.OK) {
+            "Expected 200 OK, got ${resp.status}. Body:\n$body"
         }
     }
 
