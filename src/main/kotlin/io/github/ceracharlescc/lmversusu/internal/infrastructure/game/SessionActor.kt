@@ -774,7 +774,16 @@ internal class SessionActor(
             val fullReasoning = buildString {
                 streamState?.fullReasoningBuilder?.let { append(it.toString()) }
                 runCatching { streamState?.getWithheldReasoning?.invoke().orEmpty() }
-                    .getOrDefault("").let { if (it.isNotEmpty()) append(it) }
+                    .onFailure {
+                        logger.warn(
+                            "Failed to obtain withheld reasoning for session {}, round {}",
+                            sessionId,
+                            roundId,
+                            it
+                        )
+                    }
+                    .getOrDefault("")
+                    .let { if (it.isNotEmpty()) append(it) }
             }
 
             // Fallback to reasoningSummary if no streamed reasoning
