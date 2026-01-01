@@ -345,7 +345,8 @@ a{ color:inherit; }
     padding: 12px 12px calc(12px + env(safe-area-inset-bottom));
     display:grid;
     grid-template-rows: auto auto 1fr auto;
-    gap: var(--gap);
+    gap: 8px;
+    overflow: hidden;
 }
 
 .topbar{
@@ -368,6 +369,12 @@ a{ color:inherit; }
     border-radius: 999px;
     padding:10px 12px;
     min-width: 210px;
+}
+.chip-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:8px;
 }
 .chip-title{ font-weight:900; }
 .chip-sub{ color:var(--muted); font-size:12px; margin-top:2px; }
@@ -449,6 +456,15 @@ a{ color:inherit; }
     padding:8px 8px;
     border-bottom:1px solid rgba(255,255,255,.06);
     background: rgba(0,0,0,.12);
+}
+.panel-head-group{
+    display:flex;
+    align-items:center;
+    gap:10px;
+}
+.panel-hint{
+    color: var(--muted);
+    font-size: 12px;
 }
 .panel-title{ font-weight:900; }
 .panel-meta{ color:var(--muted); font-size:12px; font-weight:800; }
@@ -683,7 +699,7 @@ a{ color:inherit; }
 
 .result-details{
     color: var(--muted);
-    font-size:13px;
+    font-size:14px;
     line-height:1.55;
     white-space: pre-wrap; /* preserve \n from JS */
 }

@@ -124,10 +124,11 @@
                     <div class="vs">VS</div>
 
                     <div id="llmChip" class="chip">
-                        <div class="chip-title" id="llmName"></div>
-                        <div class="chip-sub">
+                        <div class="chip-row">
+                            <div class="chip-title" id="llmName"></div>
                             <span id="llmStatus" class="status-pill"></span>
                         </div>
+                        <div class="chip-sub"></div>
                     </div>
                 </div>
 
@@ -201,7 +202,10 @@
 
             <section id="bottomPanel" class="panel bottom">
                 <div class="panel-head">
-                    <div class="panel-title" id="bpTitle"></div>
+                    <div class="panel-head-group">
+                        <div class="panel-title" id="bpTitle"></div>
+                        <div class="panel-hint hidden" id="preRoundHint"></div>
+                    </div>
                     <div class="panel-meta" id="aMeta"></div>
                 </div>
 
@@ -211,9 +215,7 @@
                         <div class="bottom-action">
                             <button id="btnStartRound" class="btn primary action-btn" type="button"></button>
                         </div>
-                        <div class="bottom-content">
-                            <div class="muted small" id="preRoundHint"></div>
-                        </div>
+                        <div class="bottom-content"></div>
                     </div>
 
                     <!-- In-round -->

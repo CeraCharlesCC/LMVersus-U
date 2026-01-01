@@ -397,6 +397,7 @@ const state = {
 /** ---- Small UI helpers ---- */
 function showBottomState(which /* "pre" | "answer" | "post" */) {
     $("#preRound")?.classList.toggle("hidden", which !== "pre");
+    $("#preRoundHint")?.classList.toggle("hidden", which !== "pre");
     $("#answerForm")?.classList.toggle("hidden", which !== "answer");
     $("#postRound")?.classList.toggle("hidden", which !== "post");
 }
