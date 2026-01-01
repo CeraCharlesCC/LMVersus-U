@@ -203,8 +203,8 @@ a{ color:inherit; }
 .modal{
     position:fixed;
     left:50%;
-    top:50%;
-    transform:translate(-50%,-50%);
+    top: calc(56px + 14px + env(safe-area-inset-top));
+    transform: translateX(-50%);
     width:min(760px, calc(100vw - 28px));
     background: rgba(16,23,35,.78);
     border:1px solid var(--border);
@@ -212,11 +212,17 @@ a{ color:inherit; }
     box-shadow: var(--shadow);
     backdrop-filter: blur(14px);
     overflow:hidden;
+
+    display:flex;
+    flex-direction:column;
+    max-height: calc(100vh - 56px - 28px);
+    max-height: calc(100dvh - 56px - 28px);
 }
 
 .modal-tabs{
     display:flex;
     border-bottom:1px solid var(--border);
+    flex: 0 0 auto;
 }
 
 .tab-btn{
@@ -233,7 +239,12 @@ a{ color:inherit; }
     background: linear-gradient(180deg, rgba(110,231,255,.12), transparent);
 }
 
-.modal-body{ padding:16px; }
+.modal-body{
+    padding:16px;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+}
 .modal-footer{
     padding:12px 16px;
     border-top:1px solid var(--border);
