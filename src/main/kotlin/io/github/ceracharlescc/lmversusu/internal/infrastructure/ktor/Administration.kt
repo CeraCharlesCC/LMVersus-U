@@ -24,6 +24,7 @@ internal fun Application.configureAdministration() {
             response.headers.append("X-RateLimit-Limit", "${limitedBy.rateLimiter.capacity}")
             response.headers.append("X-RateLimit-Measured-by", limitedBy.rateLimiter.callVolumeUnit.name)
             response.headers.append("X-RateLimit-Reset", "${limitedBy.resetIn.inWholeMilliseconds}")
+            response.headers.append("Retry-After", "${limitedBy.resetIn.inWholeSeconds}")
         }
     }
 }
