@@ -146,7 +146,7 @@ const I18N = {
         next: "次へ",
         deadline: "締切",
         handicap: "ハンディキャップ",
-        peek: "覗き見しちゃう 👀）",
+        peek: "覗き見しちゃう 👀",
         omitted: "序盤のReasoningが省略されています",
         oppAnswer: "相手の回答",
         confidence: "自信度",
@@ -246,6 +246,10 @@ function escapeHtml(s) {
         .replaceAll("'", "&#039;");
 }
 
+function isMobileLayout() {
+    return !!(window.matchMedia && window.matchMedia("(max-width: 760px)").matches);
+}
+
 function renderMarkdownMath(text, targetEl) {
     targetEl.innerHTML = md.render(text ?? "");
     // KaTeX auto-render
@@ -334,6 +338,36 @@ function showNetError(e) {
     toast(t("toastError"), e?.message || String(e), "error");
 }
 
+function renderResultDetails(note, detailLines) {
+    const el = $("#resultDetails");
+    if (!el) return;
+
+    const safeNote = String(note || "");
+    const details = Array.isArray(detailLines) ? detailLines.map((x) => String(x || "")) : [];
+
+    // cache so we can re-render on resize/orientation change
+    state.ui.lastResultDetails = { note: safeNote, details };
+
+    if (isMobileLayout()) {
+        const parts = [];
+        if (safeNote) {
+            parts.push(`<div class="result-note">${escapeHtml(safeNote)}</div>`);
+        }
+        if (details.length) {
+            // Prefer a single horizontal line; allow wrap that starts at the slash via <wbr>
+            const joined = details.map(escapeHtml).join(" <wbr>/ ");
+            parts.push(`<div class="result-inline">${joined}</div>`);
+        }
+        el.innerHTML = parts.join("");
+        return;
+    }
+
+    const lines = [];
+    if (safeNote) lines.push(safeNote);
+    lines.push(...details);
+    el.textContent = lines.join("\n");
+}
+
 /** ---- App State ---- */
 const state = {
     playerId: null,
@@ -393,6 +427,7 @@ const state = {
         reasoningPinnedToTop: true,
         programmaticScroll: false,
         matchEndVisible: false,
+        lastResultDetails: null,
     },
 };
 
@@ -778,6 +813,7 @@ function resetRoundUi() {
 
     clearOutcomeGlows();
 
+    state.ui.lastResultDetails = null;
     $("#omitHint").classList.add("hidden");
     $("#llmStreamError").classList.add("hidden");
     $("#llmAnswerBox").classList.add("hidden");
@@ -1214,7 +1250,6 @@ function handleServerEvent(msg) {
 
         const lines = [];
         const note = roundResolveLine(msg.reason);
-        if (note) lines.push(note);
 
         if (msg.humanScore != null || msg.llmScore != null) {
             lines.push(`${t("roundScore")}: ${fmtScore(msg.humanScore)} - ${fmtScore(msg.llmScore)}`);
@@ -1224,7 +1259,7 @@ function handleServerEvent(msg) {
         lines.push(`${t("yourAnswerLabel")}: ${state.humanAnswer ? formatAnswerDisplay(state.humanAnswer, state.choices) : t("noAnswer")}`);
         lines.push(`${t("oppAnswerLabel")}: ${state.finalAnswer ? formatAnswerDisplay(state.finalAnswer, state.choices) : (msg.reason === "TIMEOVER_LLM" ? t("noAnswer") : t("oppPending"))}`);
 
-        $("#resultDetails").textContent = lines.join("\n");
+        renderResultDetails(note, lines);
         return;
     }
 
@@ -1448,6 +1483,17 @@ function bindUi() {
             state.ui.reasoningPinnedToTop = llmScroll.scrollTop <= 2;
         }, { passive: true });
     }
+
+    // Re-render result details when crossing the responsive breakpoint (e.g., rotation)
+    let resizeRaf = 0;
+    window.addEventListener("resize", () => {
+        if (!state.ui.lastResultDetails) return;
+        if (resizeRaf) cancelAnimationFrame(resizeRaf);
+        resizeRaf = requestAnimationFrame(() => {
+            const { note, details } = state.ui.lastResultDetails || {};
+            renderResultDetails(note, details);
+        });
+    }, { passive: true });
 }
 
 function normalizeChoiceForHeuristic(s) {

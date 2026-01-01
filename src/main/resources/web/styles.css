@@ -835,7 +835,7 @@ a{ color:inherit; }
         padding: 6px 8px;
         display: grid;
         grid-template-columns: 1fr auto;
-        grid-template-rows: auto auto;
+        grid-template-rows: auto;
         grid-template-areas:
             "label value"
             "bar bar";
@@ -847,6 +847,7 @@ a{ color:inherit; }
         grid-area: label;
         font-size: 11px;
     }
+    .bar{ display:none; }
     /* bottom panel: stack on mobile */
     .bottom-state{
         flex-direction: column;
@@ -864,6 +865,18 @@ a{ color:inherit; }
     /* Mobile: show hint above choices */
     #choiceHintTop{ display:block; }
     #choiceHintBottom{ display:none; }
+
+    /* Result details: prefer horizontal layout; allow wrapping starting at slashes */
+    .result-details{
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+    .result-details .result-note{
+        margin-bottom: 6px;
+    }
+    .result-details .result-inline{
+        line-height: 1.55;
+    }
 }
 
 @media (max-width: 520px){
