@@ -11,10 +11,13 @@ import io.github.ceracharlescc.lmversusu.internal.domain.entity.*
 import io.github.ceracharlescc.lmversusu.internal.domain.repository.ResultsRepository
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.*
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.streaming.StreamingPolicy
+import io.github.ceracharlescc.lmversusu.internal.domain.vo.streaming.LlmAnswer
+import io.github.ceracharlescc.lmversusu.internal.domain.vo.streaming.LlmStreamEvent
 import io.mockk.*
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.emptyFlow
-import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -34,10 +37,13 @@ class SessionActorIntegrityTest {
 
     // Use fixed clock for deterministic timing tests
     private var fixedTime = Instant.parse("2024-01-01T12:00:00Z")
+    private var currentTestScheduler: kotlinx.coroutines.test.TestCoroutineScheduler? = null
     private val clock = object : Clock() {
         override fun getZone(): ZoneId = ZoneId.of("UTC")
         override fun withZone(zone: ZoneId?): Clock = this
-        override fun instant(): Instant = fixedTime
+        override fun instant(): Instant {
+            return fixedTime.plusMillis(currentTestScheduler?.currentTime ?: 0L)
+        }
     }
 
     private val humanId = Uuid.random()
@@ -59,7 +65,15 @@ class SessionActorIntegrityTest {
 
     @BeforeEach
     fun setup() {
-        every { llmGateway.streamAnswer(any()) } returns emptyFlow()
+        every { llmGateway.streamAnswer(any()) } returns kotlinx.coroutines.flow.flowOf(
+            LlmStreamEvent.FinalAnswer(
+                answer = LlmAnswer(
+                    finalAnswer = Answer.MultipleChoice(0),
+                    reasoningSummary = null,
+                    confidenceScore = null
+                )
+            )
+        )
 
         // Setup a dummy question
         coEvery { questionSelector.pickQuestionsForOpponent(any(), any(), any()) } returns listOf(
@@ -70,7 +84,9 @@ class SessionActorIntegrityTest {
                 roundTime = java.time.Duration.ofMinutes(1)
             )
         )
+    }
 
+    private fun createActor(dispatcher: kotlinx.coroutines.CoroutineDispatcher): SessionActor {
         val spec = mockk<OpponentSpec.Lightweight> {
             every { id } returns "test-spec"
             every { mode } returns GameMode.LIGHTWEIGHT
@@ -79,7 +95,7 @@ class SessionActorIntegrityTest {
             every { streaming } returns StreamingPolicy()
         }
 
-        actor = SessionActor(
+        return SessionActor(
             logger = LoggerFactory.getLogger("TestLogger"),
             sessionId = sessionId,
             opponentSpec = spec,
@@ -92,15 +108,20 @@ class SessionActorIntegrityTest {
             resultsRepository = resultsRepo,
             clock = clock,
             mailboxCapacity = 100,
-            onTerminate = {}
+            onTerminate = {},
+            dispatcher = dispatcher,
         )
     }
 
     @Test
     fun `Adversarial - Human cannot submit answer twice`() = runTest {
+        currentTestScheduler = testScheduler
+        actor = createActor(StandardTestDispatcher(testScheduler))
         joinSession()
+        testScheduler.advanceUntilIdle()
 
         startRound()
+        testScheduler.advanceUntilIdle()
 
         val roundStartedSlot = slot<GameEvent.RoundStarted>()
         coVerify { eventBus.publish(capture(roundStartedSlot)) }
@@ -148,13 +169,12 @@ class SessionActorIntegrityTest {
 
     @Test
     fun `Adversarial - Invalid Nonce Token Rejection`() = runTest {
+        currentTestScheduler = testScheduler
+        actor = createActor(StandardTestDispatcher(testScheduler))
         joinSession()
+        testScheduler.advanceUntilIdle()
         startRound()
-
-        // Wait for actor to process commands on Dispatchers.Default
-        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
-            kotlinx.coroutines.delay(50)
-        }
+        testScheduler.advanceUntilIdle()
 
         val roundStartedSlot = slot<GameEvent.RoundStarted>()
         coVerify { eventBus.publish(capture(roundStartedSlot)) }
@@ -173,11 +193,6 @@ class SessionActorIntegrityTest {
             )
         )
 
-        // Allow the actor's Dispatchers.Default coroutine to process the command
-        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
-            kotlinx.coroutines.delay(50)
-            // TODO: Replace with injected CoroutineDispatcher test dispatcher (also in SessionActor)
-        }
         testScheduler.advanceUntilIdle()
 
         coVerify {
@@ -189,8 +204,12 @@ class SessionActorIntegrityTest {
 
     @Test
     fun `Adversarial - Time Travel (Submission after deadline)`() = runTest {
+        currentTestScheduler = testScheduler
+        actor = createActor(StandardTestDispatcher(testScheduler))
         joinSession()
+        testScheduler.advanceUntilIdle()
         startRound()
+        testScheduler.advanceUntilIdle()
 
         val roundStartedSlot = slot<GameEvent.RoundStarted>()
         coVerify { eventBus.publish(capture(roundStartedSlot)) }
@@ -218,9 +237,10 @@ class SessionActorIntegrityTest {
         }
     }
 
-    private suspend fun joinSession() {
+    private suspend fun TestScope.joinSession() {
         val deferred = CompletableDeferred<JoinResponse>()
         actor.submit(SessionCommand.JoinSession(sessionId, humanId, "Tester", deferred))
+        testScheduler.runCurrent()
         deferred.await()
     }
 
