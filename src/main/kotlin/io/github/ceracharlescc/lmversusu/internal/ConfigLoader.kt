@@ -99,8 +99,13 @@ internal object ConfigLoader {
             reasons
         ).toIntOrNull()
             ?: run {
-                reasons += "- 'serverConfig.bindPort' must be a valid integer."
-                -1
+                val message = buildString {
+                    appendLine("Configuration is invalid:")
+                    appendLine("- 'serverConfig.bindPort' must be a valid integer.")
+                    appendLine()
+                    appendLine("Edit config.toml and restart the application.")
+                }
+                failStartup(message)
             }
         return serverConfig.copy(
             bindHost = bindHost,
