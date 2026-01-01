@@ -3,5 +3,5 @@ ktor:
     modules:
       - io.github.ceracharlescc.lmversusu.internal.ApplicationKt.module
   deployment:
-    host: 0.0.0.0
-    port: "$PORT:8080"
+    host: "$HOST_ADDRESS:0.0.0.0"
+    port: "$HOST_PORT:8080"
