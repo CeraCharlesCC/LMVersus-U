@@ -560,9 +560,9 @@ internal class SessionActor(
         resolvedAt: Instant,
     ) {
         if (sessionResolvedEmitted) return
-        sessionResolvedEmitted = true
 
         val currentSession = session ?: return
+
         val (humanScore, llmScore) = currentSession.calculateTotalScores()
         val roundsPlayed = currentSession.rounds.count { it.result != null }
 
@@ -589,7 +589,10 @@ internal class SessionActor(
                 durationMs = durationMs,
             )
         )
+
+        sessionResolvedEmitted = true
     }
+
 
     private fun scheduleLlmStart(round: Round) {
         val delayMs = round.handicap.toMillis().coerceAtLeast(0L)
