@@ -660,7 +660,7 @@ function setNet(ok) {
 }
 
 function closeWs() {
-    try { state.ws?.close(); } catch {}
+    try { state.ws?.close(); } catch { }
     state.ws = null;
     state.wsOpen = false;
     setNet(false);
@@ -1177,38 +1177,20 @@ function handleServerEvent(msg) {
     if (type === "llm_final_answer") {
         if (msg.roundId !== state.roundId) return;
 
-        if (state.inRound && !state.submitted) {
-            return;
-        }
-
+        // Always store the answer data - we need it for round_resolved display
         state.finalAnswer = msg.finalAnswer || null;
         state.confidenceScore = typeof msg.confidenceScore === "number" ? msg.confidenceScore : null;
         state.reasoningSummary = msg.reasoningSummary || null;
 
-        $("#llmAnswerBox").classList.remove("hidden");
-
-        const conf = state.confidenceScore == null ? "" : `${t("confidence")}: ${(state.confidenceScore * 100).toFixed(0)}%`;
-        $("#lblConfidence").textContent = conf;
-
-        const body = $("#llmAnswerBody");
-        const fa = state.finalAnswer;
-
-        if (!fa) {
-            renderMarkdownMath("_no answer_", body);
-        } else if (fa.type === "multiple_choice") {
-            const idx = fa.choiceIndex;
-            const txt = (Array.isArray(state.choices) && state.choices[idx] != null) ? state.choices[idx] : `choice #${idx}`;
-            renderMarkdownMath(`**${escapeMarkdownInline(txt)}**`, body);
-        } else if (fa.type === "integer") {
-            renderMarkdownMath(`**${fa.value}**`, body);
-        } else if (fa.type === "free_text") {
-            renderMarkdownMath(fa.text || "", body);
-        } else {
-            renderMarkdownMath("_(unknown answer type)_", body);
+        // Defer UI update if the round is still in progress and human hasn't submitted
+        // (anti-cheat: don't spoil the answer before human commits)
+        // When round_resolved arrives, it will use state.finalAnswer for display
+        if (state.inRound && !state.submitted) {
+            return;
         }
 
-        state.ui.reasoningPinnedToTop = false;
-        scrollLlmPanelToBottom();
+        // Display the answer box
+        showLlmAnswerBox();
         return;
     }
 
@@ -1235,6 +1217,12 @@ function handleServerEvent(msg) {
 
         showBottomState("post");
         $("#btnNext").disabled = false;
+
+        // Show the LLM answer box if we have a stored answer that wasn't displayed yet
+        // (this handles the Human Timeout case where llm_final_answer was deferred)
+        if (state.finalAnswer) {
+            showLlmAnswerBox();
+        }
 
         // highlight correct choice if multiple-choice
         if (msg.correctAnswer?.type === "multiple_choice" && Array.isArray(state.choices)) {
@@ -1284,6 +1272,34 @@ function handleServerEvent(msg) {
             return;
         }
     }
+}
+
+/** Helper to display the LLM answer box (extracted for reuse) */
+function showLlmAnswerBox() {
+    $("#llmAnswerBox").classList.remove("hidden");
+
+    const conf = state.confidenceScore == null ? "" : `${t("confidence")}: ${(state.confidenceScore * 100).toFixed(0)}%`;
+    $("#lblConfidence").textContent = conf;
+
+    const body = $("#llmAnswerBody");
+    const fa = state.finalAnswer;
+
+    if (!fa) {
+        renderMarkdownMath("_no answer_", body);
+    } else if (fa.type === "multiple_choice") {
+        const idx = fa.choiceIndex;
+        const txt = (Array.isArray(state.choices) && state.choices[idx] != null) ? state.choices[idx] : `choice #${idx}`;
+        renderMarkdownMath(`**${escapeMarkdownInline(txt)}**`, body);
+    } else if (fa.type === "integer") {
+        renderMarkdownMath(`**${fa.value}**`, body);
+    } else if (fa.type === "free_text") {
+        renderMarkdownMath(fa.text || "", body);
+    } else {
+        renderMarkdownMath("_(unknown answer type)_", body);
+    }
+
+    state.ui.reasoningPinnedToTop = false;
+    scrollLlmPanelToBottom();
 }
 
 function escapeMarkdownInline(s) {

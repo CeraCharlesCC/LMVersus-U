@@ -59,6 +59,7 @@ internal class SessionActor(
 
         var pendingFinalAnswer: LlmAnswer? = null,
         var finalAnswerPublished: Boolean = false,
+        var reasoningRevealPublished: Boolean = false,
     )
 
     private val roundStreamStates = ConcurrentHashMap<Uuid, RoundStreamState>()
@@ -440,6 +441,9 @@ internal class SessionActor(
         )
         session = updatedSession
 
+        // Emit LLM artifacts before RoundResolved
+        emitArtifactsAtRoundEnd(roundId, updatedRound)
+
         gameEventBus.publish(
             GameEvent.RoundResolved(
                 sessionId = sessionId,
@@ -454,28 +458,8 @@ internal class SessionActor(
             )
         )
 
-        // Emit full reasoning reveal at round completion
-        val streamState = roundStreamStates.remove(roundId)
-        if (streamState != null) {
-            // Full reasoning = emitted reasoning + withheld reasoning
-            val fullReasoning = buildString {
-                append(streamState.fullReasoningBuilder.toString())
-                // Add withheld reasoning from orchestrator if available
-                streamState.getWithheldReasoning?.invoke()?.let { withheld ->
-                    if (withheld.isNotEmpty()) append(withheld)
-                }
-            }
-            if (fullReasoning.isNotEmpty()) {
-                logger.debug("Reasoning reveal for session {}, round {}: {}", sessionId, roundId, fullReasoning)
-                gameEventBus.publish(
-                    GameEvent.LlmReasoningReveal(
-                        sessionId = sessionId,
-                        roundId = roundId,
-                        fullReasoning = fullReasoning,
-                    )
-                )
-            }
-        }
+        // Clean up stream state after artifacts are emitted
+        roundStreamStates.remove(roundId)
 
         if (updatedSession.isCompleted) {
             val (humanScore, llmScore) = updatedSession.calculateTotalScores()
@@ -702,8 +686,8 @@ internal class SessionActor(
         // Cancel deadline job now that round is finalized
         roundDeadlineJobs.remove(roundId)?.cancel()
 
-        // Publish final answer if LLM had one pending
-        publishFinalAnswerAtRoundEnd(roundId)
+        // Emit LLM artifacts before RoundResolved
+        emitArtifactsAtRoundEnd(roundId, finalizedRound)
 
         gameEventBus.publish(
             GameEvent.RoundResolved(
@@ -719,7 +703,8 @@ internal class SessionActor(
             )
         )
 
-        emitReasoningRevealAtRoundEnd(roundId)
+        // Clean up stream state after artifacts are emitted
+        roundStreamStates.remove(roundId)
 
         if (updatedSession.isCompleted) {
             val (humanScoreTotal, llmScoreTotal) = updatedSession.calculateTotalScores()
@@ -754,44 +739,60 @@ internal class SessionActor(
     }
 
     /**
-     * Publish the LLM's final answer at round end (for timeout resolution).
+     * Emits LLM artifacts (FinalAnswer and ReasoningReveal) at round end.
+     * This is the single, idempotent routine responsible for ensuring artifacts are delivered.
+     *
+     * Fallback sources:
+     * - FinalAnswer: pendingFinalAnswer ?? reconstruct from round.llmSubmission.answer
+     * - ReasoningReveal: fullReasoning ?? reasoningSummary from pendingFinalAnswer
      */
-    private suspend fun publishFinalAnswerAtRoundEnd(roundId: Uuid) {
-        val streamState = roundStreamStates[roundId] ?: return
-        val pending = streamState.pendingFinalAnswer ?: return
-        if (streamState.finalAnswerPublished) return
+    private suspend fun emitArtifactsAtRoundEnd(roundId: Uuid, round: Round) {
+        // Get stream state for idempotency tracking (may be null if LLM never started)
+        val streamState = roundStreamStates[roundId]
 
-        streamState.finalAnswerPublished = true
-        gameEventBus.publish(
-            GameEvent.LlmFinalAnswer(
-                sessionId = sessionId,
-                roundId = roundId,
-                answer = pending,
-            )
-        )
-    }
+        // === Emit FinalAnswer ===
+        if (streamState?.finalAnswerPublished != true) {
+            val answer: LlmAnswer? = streamState?.pendingFinalAnswer
+                ?: round.llmSubmission?.let {
+                    LlmAnswer(finalAnswer = it.answer, reasoningSummary = null, confidenceScore = null)
+                }
 
-    /**
-     * Emit reasoning reveal at round end (for timeout resolution).
-     */
-    private suspend fun emitReasoningRevealAtRoundEnd(roundId: Uuid) {
-        val streamState = roundStreamStates.remove(roundId) ?: return
-
-        val withheld = runCatching { streamState.getWithheldReasoning?.invoke().orEmpty() }.getOrDefault("")
-        val fullReasoning = buildString {
-            append(streamState.fullReasoningBuilder.toString())
-            if (withheld.isNotEmpty()) append(withheld)
+            if (answer != null) {
+                streamState?.let { it.finalAnswerPublished = true }
+                gameEventBus.publish(
+                    GameEvent.LlmFinalAnswer(
+                        sessionId = sessionId,
+                        roundId = roundId,
+                        answer = answer,
+                    )
+                )
+            }
         }
 
-        if (fullReasoning.isNotEmpty()) {
-            logger.debug("Reasoning reveal for session {}, round {}: {}", sessionId, roundId, fullReasoning)
-            gameEventBus.publish(
-                GameEvent.LlmReasoningReveal(
-                    sessionId = sessionId,
-                    roundId = roundId,
-                    fullReasoning = fullReasoning,
+        // === Emit ReasoningReveal ===
+        if (streamState?.reasoningRevealPublished != true) {
+            val fullReasoning = buildString {
+                streamState?.fullReasoningBuilder?.let { append(it.toString()) }
+                runCatching { streamState?.getWithheldReasoning?.invoke().orEmpty() }
+                    .getOrDefault("").let { if (it.isNotEmpty()) append(it) }
+            }
+
+            // Fallback to reasoningSummary if no streamed reasoning
+            val revealText = fullReasoning.ifEmpty {
+                streamState?.pendingFinalAnswer?.reasoningSummary.orEmpty()
+            }
+
+            if (revealText.isNotEmpty()) {
+                streamState?.let { it.reasoningRevealPublished = true }
+                logger.debug("Reasoning reveal for session {}, round {}: {}", sessionId, roundId, revealText)
+                gameEventBus.publish(
+                    GameEvent.LlmReasoningReveal(
+                        sessionId = sessionId,
+                        roundId = roundId,
+                        fullReasoning = revealText,
+                    )
                 )
-            )
+            }
         }
     }
 
