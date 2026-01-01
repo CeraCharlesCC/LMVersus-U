@@ -258,6 +258,10 @@ private suspend fun io.ktor.websocket.WebSocketSession.sendFrame(
     outgoing.send(Frame.Text(payload))
 }
 
+/**
+ * A simple, non-thread-safe rate limiter for a single connection.
+ * It relies on being called from a single thread, like Ktor's WebSocket `incoming` loop.
+ */
 private class ConnectionRateLimiter(
     private val windowMillis: Long,
     private val maxMessages: Int,
