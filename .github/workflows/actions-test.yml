@@ -49,7 +49,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ./gradlew --no-daemon clean test build --stacktrace --info
+          bash ./gradlew --no-daemon clean test build --stacktrace --info
 
       - name: Upload test reports
         if: always()
