@@ -16,7 +16,6 @@ import io.ktor.server.response.respondText
 import io.ktor.utils.io.CancellationException
 import kotlinx.serialization.Serializable
 import org.slf4j.Logger
-import javax.naming.AuthenticationException
 import kotlin.uuid.Uuid
 
 @Serializable
@@ -88,11 +87,6 @@ internal fun Application.configureRouting(logger: Logger) {
                 HttpStatusCode.BadRequest,
                 ErrorBody(error = "bad_request", message = "invalid request")
             )
-        }
-
-        // 401: authentication failure
-        exception<AuthenticationException> { call, _ ->
-            call.respond(HttpStatusCode.Unauthorized, ErrorBody(error = "unauthorized"))
         }
 
         // Catch-all 500
