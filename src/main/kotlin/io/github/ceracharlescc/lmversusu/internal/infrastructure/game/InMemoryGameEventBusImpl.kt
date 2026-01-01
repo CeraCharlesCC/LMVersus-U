@@ -7,7 +7,6 @@ import com.github.benmanes.caffeine.cache.Caffeine
 import io.github.ceracharlescc.lmversusu.internal.application.port.GameEventBus
 import io.github.ceracharlescc.lmversusu.internal.application.port.GameEventListener
 import io.github.ceracharlescc.lmversusu.internal.domain.entity.GameEvent
-import kotlinx.coroutines.runBlocking
 import org.slf4j.Logger
 import java.time.Duration
 import java.util.concurrent.ConcurrentHashMap
