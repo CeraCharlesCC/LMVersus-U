@@ -176,6 +176,7 @@ class SessionActorIntegrityTest {
         // Allow the actor's Dispatchers.Default coroutine to process the command
         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
             kotlinx.coroutines.delay(50)
+            // TODO: Replace with injected CoroutineDispatcher test dispatcher (also in SessionActor)
         }
         testScheduler.advanceUntilIdle()
 
