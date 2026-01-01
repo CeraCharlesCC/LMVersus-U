@@ -1,0 +1,177 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      releaseTag:
+        description: "Release tag (e.g., v1.2.3)"
+        required: true
+        type: string
+      targetCommitId:
+        description: "Target commit SHA to release"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+concurrency:
+  group: release-${{ inputs.releaseTag }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout (full history + tags)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${{ inputs.releaseTag }}"
+          if ! [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+.*$ ]]; then
+            echo "releaseTag must look like vX.Y.Z (example: v1.2.3)" >&2
+            exit 1
+          fi
+          git cat-file -e "${{ inputs.targetCommitId }}^{commit}"
+
+      - name: Checkout target commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git checkout --force "${{ inputs.targetCommitId }}"
+          git status --porcelain
+
+      - name: Set up Java 21 (Gradle cache)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Build fat jar
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew --no-daemon clean test buildFatJar
+
+      - name: Locate jar artifact
+        id: jar
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Ktor plugin commonly emits *-all.jar for fat jars; fall back to any jar.
+          JAR="$(ls -1 build/libs/*all.jar 2>/dev/null | head -n 1 || true)"
+          if [ -z "$JAR" ]; then
+            JAR="$(ls -1 build/libs/*.jar | head -n 1)"
+          fi
+          if [ -z "$JAR" ]; then
+            echo "No jar found in build/libs" >&2
+            ls -la build/libs >&2 || true
+            exit 1
+          fi
+          echo "jar_path=$JAR" >> "$GITHUB_OUTPUT"
+          echo "jar_name=$(basename "$JAR")" >> "$GITHUB_OUTPUT"
+
+      - name: Compute checksums
+        id: sums
+        shell: bash
+        run: |
+          set -euo pipefail
+          JAR="${{ steps.jar.outputs.jar_path }}"
+          sha256sum "$JAR" | tee "${{ steps.jar.outputs.jar_name }}.sha256"
+          echo "sha_file=${{ steps.jar.outputs.jar_name }}.sha256" >> "$GITHUB_OUTPUT"
+
+      - name: Attest build provenance (GitHub Artifact Attestations)
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-path: ${{ steps.jar.outputs.jar_path }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install changelog generator dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install "openai>=1.0.0,<2"
+
+      - name: Generate CHANGELOG.md via LLM
+        env:
+          # Inputs
+          NEW_TAG: ${{ inputs.releaseTag }}
+          TARGET_COMMIT: ${{ inputs.targetCommitId }}
+
+          # LLM config (recommended as repo secrets; base URL optional)
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+          LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
+          LLM_MODEL: ${{ secrets.LLM_MODEL }}
+          LLM_TEMPERATURE: ${{ secrets.LLM_TEMPERATURE }}
+          LLM_MAX_TOKENS: ${{ secrets.LLM_MAX_TOKENS }}
+
+          # Files
+          INSTRUCT_PATH: .github/workflows/script/changelog_instruct.txt
+          CHANGELOG_PATH: CHANGELOG.md
+        shell: bash
+        run: |
+          set -euo pipefail
+          python .github/workflows/script/generate_changelog.py --new-tag "$NEW_TAG"
+
+      - name: Extract release notes for this tag
+        id: notes
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${{ inputs.releaseTag }}"
+
+          # Extract the section starting at "## [TAG]" up to (but not including) the next "## ["
+          awk -v tag="$TAG" '
+            BEGIN {p=0}
+            $0 ~ "^## \\[" tag "\\]" {p=1}
+            p==1 {print}
+            p==1 && NR>1 && $0 ~ "^## \\[" && $0 !~ "^## \\[" tag "\\]" {exit}
+          ' CHANGELOG.md > release_notes.md || true
+
+          # If the last line is the next header, drop it.
+          tail_line="$(tail -n 1 release_notes.md 2>/dev/null || true)"
+          if [[ "$tail_line" =~ ^##\ \[ && ! "$tail_line" =~ ^##\ \[$TAG\] ]]; then
+            head -n -1 release_notes.md > release_notes.tmp && mv release_notes.tmp release_notes.md
+          fi
+
+          if [ ! -s release_notes.md ]; then
+            printf "## [%s]\n\n_No release notes were generated._\n" "$TAG" > release_notes.md
+          fi
+
+          echo "notes_path=release_notes.md" >> "$GITHUB_OUTPUT"
+
+      - name: Create or update GitHub Release + upload assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${{ inputs.releaseTag }}"
+          TARGET="${{ inputs.targetCommitId }}"
+          NOTES="${{ steps.notes.outputs.notes_path }}"
+          JAR="${{ steps.jar.outputs.jar_path }}"
+          SHA="${{ steps.sums.outputs.sha_file }}"
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release edit "$TAG" --notes-file "$NOTES"
+          else
+            # Creates tag if missing; points it at --target
+            gh release create "$TAG" --target "$TARGET" --title "$TAG" --notes-file "$NOTES"
+          fi
+
+          gh release upload "$TAG" "$JAR" "$SHA" --clobber
