@@ -107,9 +107,7 @@
                 </div>
             </div>
 
-            <div class="modal-footer">
-
-            </div>
+            <div class="modal-footer"></div>
         </section>
     </main>
 
@@ -118,14 +116,14 @@
         <section class="arena">
             <div class="topbar">
                 <div class="matchup">
-                    <div class="chip">
+                    <div id="humanChip" class="chip">
                         <div class="chip-title" id="humanName"></div>
                         <div class="chip-sub" id="humanSub"></div>
                     </div>
 
                     <div class="vs">VS</div>
 
-                    <div class="chip">
+                    <div id="llmChip" class="chip">
                         <div class="chip-title" id="llmName"></div>
                         <div class="chip-sub">
                             <span id="llmStatus" class="status-pill"></span>
@@ -207,38 +205,46 @@
                     <div class="panel-meta" id="aMeta"></div>
                 </div>
 
-                <div class="panel-body">
-                    <div id="preRound" class="pre-round">
-                        <button id="btnStartRound" class="btn primary" type="button"></button>
-                        <div class="muted small" id="preRoundHint"></div>
+                <div class="panel-body bottom-body">
+                    <!-- Pre-round -->
+                    <div id="preRound" class="bottom-state">
+                        <div class="bottom-action">
+                            <button id="btnStartRound" class="btn primary action-btn" type="button"></button>
+                        </div>
+                        <div class="bottom-content">
+                            <div class="muted small" id="preRoundHint"></div>
+                        </div>
                     </div>
 
-                    <div id="answerForm" class="answer-form hidden">
-                        <div id="freeAnswerType" class="seg hidden" role="tablist" aria-label="answer type">
-                            <button id="segText" class="seg-btn is-active" type="button"></button>
-                            <button id="segInt" class="seg-btn" type="button"></button>
+                    <!-- In-round -->
+                    <div id="answerForm" class="bottom-state hidden">
+                        <div class="bottom-action">
+                            <button id="btnSubmit" class="btn primary action-btn" type="button"></button>
                         </div>
 
-                        <div id="freeTextWrap" class="hidden">
-                            <textarea id="freeText" class="textarea" rows="3"></textarea>
-                        </div>
+                        <div class="bottom-content">
+                            <div id="freeAnswerType" class="seg hidden" role="tablist" aria-label="answer type">
+                                <button id="segText" class="seg-btn is-active" type="button"></button>
+                                <button id="segInt" class="seg-btn" type="button"></button>
+                            </div>
 
-                        <div id="intWrap" class="hidden">
-                            <input id="intValue" class="input" inputmode="numeric" />
-                        </div>
+                            <div id="freeTextWrap" class="hidden">
+                                <textarea id="freeText" class="textarea" rows="3"></textarea>
+                            </div>
 
-                        <div class="row between answer-actions">
-                            <div class="row answer-submit">
-                                <button id="btnSubmit" class="btn primary" type="button"></button>
+                            <div id="intWrap" class="hidden">
+                                <input id="intValue" class="input" inputmode="numeric" />
                             </div>
                         </div>
                     </div>
 
-                    <div id="postRound" class="post-round hidden">
-                        <div id="resultBanner" class="result-banner"></div>
-                        <div id="resultDetails" class="result-details"></div>
-                        <div class="actions">
-                            <button id="btnNext" class="btn primary" type="button"></button>
+                    <!-- Post-round -->
+                    <div id="postRound" class="bottom-state hidden">
+                        <div class="bottom-action">
+                            <button id="btnNext" class="btn primary action-btn" type="button"></button>
+                        </div>
+                        <div class="bottom-content">
+                            <div id="resultDetails" class="result-details"></div>
                         </div>
                     </div>
                 </div>

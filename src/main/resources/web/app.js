@@ -286,7 +286,6 @@ async function readErrorBody(res) {
     try {
         if (ct.includes("application/json")) {
             const j = await res.json();
-            // new backend ErrorBody: { error, message, details?, errorId? }
             const msgParts = [];
             if (j?.message) msgParts.push(String(j.message));
             else if (j?.error) msgParts.push(String(j.error));
@@ -308,7 +307,6 @@ function retryAfterSecondsFromHeaders(res) {
     const ra = Number(res.headers.get("Retry-After"));
     if (Number.isFinite(ra) && ra > 0) return ra;
 
-    // Backend also returns reset in milliseconds.
     const resetMs = Number(res.headers.get("X-RateLimit-Reset"));
     if (Number.isFinite(resetMs) && resetMs > 0) return Math.ceil(resetMs / 1000);
 
@@ -396,12 +394,65 @@ const state = {
     },
 };
 
+/** ---- Small UI helpers ---- */
+function showBottomState(which /* "pre" | "answer" | "post" */) {
+    $("#preRound")?.classList.toggle("hidden", which !== "pre");
+    $("#answerForm")?.classList.toggle("hidden", which !== "answer");
+    $("#postRound")?.classList.toggle("hidden", which !== "post");
+}
+
+function clearOutcomeGlows() {
+    const remove = (el) => el?.classList.remove("glow-win", "glow-lose", "glow-tie");
+    remove($("#bottomPanel"));
+    remove($("#humanChip"));
+    remove($("#llmChip"));
+    remove($("#llmPanel"));
+    remove($("#llmStatus"));
+}
+
+function applyOutcomeGlows(winner) {
+    clearOutcomeGlows();
+
+    const bottom = $("#bottomPanel");
+    const humanChip = $("#humanChip");
+    const llmChip = $("#llmChip");
+    const llmPanel = $("#llmPanel");
+    const llmStatus = $("#llmStatus");
+
+    if (winner === "HUMAN") {
+        bottom?.classList.add("glow-win");
+        humanChip?.classList.add("glow-win");
+
+        llmPanel?.classList.add("glow-lose");
+        llmChip?.classList.add("glow-lose");
+        llmStatus?.classList.add("glow-lose");
+        return;
+    }
+
+    if (winner === "LLM") {
+        bottom?.classList.add("glow-lose");
+        humanChip?.classList.add("glow-lose");
+
+        llmPanel?.classList.add("glow-win");
+        llmChip?.classList.add("glow-win");
+        llmStatus?.classList.add("glow-win");
+        return;
+    }
+
+    if (winner === "TIE") {
+        bottom?.classList.add("glow-tie");
+        humanChip?.classList.add("glow-tie");
+
+        llmPanel?.classList.add("glow-tie");
+        llmChip?.classList.add("glow-tie");
+        llmStatus?.classList.add("glow-tie");
+    }
+}
+
 /** ---- UI wiring (static labels) ---- */
 function initStaticText() {
-    // header
     $("#btnExit").textContent = t("exit");
 
-    // tabs
     document.querySelectorAll(".tab-btn").forEach((btn) => {
         const tab = btn.dataset.tab;
         if (tab === "LIGHTWEIGHT") btn.textContent = t("lightweight");
@@ -430,9 +481,6 @@ function initStaticText() {
     $("#thOpponent").textContent = t("thOpponent");
     $("#thMode").textContent = t("thMode");
 
-    // enforce nickname length at the UI layer too
-
-    // game
     $("#lblDeadline").textContent = t("deadline");
     $("#lblHandicap").textContent = t("handicap");
 
@@ -452,7 +500,6 @@ function initStaticText() {
     $("#btnTopQuestion").textContent = t("question");
     $("#btnTopReasoning").textContent = t("reasoning");
 
-    // match end popup
     $("#lblEndRounds").textContent = t("matchEndRounds");
     $("#lblEndDuration").textContent = t("matchEndDuration");
     $("#btnEndLobby").textContent = t("backToLobby");
@@ -528,6 +575,15 @@ async function loadModels() {
     populateOpponentSelects();
 }
 
+function fmtPoints(x) {
+    const n = Number(x);
+    if (!Number.isFinite(n)) return "0";
+    return n
+        .toFixed(2)
+        .replace(/\.00$/, "")
+        .replace(/(\.\d)0$/, "$1");
+}
+
 function lbRow(entry) {
     const tr = document.createElement("tr");
     const cells = [
@@ -574,16 +630,6 @@ function closeWs() {
     setNet(false);
 }
 
-function fmtPoints(x) {
-    const n = Number(x);
-    if (!Number.isFinite(n)) return "0";
-    // 12.30 -> "12.3", 12.00 -> "12"
-    return n
-        .toFixed(2)
-        .replace(/\.00$/, "")
-        .replace(/(\.\d)0$/, "$1");
-}
-
 function isMatchEndVisible() {
     return !!state.ui.matchEndVisible;
 }
@@ -593,7 +639,6 @@ function matchEndSubtitle(reason) {
     if (r === "completed") return t("matchEndSubCompleted");
     if (r === "timeout") return t("matchEndSubTimeout");
     if (r === "max_lifespan") return t("matchEndSubMax");
-    // includes "cancelled" and any future reasons
     return t("matchEndSubCancelled");
 }
 
@@ -636,7 +681,6 @@ function showMatchEndModal(payload) {
     overlay.setAttribute("aria-hidden", "false");
     state.ui.matchEndVisible = true;
 
-    // focus primary action for keyboard users
     requestAnimationFrame(() => $("#btnEndLobby")?.focus());
 }
 
@@ -731,6 +775,8 @@ function resetRoundUi() {
     const sc = getLlmScrollEl();
     if (sc) sc.scrollTop = 0;
 
+    clearOutcomeGlows();
+
     $("#omitHint").classList.add("hidden");
     $("#llmStreamError").classList.add("hidden");
     $("#llmAnswerBox").classList.add("hidden");
@@ -743,22 +789,25 @@ function resetRoundUi() {
     $("#qSep")?.classList.add("hidden");
     $("#choicesHost").innerHTML = "";
 
-    $("#preRound").classList.remove("hidden");
-    $("#answerForm").classList.add("hidden");
-    $("#postRound").classList.add("hidden");
+    showBottomState("pre");
 
     $("#aMeta").textContent = "";
     $("#qMeta").textContent = "";
 
+    // Re-enable buttons in case a previous session disabled them
+    $("#btnSubmit").disabled = false;
+    $("#btnStartRound").disabled = false;
+    $("#btnNext").disabled = false;
+
     updateLlmStatusPill();
     stopTimers();
     updateTimers(0);
-    // keep match-end overlay as-is (it is controlled separately)
 }
 
 function updateMatchupUi() {
     $("#humanName").textContent = state.nickname || t("yourId");
-    $("#humanSub").textContent = state.playerId ? state.playerId.slice(0, 8) : "";
+    // UX: don’t show internal IDs in the game header
+    $("#humanSub").textContent = "";
 
     $("#llmName").textContent = state.opponentDisplayName || "LLM";
     updateLlmStatusPill();
@@ -786,14 +835,12 @@ function stopTimers() {
 }
 
 function updateTimers(now = Date.now()) {
-    // Deadline
     const total = Math.max(1, state.deadlineAt - state.releasedAt);
     const left = Math.max(0, state.deadlineAt - now);
     $("#deadlineLeft").textContent = state.inRound ? fmtMs(left) : "--:--";
     const pct = state.inRound ? Math.max(0, Math.min(1, left / total)) : 0;
     $("#deadlineBar").style.width = `${pct * 100}%`;
 
-    // Handicap
     const hsTotal = Math.max(1, state.handicapMs);
     const hsLeft = Math.max(0, (state.releasedAt + state.handicapMs) - now);
     $("#handicapLeft").textContent = state.inRound ? `${Math.ceil(hsLeft / 100) / 10}s` : "--";
@@ -804,7 +851,6 @@ function updateTimers(now = Date.now()) {
 function enforceDeadline() {
     if (!state.inRound) return;
     if (Date.now() <= state.deadlineAt) return;
-    // lock UI
     $("#btnSubmit").disabled = true;
     $("#aMeta").textContent = t("timeUp");
 }
@@ -821,7 +867,6 @@ function setTopMobileTab(which) {
 function renderQuestion() {
     renderMarkdownMath(state.questionPrompt || "", $("#questionBody"));
 
-    // meta
     const rn = state.roundNumber ? `#${state.roundNumber}` : "";
     $("#qMeta").textContent = [rn, state.questionId || ""].filter(Boolean).join("  ");
 
@@ -859,16 +904,15 @@ function renderQuestion() {
         $("#freeAnswerType").classList.add("hidden");
         $("#freeTextWrap").classList.add("hidden");
         $("#intWrap").classList.add("hidden");
-        $("#answerForm").classList.remove("hidden");
-        $("#preRound").classList.add("hidden");
+
+        showBottomState("answer");
         $("#btnSubmit").disabled = false;
         $("#aMeta").textContent = "";
         updateChoiceSelection();
     } else {
         // free response
         $("#choicesHost").innerHTML = "";
-        $("#answerForm").classList.remove("hidden");
-        $("#preRound").classList.add("hidden");
+        showBottomState("answer");
         $("#btnSubmit").disabled = false;
         $("#aMeta").textContent = "";
 
@@ -905,12 +949,11 @@ function maybeShowHiddenSquares() {
     if (!state.reasoningEnded) return;
     if (state.reasoningSquaresShown) return;
 
-    // “ReasoningEndedEventがあったのち, Reasoningが来るのが止まったら … ■■■”
     setTimeout(() => {
         if (!state.reasoningEnded || state.reasoningSquaresShown) return;
 
         const since = Date.now() - (state.lastReasoningAt || 0);
-        if (since < 700) return; // still "moving"
+        if (since < 700) return;
 
         state.reasoningSquaresShown = true;
         const blocks = "■".repeat(64);
@@ -939,6 +982,30 @@ function formatAnswerDisplay(ans, choicesMaybe) {
     return t("noAnswer");
 }
 
+/** ---- Result strings ---- */
+function fmtScore(x) {
+    if (x == null) return "-";
+    const n = Number(x);
+    if (!Number.isFinite(n)) return "-";
+    return fmtPoints(n);
+}
+
+function roundResolveLine(reason) {
+    const r = String(reason || "");
+    if (r === "TIMEOVER_HUMAN") return t("resolveTimeUpYou");
+    if (r === "TIMEOVER_LLM") return t("resolveTimeUpOpp");
+    if (r === "TIMEOVER_BOTH") return t("resolveTimeUpBoth");
+    return "";
+}
+
+function sessionEndLine(reason) {
+    const r = String(reason || "");
+    if (r === "idle_timeout") return t("sessionEndIdle");
+    if (r === "max_lifespan") return t("sessionEndMax");
+    if (r === "completed") return t("sessionEndCompleted");
+    return t("sessionEndGeneric");
+}
+
 /** ---- Server event handler ---- */
 function handleServerEvent(msg) {
     const type = msg.type;
@@ -956,14 +1023,12 @@ function handleServerEvent(msg) {
     }
 
     if (type === "session_resolved") {
-        // Stop interaction immediately and show a friendly end-of-match popup.
         state.inRound = false;
         stopTimers();
         $("#btnSubmit").disabled = true;
         $("#btnStartRound").disabled = true;
         $("#btnNext").disabled = true;
 
-        // Don't reveal internal reason details; we map to friendly text.
         showMatchEndModal({
             sessionId: msg.sessionId,
             state: msg.state,
@@ -980,24 +1045,19 @@ function handleServerEvent(msg) {
 
     if (type === "session_joined") {
         state.sessionId = msg.sessionId;
-        // server echoes playerId; it should match cookie-backed identity
-        // keep our state.playerId as the canonical cookie session identity
         location.hash = `session=${encodeURIComponent(state.sessionId)}`;
 
         showGame();
         resetRoundUi();
         updateMatchupUi();
-
         return;
     }
 
     if (type === "player_joined") {
-        // which is human?
         if (msg.playerId === state.playerId) {
             state.players.human = { playerId: msg.playerId, nickname: msg.nickname };
         } else {
             state.players.llm = { playerId: msg.playerId, nickname: msg.nickname };
-            // llm nickname may exist; displayName is from models list; prefer displayName
         }
         updateMatchupUi();
         return;
@@ -1020,21 +1080,18 @@ function handleServerEvent(msg) {
         state.nonceToken = msg.nonceToken;
 
         state.llmStatus = "IDLE";
-        updateLlmStatusPill();
+        updateMatchupUi();
 
         renderQuestion();
         startTimers();
         updateTimers(Date.now());
-        // In case of clock skew, immediately lock if already past deadline
         enforceDeadline();
-
         return;
     }
 
     if (type === "llm_reasoning_delta") {
         if (msg.roundId !== state.roundId) return;
 
-        // guard ordering
         if (typeof msg.seq === "number" && msg.seq <= state.reasoningSeq) return;
         state.reasoningSeq = msg.seq ?? state.reasoningSeq;
 
@@ -1073,12 +1130,9 @@ function handleServerEvent(msg) {
         return;
     }
 
-
     if (type === "llm_final_answer") {
         if (msg.roundId !== state.roundId) return;
 
-        // Server should already gate this until you submit (or round ends),
-        // but keep a client-side safety net so the UI stays “game-like”.
         if (state.inRound && !state.submitted) {
             return;
         }
@@ -1111,7 +1165,6 @@ function handleServerEvent(msg) {
 
         state.ui.reasoningPinnedToTop = false;
         scrollLlmPanelToBottom();
-
         return;
     }
 
@@ -1129,32 +1182,14 @@ function handleServerEvent(msg) {
 
         state.roundResolveReason = msg.reason || null;
 
-        // stop accepting submit
         state.inRound = false;
         stopTimers();
         $("#btnSubmit").disabled = true;
 
-        // show result
-        $("#answerForm").classList.add("hidden");
-        $("#preRound").classList.add("hidden");
-        $("#postRound").classList.remove("hidden");
+        applyOutcomeGlows(msg.winner);
 
-        const winner = msg.winner;
-        const banner = $("#resultBanner");
-
-        banner.classList.remove("win", "lose", "tie");
-        if (winner === "HUMAN") {
-            banner.classList.add("win");
-            banner.textContent = t("winnerHuman");
-        } else if (winner === "LLM") {
-            banner.classList.add("lose");
-            banner.textContent = t("winnerLLM");
-        } else if (winner === "TIE") {
-            banner.classList.add("tie");
-            banner.textContent = t("winnerTie");
-        } else {
-            banner.textContent = t("winnerNone");
-        }
+        showBottomState("post");
+        $("#btnNext").disabled = false;
 
         // highlight correct choice if multiple-choice
         if (msg.correctAnswer?.type === "multiple_choice" && Array.isArray(state.choices)) {
@@ -1162,7 +1197,6 @@ function handleServerEvent(msg) {
             document.querySelectorAll(".choice-btn").forEach((b) => {
                 const idx = Number(b.dataset.index);
                 if (idx === correct) b.classList.add("is-correct");
-                // show wrong if human selected
                 if (state.humanAnswer?.type === "multiple_choice" && idx === state.humanAnswer.choiceIndex && idx !== correct) {
                     b.classList.add("is-wrong");
                 }
@@ -1182,8 +1216,6 @@ function handleServerEvent(msg) {
         lines.push(`${t("oppAnswerLabel")}: ${state.finalAnswer ? formatAnswerDisplay(state.finalAnswer, state.choices) : (msg.reason === "TIMEOVER_LLM" ? t("noAnswer") : t("oppPending"))}`);
 
         $("#resultDetails").textContent = lines.join("\n");
-
-        // After resolution, keep peek available until reveal arrives (or user clicks)
         return;
     }
 
@@ -1191,15 +1223,11 @@ function handleServerEvent(msg) {
         if (msg.roundId !== state.roundId) return;
         state.reasoningBuf = msg.fullReasoning || "";
         scheduleReasoningRender();
-
-        // reveal replaces in-round buffer, so remove mask
         $("#reasoningWrap").classList.remove("masked");
         return;
     }
 
     if (type === "session_terminated") {
-        // Match/server now uses multiple termination reasons; keep it friendly.
-        // If a match-end popup is already visible, keep the user on it and just close the socket quietly.
         if (isMatchEndVisible()) {
             closeWs();
             return;
@@ -1215,16 +1243,7 @@ function handleServerEvent(msg) {
 }
 
 function escapeMarkdownInline(s) {
-    // minimal escape for markdown inline
     return String(s ?? "").replaceAll("*", "\\*").replaceAll("_", "\\_").replaceAll("`", "\\`");
-}
-
-function formatAnswerInline(ans) {
-    if (!ans) return "(none)";
-    if (ans.type === "multiple_choice") return `MC(${ans.choiceIndex})`;
-    if (ans.type === "integer") return `INT(${ans.value})`;
-    if (ans.type === "free_text") return `TEXT(${(ans.text || "").slice(0, 24)}${(ans.text || "").length > 24 ? "…" : ""})`;
-    return "(unknown)";
 }
 
 /** ---- Actions ---- */
@@ -1241,7 +1260,6 @@ function startMatch(mode) {
         toast(t("toastError"), t("nicknameTooLong"), "error");
         return;
     }
-    // quick safety: block control characters client-side (server will enforce too)
     for (const ch of nickname) {
         if (/[\u0000-\u001F\u007F]/.test(ch)) {
             toast(t("toastError"), t("nicknameInvalidChars"), "error");
@@ -1278,7 +1296,7 @@ function startRound() {
     wsSend({
         type: "start_round_request",
         sessionId: state.sessionId,
-        playerId: state.playerId, // server validates with cookie identity
+        playerId: state.playerId,
     });
 }
 
@@ -1335,14 +1353,12 @@ function submitAnswer() {
 }
 
 function goNext() {
-    // server decides if more rounds exist; we just request
     resetRoundUi();
     startRound();
 }
 
 /** ---- Init ---- */
 function bindUi() {
-    // lobby tab switching
     document.querySelectorAll(".tab-btn").forEach((btn) => {
         btn.addEventListener("click", () => setLobbyTab(btn.dataset.tab));
     });
@@ -1352,7 +1368,6 @@ function bindUi() {
 
     $("#btnRefreshLb").addEventListener("click", () => refreshLeaderboard().catch(showNetError));
 
-    // exit
     $("#btnExit").addEventListener("click", () => {
         hideMatchEndModal();
         closeWs();
@@ -1360,7 +1375,6 @@ function bindUi() {
         resetRoundUi();
     });
 
-    // match end popup actions
     $("#btnEndLobby").addEventListener("click", () => {
         hideMatchEndModal();
         closeWs();
@@ -1375,29 +1389,23 @@ function bindUi() {
         resetRoundUi();
     });
 
-    // game actions
     $("#btnStartRound").addEventListener("click", startRound);
     $("#btnSubmit").addEventListener("click", submitAnswer);
     $("#btnNext").addEventListener("click", goNext);
 
-    // peek reasoning
     $("#btnPeek").addEventListener("click", () => {
         $("#reasoningWrap").classList.remove("masked");
     });
 
-    // mobile top tabs
     $("#btnTopQuestion").addEventListener("click", () => setTopMobileTab("question"));
     $("#btnTopReasoning").addEventListener("click", () => setTopMobileTab("reasoning"));
 
-    // close match-end modal by clicking outside (gentle)
     $("#matchEndOverlay").addEventListener("click", (e) => {
         if (e.target && e.target.id === "matchEndOverlay") {
-            // keep the result visible unless user intentionally exits via buttons
-            // (no-op)
+            // no-op
         }
     });
 
-    // free answer type seg
     $("#segText").addEventListener("click", () => {
         state.freeAnswerMode = "text";
         applyFreeAnswerMode();
@@ -1407,7 +1415,6 @@ function bindUi() {
         applyFreeAnswerMode();
     });
 
-    // opponent select hint
     $("#opponentLight").addEventListener("change", () => {
         const opt = $("#opponentLight").selectedOptions?.[0];
         $("#hintOpponentLight").textContent = opt ? opt.textContent : "";
@@ -1417,7 +1424,6 @@ function bindUi() {
         $("#hintOpponentPremium").textContent = opt ? opt.textContent : "";
     });
 
-    // allow Enter submit for text/int in a gentle way
     $("#freeText").addEventListener("keydown", (e) => {
         if ((e.ctrlKey || e.metaKey) && e.key === "Enter") submitAnswer();
     });
@@ -1439,7 +1445,6 @@ function normalizeChoiceForHeuristic(s) {
     if (!s) return "";
 
     s = s.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
-
     s = s.replace(/`[^`]*`/g, "x");
 
     s = s.replace(/\$\$[\s\S]*?\$\$/g, "M");
@@ -1485,7 +1490,6 @@ function scrollLlmPanelToBottom() {
     if (!sc) return;
 
     state.ui.programmaticScroll = true;
-
     sc.scrollTop = sc.scrollHeight;
 
     requestAnimationFrame(() => {
@@ -1500,19 +1504,14 @@ async function main() {
     setNet(false);
     resetRoundUi();
 
-    // Default lobby tab
     setLobbyTab("LIGHTWEIGHT");
 
-    // bootstrap
     try {
         await ensurePlayerSession();
         await loadModels();
     } catch (e) {
         showNetError(e);
     }
-
-    // if URL hash carries session, you could rejoin (optional)
-    // Here we keep it simple: not auto-rejoining to avoid confusing "no replay" behavior.
 }
 
 main().catch((e) => toast(t("toastError"), e.message));
