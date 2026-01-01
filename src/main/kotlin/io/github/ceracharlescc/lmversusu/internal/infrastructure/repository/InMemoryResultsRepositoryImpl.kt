@@ -1,5 +1,6 @@
 package io.github.ceracharlescc.lmversusu.internal.infrastructure.repository
 
+import io.github.ceracharlescc.lmversusu.internal.domain.entity.GameMode
 import io.github.ceracharlescc.lmversusu.internal.domain.entity.LeaderboardEntry
 import io.github.ceracharlescc.lmversusu.internal.domain.entity.SessionResult
 import io.github.ceracharlescc.lmversusu.internal.domain.repository.ResultsRepository
@@ -10,7 +11,14 @@ import kotlin.uuid.Uuid
 
 @Singleton
 internal class InMemoryResultsRepositoryImpl @Inject constructor() : ResultsRepository {
-    private val bestByUuid = ConcurrentHashMap<Uuid, LeaderboardEntry>()
+
+    private data class LeaderboardKey(
+        val userId: Uuid,
+        val gameMode: GameMode,
+        val opponentLlmName: String,
+    )
+
+    private val bestByKey = ConcurrentHashMap<LeaderboardKey, LeaderboardEntry>()
 
     override suspend fun saveResult(result: SessionResult) {
         val candidate = LeaderboardEntry(
@@ -26,7 +34,13 @@ internal class InMemoryResultsRepositoryImpl @Inject constructor() : ResultsRepo
             bestTimeMs = result.durationMs,
         )
 
-        bestByUuid.merge(result.humanUserId, candidate) { existing, incoming ->
+        val key = LeaderboardKey(
+            userId = result.humanUserId,
+            gameMode = result.gameMode,
+            opponentLlmName = result.llmProfileName,
+        )
+
+        bestByKey.merge(key, candidate) { existing, incoming ->
             val better = when {
                 incoming.bestScore > existing.bestScore -> incoming
                 incoming.bestScore < existing.bestScore -> existing
@@ -37,7 +51,7 @@ internal class InMemoryResultsRepositoryImpl @Inject constructor() : ResultsRepo
     }
 
     override suspend fun getLeaderboard(limit: Int): List<LeaderboardEntry> {
-        return bestByUuid.values
+        return bestByKey.values
             .sortedWith(compareByDescending<LeaderboardEntry> { it.bestScore }.thenBy { it.bestTimeMs })
             .take(limit)
             .mapIndexed { index, entry -> entry.copy(rank = index + 1) }
