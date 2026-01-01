@@ -193,7 +193,11 @@ internal fun Route.gameWebSocket(
                             if (result is GameController.CommandResult.Failure) {
                                 sendError(result.sessionId, result.errorCode, result.message)
                             } else if (result is GameController.CommandResult.Success) {
-                                subscribeTo(result.sessionId, Uuid.parse(cookiePlayerId))
+                                try {
+                                    subscribeTo(result.sessionId, Uuid.parse(cookiePlayerId))
+                                } catch (exception: IllegalArgumentException) {
+                                    sendError(null, "invalid_player", "PlayerId is invalid")
+                                }
                             }
                         }
 
@@ -211,7 +215,11 @@ internal fun Route.gameWebSocket(
                             if (result is GameController.CommandResult.Failure) {
                                 sendError(result.sessionId, result.errorCode, result.message)
                             } else if (result is GameController.CommandResult.Success) {
-                                subscribeTo(result.sessionId, Uuid.parse(cookiePlayerId))
+                                try {
+                                    subscribeTo(result.sessionId, Uuid.parse(cookiePlayerId))
+                                } catch (exception: IllegalArgumentException) {
+                                    sendError(null, "invalid_player", "PlayerId is invalid")
+                                }
                             }
                         }
 
