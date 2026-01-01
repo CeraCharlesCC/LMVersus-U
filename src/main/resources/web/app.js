@@ -414,40 +414,30 @@ function clearOutcomeGlows() {
 function applyOutcomeGlows(winner) {
     clearOutcomeGlows();
 
-    const bottom = $("#bottomPanel");
-    const humanChip = $("#humanChip");
-    const llmChip = $("#llmChip");
-    const llmPanel = $("#llmPanel");
-    const llmStatus = $("#llmStatus");
+    const humanElements = [$("#bottomPanel"), $("#humanChip")];
+    const llmElements = [$("#llmPanel"), $("#llmChip"), $("#llmStatus")];
 
-    if (winner === "HUMAN") {
-        bottom?.classList.add("glow-win");
-        humanChip?.classList.add("glow-win");
+    let humanGlowClass, llmGlowClass;
 
-        llmPanel?.classList.add("glow-lose");
-        llmChip?.classList.add("glow-lose");
-        llmStatus?.classList.add("glow-lose");
-        return;
+    switch (winner) {
+        case "HUMAN":
+            humanGlowClass = "glow-win";
+            llmGlowClass = "glow-lose";
+            break;
+        case "LLM":
+            humanGlowClass = "glow-lose";
+            llmGlowClass = "glow-win";
+            break;
+        case "TIE":
+            humanGlowClass = "glow-tie";
+            llmGlowClass = "glow-tie";
+            break;
+        default:
+            return; // No glow for other cases
     }
 
-    if (winner === "LLM") {
-        bottom?.classList.add("glow-lose");
-        humanChip?.classList.add("glow-lose");
-
-        llmPanel?.classList.add("glow-win");
-        llmChip?.classList.add("glow-win");
-        llmStatus?.classList.add("glow-win");
-        return;
-    }
-
-    if (winner === "TIE") {
-        bottom?.classList.add("glow-tie");
-        humanChip?.classList.add("glow-tie");
-
-        llmPanel?.classList.add("glow-tie");
-        llmChip?.classList.add("glow-tie");
-        llmStatus?.classList.add("glow-tie");
-    }
+    humanElements.forEach(el => el?.classList.add(humanGlowClass));
+    llmElements.forEach(el => el?.classList.add(llmGlowClass));
 }
 
 /** ---- UI wiring (static labels) ---- */
@@ -1086,7 +1076,7 @@ function handleServerEvent(msg) {
         renderQuestion();
         startTimers();
         updateTimers(Date.now());
-        enforceDeadline();
+        enforceDeadline(); // In case of clock skew, immediately lock if already past deadline
         return;
     }
 
@@ -1297,7 +1287,7 @@ function startRound() {
     wsSend({
         type: "start_round_request",
         sessionId: state.sessionId,
-        playerId: state.playerId,
+        playerId: state.playerId, // server validates with cookie identity
     });
 }
 
