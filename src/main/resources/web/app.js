@@ -141,7 +141,7 @@ const I18N = {
         reasoning: "LLM",
         answer: "あなたの回答",
         bottomPanel: "操作パネル",
-        submit: "送信",
+        submit: "確定",
         next: "次へ",
         deadline: "締切",
         handicap: "ハンディキャップ",
@@ -160,7 +160,7 @@ const I18N = {
         toastSession: "セッション",
         toastError: "エラー",
         timeUp: "締切を過ぎました。送信できません。",
-        submitted: "送信しました！",
+        submitted: "選択を確定しました！",
 
         // round resolution (game-like, not enum-y)
         resolveTimeUpYou: "時間切れ…あなたの回答が間に合いませんでした。",
