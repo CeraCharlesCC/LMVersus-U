@@ -6,7 +6,6 @@ import io.github.ceracharlescc.lmversusu.internal.domain.entity.ServiceSession
 import io.github.ceracharlescc.lmversusu.internal.AppConfig
 import io.github.ceracharlescc.lmversusu.internal.presentation.ktor.game.ws.*
 import io.ktor.http.HttpHeaders
-import io.ktor.server.application.serverConfig
 import io.ktor.server.plugins.origin
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.route
