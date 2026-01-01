@@ -7,13 +7,13 @@ import com.github.benmanes.caffeine.cache.Caffeine
 import io.github.ceracharlescc.lmversusu.internal.application.port.GameEventBus
 import io.github.ceracharlescc.lmversusu.internal.application.port.GameEventListener
 import io.github.ceracharlescc.lmversusu.internal.domain.entity.GameEvent
+import kotlinx.coroutines.CancellationException
 import org.slf4j.Logger
 import java.time.Duration
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArraySet
 import javax.inject.Inject
 import javax.inject.Singleton
-import kotlin.coroutines.cancellation.CancellationException
 import kotlin.uuid.Uuid
 
 @Singleton
