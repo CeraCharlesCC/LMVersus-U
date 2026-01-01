@@ -55,6 +55,7 @@ const I18N = {
         omitted: "Earlier reasoning omitted",
         oppAnswer: "Opponent answer",
         confidence: "confidence",
+        selectionHint: "Make your selection by clicking/tapping a choice, then press the confirmation button below to finalize.",
         statusIdle: "IDLE",
         statusThinking: "THINKING",
         statusAnswering: "ANSWERING",
@@ -136,7 +137,7 @@ const I18N = {
         thOpponent: "Opponent",
         thMode: "Mode",
         startRound: "次のラウンドを開始",
-        preRoundHint: "準備ができたら開始できます。",
+        preRoundHint: "準備ができたら開始ボタンを押してください!",
         question: "問題",
         reasoning: "LLM",
         answer: "あなたの回答",
@@ -149,6 +150,7 @@ const I18N = {
         omitted: "序盤のReasoningが省略されています",
         oppAnswer: "相手の回答",
         confidence: "自信度",
+        selectionHint: "選択肢をクリック/タップして選び、下の確定ボタンを押して決定してください。",
         statusIdle: "IDLE",
         statusThinking: "THINKING",
         statusAnswering: "ANSWERING",
@@ -491,6 +493,8 @@ function initStaticText() {
     $("#btnPeek").textContent = t("peek");
     $("#omitHint").textContent = t("omitted");
     $("#lblOpponentAnswer").textContent = t("oppAnswer");
+    $("#choiceHintTop").textContent = t("selectionHint");
+    $("#choiceHintBottom").textContent = t("selectionHint");
     $("#segText").textContent = t("answerTypeText");
     $("#segInt").textContent = t("answerTypeInt");
 
@@ -784,6 +788,9 @@ function resetRoundUi() {
 
     $("#questionBody").innerHTML = "";
     $("#qSep")?.classList.add("hidden");
+    $("#qSep2")?.classList.add("hidden");
+    $("#choiceHintTop")?.classList.add("hidden");
+    $("#choiceHintBottom")?.classList.add("hidden");
     $("#choicesHost").innerHTML = "";
 
     showBottomState("pre");
@@ -870,6 +877,9 @@ function renderQuestion() {
 
     const hasChoices = Array.isArray(state.choices) && state.choices.length;
     $("#qSep")?.classList.toggle("hidden", !hasChoices);
+    $("#qSep2")?.classList.toggle("hidden", !hasChoices);
+    $("#choiceHintTop")?.classList.toggle("hidden", !hasChoices);
+    $("#choiceHintBottom")?.classList.toggle("hidden", !hasChoices);
 
     const host = $("#choicesHost");
     host.innerHTML = "";

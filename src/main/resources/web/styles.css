@@ -516,6 +516,17 @@ a{ color:inherit; }
     background: rgba(255,255,255,.12);
 }
 
+.choice-hint{
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.35;
+    padding: 0 12px;
+}
+
+/* Default (PC/tablet): show hint below choices */
+#choiceHintTop{ display:none; }
+#choiceHintBottom{ display:block; }
+
 .choices{
     display: grid;
     gap: 10px;
@@ -818,6 +829,10 @@ a{ color:inherit; }
         border-radius: 999px; /* feels more “tap friendly” on mobile */
         font-size: 15px;
     }
+
+    /* Mobile: show hint above choices */
+    #choiceHintTop{ display:block; }
+    #choiceHintBottom{ display:none; }
 }
 
 @media (max-width: 520px){
