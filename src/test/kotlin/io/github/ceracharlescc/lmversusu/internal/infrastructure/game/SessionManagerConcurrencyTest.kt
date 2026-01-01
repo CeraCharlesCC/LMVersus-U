@@ -87,7 +87,9 @@ class SessionManagerConcurrencyTest {
                 ACTIVE_SESSIONS_LIMIT - 1,
                 successes,
                 "Should cap at ${ACTIVE_SESSIONS_LIMIT - 1} active sessions"
-            )
+            ) // TODO: Currently in SessionManager we reserve one slot for checking (!)
+            // we should fix this but it's not critical; It's just not intuitive for the configuration.
+            // Fix1: just +1 in config resolver; Fix2: change SessionManager's logic error;
             assertTrue(failures >= 15, "Remaining attempts should fail")
 
             // Verify specific error code for failures
