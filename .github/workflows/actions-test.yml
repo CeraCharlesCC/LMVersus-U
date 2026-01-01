@@ -1,0 +1,69 @@
+name: Actions-test (by commit)
+
+on:
+  workflow_dispatch:
+    inputs:
+      targetCommitId:
+        description: "Commit SHA to build/test"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: actions-test-${{ inputs.targetCommitId }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout (full history)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate commit exists
+        shell: bash
+        run: |
+          set -euo pipefail
+          git cat-file -e "${{ inputs.targetCommitId }}^{commit}"
+
+      - name: Checkout target commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git checkout --force "${{ inputs.targetCommitId }}"
+          git status --porcelain
+
+      - name: Set up Java 21 (Gradle cache)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Build + test with stacktrace
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew --no-daemon clean test build --stacktrace --info
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: |
+            build/reports/tests/test
+            build/test-results/test
+
+      - name: Upload build outputs (jars)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-libs
+          path: |
+            build/libs/*.jar
