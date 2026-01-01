@@ -166,7 +166,7 @@ const I18N = {
 
         // round resolution (game-like, not enum-y)
         resolveTimeUpYou: "時間切れ…あなたの回答が間に合いませんでした。",
-        resolveTimeUpOpp: "時間切れ…相手の回答が間に合いませんでした。",
+        resolveTimeUpOpp: "相手の回答は間に合いませんでした。",
         resolveTimeUpBoth: "時間切れ…誰も回答できませんでした。",
 
         // result lines
