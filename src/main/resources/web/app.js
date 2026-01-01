@@ -60,7 +60,6 @@ const I18N = {
         statusLockin: "LOCKIN!",
         answerTypeText: "Text",
         answerTypeInt: "Integer",
-        answerNote: "Submit before the deadline. Opponent answer stays hidden until you submit.",
         toastNetOk: "Connected",
         toastNetBad: "Disconnected",
         toastSession: "Session",
@@ -154,7 +153,6 @@ const I18N = {
         statusLockin: "LOCKIN!",
         answerTypeText: "テキスト",
         answerTypeInt: "整数",
-        answerNote: "締切前に送信してください。相手の回答は送信後に表示されます。",
         toastNetOk: "接続中",
         toastNetBad: "切断",
         toastSession: "セッション",
@@ -448,7 +446,6 @@ function initStaticText() {
     $("#lblOpponentAnswer").textContent = t("oppAnswer");
     $("#segText").textContent = t("answerTypeText");
     $("#segInt").textContent = t("answerTypeInt");
-    $("#answerNote").textContent = t("answerNote");
 
     $("#btnTopQuestion").textContent = t("question");
     $("#btnTopReasoning").textContent = t("reasoning");
@@ -741,6 +738,7 @@ function resetRoundUi() {
     $("#llmAnswerBody").innerHTML = "";
 
     $("#questionBody").innerHTML = "";
+    $("#qSep")?.classList.add("hidden");
     $("#choicesHost").innerHTML = "";
 
     $("#preRound").classList.remove("hidden");
@@ -825,11 +823,14 @@ function renderQuestion() {
     const rn = state.roundNumber ? `#${state.roundNumber}` : "";
     $("#qMeta").textContent = [rn, state.questionId || ""].filter(Boolean).join("  ");
 
+    const hasChoices = Array.isArray(state.choices) && state.choices.length;
+    $("#qSep")?.classList.toggle("hidden", !hasChoices);
+
     const host = $("#choicesHost");
     host.innerHTML = "";
     host.classList.remove("dense");
 
-    if (Array.isArray(state.choices) && state.choices.length) {
+    if (hasChoices) {
         const dense = state.choices.every(isChoiceCompact);
         host.classList.toggle("dense", dense);
 

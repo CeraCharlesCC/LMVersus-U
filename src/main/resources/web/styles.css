@@ -482,6 +482,14 @@ a{ color:inherit; }
     gap:12px;
 }
 
+.q-sep{
+    border:0;
+    height:1px;
+    width: calc(100% - 24px);
+    margin: 0 12px;
+    background: rgba(255,255,255,.12);
+}
+
 .choices{
     display: grid;
     gap: 10px;
