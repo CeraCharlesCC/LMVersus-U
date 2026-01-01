@@ -18,7 +18,7 @@ kotlinx-serialization = "1.8.1"
 junit-jupiter = "5.14.1"
 junit-platform = "1.14.1"
 kotlinx-coroutines-test = "1.10.2"
-mockk = "1.13.10"
+mockk = "1.13.13"
 turbine = "1.1.0"
 
 [plugins]
