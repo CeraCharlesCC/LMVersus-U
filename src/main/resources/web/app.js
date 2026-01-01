@@ -440,6 +440,12 @@ function applyOutcomeGlows(winner) {
     llmElements.forEach(el => el?.classList.add(llmGlowClass));
 }
 
+function setSubmitFrozen(on) {
+    const btn = $("#btnSubmit");
+    if (!btn) return;
+    btn.classList.toggle("is-frozen", !!on);
+}
+
 /** ---- UI wiring (static labels) ---- */
 function initStaticText() {
     $("#btnExit").textContent = t("exit");
@@ -789,6 +795,7 @@ function resetRoundUi() {
     $("#btnSubmit").disabled = false;
     $("#btnStartRound").disabled = false;
     $("#btnNext").disabled = false;
+    setSubmitFrozen(false);
 
     updateLlmStatusPill();
     stopTimers();
@@ -1176,6 +1183,7 @@ function handleServerEvent(msg) {
         state.inRound = false;
         stopTimers();
         $("#btnSubmit").disabled = true;
+        setSubmitFrozen(false);
 
         applyOutcomeGlows(msg.winner);
 
@@ -1330,6 +1338,7 @@ function submitAnswer() {
     state.submitted = true;
     state.humanAnswer = answer;
     $("#btnSubmit").disabled = true;
+    setSubmitFrozen(true);
     $("#aMeta").textContent = t("submitted");
 
     wsSend({

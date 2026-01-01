@@ -301,6 +301,16 @@ a{ color:inherit; }
 .btn.ghost{ background:transparent; }
 .btn.small{ padding:8px 12px; font-weight:800; font-size:12px; }
 
+/* ---- Submit "pending" (after user submits) ---- */
+.btn.is-frozen{
+    border-color: rgba(255,255,255,.12) !important;
+    background: rgba(255,255,255,.04) !important;
+    color: rgba(231,237,245,.55) !important;
+    cursor: not-allowed;
+}
+.btn.is-frozen:hover{
+    background: rgba(255,255,255,.04) !important;
+}
 .row{ display:flex; gap:10px; align-items:center; }
 .between{ justify-content:space-between; }
 
