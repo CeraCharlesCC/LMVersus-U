@@ -16,7 +16,6 @@ import io.github.ceracharlescc.lmversusu.internal.domain.vo.streaming.LlmAnswer
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.streaming.LlmStreamEvent
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.streaming.StreamSeq
 import kotlinx.coroutines.*
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.channels.Channel
 import org.slf4j.Logger
 import java.time.Clock
