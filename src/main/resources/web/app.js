@@ -430,8 +430,6 @@ function initStaticText() {
     $("#thOpponent").textContent = t("thOpponent");
     $("#thMode").textContent = t("thMode");
 
-    $("#btnHealth").textContent = t("health");
-
     // enforce nickname length at the UI layer too
 
     // game
@@ -561,7 +559,6 @@ async function ensurePlayerSession() {
     const data = await httpGetJson("/api/v1/player/session");
     state.playerId = data.playerId;
     state.issuedAt = data.issuedAtEpochMs;
-    $("#sessionInfo").textContent = `${t("toastSession")}: ${state.playerId}`;
 }
 
 /** ---- WebSocket ---- */
@@ -1351,15 +1348,6 @@ function bindUi() {
     $("#btnStartPremium").addEventListener("click", () => startMatch("PREMIUM"));
 
     $("#btnRefreshLb").addEventListener("click", () => refreshLeaderboard().catch(showNetError));
-
-    $("#btnHealth").addEventListener("click", async () => {
-        try {
-            const hb = await httpGetJson("/api/v1/heartbeat");
-            toast("heartbeat", `${hb.status} @ ${hb.timestamp}`);
-        } catch (e) {
-            toast(t("toastError"), e.message);
-        }
-    });
 
     // exit
     $("#btnExit").addEventListener("click", () => {
