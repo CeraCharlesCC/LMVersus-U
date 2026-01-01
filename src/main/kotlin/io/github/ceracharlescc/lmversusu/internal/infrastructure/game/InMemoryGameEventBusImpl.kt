@@ -2,11 +2,14 @@
 
 package io.github.ceracharlescc.lmversusu.internal.infrastructure.game
 
+import com.github.benmanes.caffeine.cache.Cache
+import com.github.benmanes.caffeine.cache.Caffeine
 import io.github.ceracharlescc.lmversusu.internal.application.port.GameEventBus
 import io.github.ceracharlescc.lmversusu.internal.application.port.GameEventListener
 import io.github.ceracharlescc.lmversusu.internal.domain.entity.GameEvent
 import kotlinx.coroutines.runBlocking
 import org.slf4j.Logger
+import java.time.Duration
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArraySet
 import javax.inject.Inject
@@ -18,8 +21,16 @@ import kotlin.uuid.Uuid
 internal class InMemoryGameEventBusImpl @Inject constructor(
     private val logger: Logger
 ) : GameEventBus {
+    companion object {
+        /** TTL for authorization entries: MAX_LIFESPAN (60 min) + 5 min buffer */
+        private val AUTHORIZATION_TTL: Duration = Duration.ofMinutes(65)
+    }
+
     private val listenersBySession = ConcurrentHashMap<Uuid, CopyOnWriteArraySet<GameEventListener>>()
-    private val authorizedPlayersBySession = ConcurrentHashMap<Uuid, Uuid>()
+    
+    private val authorizedPlayersBySession: Cache<Uuid, Uuid> = Caffeine.newBuilder()
+        .expireAfterWrite(AUTHORIZATION_TTL)
+        .build()
 
     override suspend fun publish(event: GameEvent) {
         val sessionId = event.sessionId
@@ -38,11 +49,11 @@ internal class InMemoryGameEventBusImpl @Inject constructor(
     }
 
     override fun authorizePlayer(sessionId: Uuid, playerId: Uuid) {
-        authorizedPlayersBySession[sessionId] = playerId
+        authorizedPlayersBySession.put(sessionId, playerId)
     }
 
     override fun subscribe(sessionId: Uuid, playerId: Uuid, listener: GameEventListener): Boolean {
-        val authorized = authorizedPlayersBySession[sessionId]
+        val authorized = authorizedPlayersBySession.getIfPresent(sessionId)
         if (authorized == null || authorized != playerId) {
             logger.warn("Unauthorized subscription attempt: session={}, playerId={}", sessionId, playerId)
             return false
@@ -56,7 +67,7 @@ internal class InMemoryGameEventBusImpl @Inject constructor(
     }
 
     override fun revokeSession(sessionId: Uuid) {
-        authorizedPlayersBySession.remove(sessionId)
+        authorizedPlayersBySession.invalidate(sessionId)
         listenersBySession.remove(sessionId)
     }
 }

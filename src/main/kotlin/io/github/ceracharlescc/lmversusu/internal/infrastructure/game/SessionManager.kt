@@ -268,6 +268,7 @@ internal class SessionManager @Inject constructor(
     }
 
     private fun scheduleMaxLifespan(sessionId: Uuid) {
+        maxLifespanJobs[sessionId]?.cancel()
         maxLifespanJobs[sessionId] = supervisorScope.launch {
             delay(MAX_LIFESPAN_MS)
             // Route through actor to ensure SessionResolved is emitted
