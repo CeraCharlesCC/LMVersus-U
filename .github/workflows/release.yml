@@ -60,7 +60,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ./gradlew --no-daemon clean test buildFatJar
+          bash ./gradlew --no-daemon clean test buildFatJar
 
       - name: Locate jar artifact
         id: jar
