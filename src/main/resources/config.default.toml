@@ -10,8 +10,8 @@
 # Server Configuration
 # ------------------------------------------------------------
 [serverConfig]
-bindHost = "localhost" # Uninplemented yet
-bindPort = 8080 # Uninplemented yet
+bindHost = "localhost" # Unimplemented yet
+bindPort = 8080 # Unimplemented yet
 corsAllowedHosts = []
 debug = false
 
