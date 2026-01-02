@@ -80,10 +80,10 @@ class SessionManagerConcurrencyTest {
             val failures = results.count { it is SessionManager.JoinResult.Failure }
 
             assertEquals(
-                ACTIVE_SESSIONS_LIMIT - 1,
+                ACTIVE_SESSIONS_LIMIT,
                 successes,
-                "Should cap at ${ACTIVE_SESSIONS_LIMIT - 1} active sessions"
-            ) // TODO: Currently in SessionManager we reserve one slot for checking (!)
+                "Should cap at $ACTIVE_SESSIONS_LIMIT active sessions"
+            )
 
             assertTrue(failures >= 15, "Remaining attempts should fail")
 

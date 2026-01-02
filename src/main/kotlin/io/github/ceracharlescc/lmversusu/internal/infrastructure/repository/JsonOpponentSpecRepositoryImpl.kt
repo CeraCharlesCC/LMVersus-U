@@ -4,6 +4,7 @@ import io.github.ceracharlescc.lmversusu.internal.di.annotation.ConfigDirectory
 import io.github.ceracharlescc.lmversusu.internal.domain.entity.OpponentSpec
 import io.github.ceracharlescc.lmversusu.internal.domain.repository.OpponentSpecRepository
 import kotlinx.serialization.json.Json
+import org.slf4j.Logger
 import java.nio.file.Files
 import java.nio.file.Path
 import javax.inject.Inject
@@ -14,6 +15,7 @@ import kotlin.io.path.readText
 
 @Singleton
 internal class JsonOpponentSpecRepositoryImpl @Inject constructor(
+    private val logger: Logger,
     @param:ConfigDirectory private val configDirectory: Path
 ) : OpponentSpecRepository {
 
@@ -29,7 +31,7 @@ internal class JsonOpponentSpecRepositoryImpl @Inject constructor(
     @Volatile
     private var cachedSpecs: List<OpponentSpec>? = null
 
-    override fun getAllSpecs(): List<OpponentSpec>? {
+    override fun getAllSpecs(): List<OpponentSpec> {
         cachedSpecs?.let { return it }
 
         return synchronized(this) {
@@ -38,12 +40,12 @@ internal class JsonOpponentSpecRepositoryImpl @Inject constructor(
     }
 
     override fun findById(id: String): OpponentSpec? =
-        getAllSpecs()?.firstOrNull { it.id == id }
+        getAllSpecs().firstOrNull { it.id == id }
 
-    private fun loadFromDisk(): List<OpponentSpec>? {
+    private fun loadFromDisk(): List<OpponentSpec> {
         val llmConfigsDir = configDirectory.resolve("LLM-Configs")
 
-        if (!Files.isDirectory(llmConfigsDir)) return null
+        if (!Files.isDirectory(llmConfigsDir)) return emptyList()
 
         return try {
             Files.list(llmConfigsDir).use { stream ->
@@ -54,8 +56,9 @@ internal class JsonOpponentSpecRepositoryImpl @Inject constructor(
                     .map { it!! }
                     .toList()
             }
-        } catch (_: Exception) {
-            null
+        } catch (exception: Exception) {
+            logger.error("Failed to load opponent specs from disk at $llmConfigsDir", exception)
+            emptyList()
         }
     }
 
