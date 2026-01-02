@@ -157,6 +157,7 @@ internal class SessionManager @Inject constructor(
         var transferred = false
         var permit: ActiveSessionLimiter.Permit? = null
         var newActor: SessionActor? = null
+
         try {
             permit = activeSessionLimiter.tryAcquire(mode)
             if (permit == null) {
@@ -205,63 +206,60 @@ internal class SessionManager @Inject constructor(
                 onTerminate = { id -> removeSession(id) },
             )
 
+            // IMPORTANT: do the very first join while the session is still "Creating"
+            // so nobody can fast-path into Active mid-startup.
             val newEntry = SessionEntry.Active(actor = newActor, mode = mode, permit = permit)
-            if (!actors.replace(sessionId, creatingEntry, newEntry)) {
-                val currentEntry = actors[sessionId]
-                if (currentEntry is SessionEntry.Active) {
-                    creatingEntry.deferred.complete(CreationOutcome.Created(currentEntry))
-                    newActor.shutdown()
-                    return joinExistingSession(
-                        entry = currentEntry,
-                        sessionId = sessionId,
-                        clientIdentity = clientIdentity,
-                        nickname = nickname,
-                        opponentSpecId = opponentSpecId,
-                        isNewSession = false,
-                    )
-                }
+            val firstJoinResult = joinExistingSession(
+                entry = newEntry,
+                sessionId = sessionId,
+                clientIdentity = clientIdentity,
+                nickname = nickname,
+                opponentSpecId = opponentSpecId,
+                isNewSession = true,
+            )
 
+            if (firstJoinResult is JoinResult.Failure) {
                 completeCreationFailure(
                     entry = creatingEntry,
                     sessionId = sessionId,
-                    errorCode = "session_busy",
-                    message = "session is busy, please retry",
+                    errorCode = firstJoinResult.errorCode,
+                    message = firstJoinResult.message,
                 )
+                // best-effort cleanup of any scheduled jobs/bus state
+                removeSession(sessionId)
+                return firstJoinResult
+            }
+
+            // Now that the first join succeeded, publish the session as Active.
+            if (!actors.replace(sessionId, creatingEntry, newEntry)) {
+                // Session got cancelled/removed while we were creating/joining.
+                completeCreationFailure(
+                    entry = creatingEntry,
+                    sessionId = sessionId,
+                    errorCode = "session_creation_cancelled",
+                    message = "session creation cancelled",
+                )
+                removeSession(sessionId)
                 return JoinResult.Failure(
                     sessionId = sessionId,
-                    errorCode = "session_busy",
-                    message = "session is busy, please retry",
+                    errorCode = "session_creation_cancelled",
+                    message = "session creation cancelled",
                 )
             }
 
-            // Permit is now owned by the entry and will be released from removeSession.
+            // Permit is now owned by the entry and will be released by removeSession().
             transferred = true
             creatingEntry.deferred.complete(CreationOutcome.Created(newEntry))
-
-            // joinExistingSession is suspendable and could throw; if it does, we must remove the entry and
-            // release the permit to avoid leaking capacity.
-            return try {
-                val result = joinExistingSession(
-                    entry = newEntry,
-                    sessionId = sessionId,
-                    clientIdentity = clientIdentity,
-                    nickname = nickname,
-                    opponentSpecId = opponentSpecId,
-                    isNewSession = true,
-                )
-
-                // If the very first join attempt fails, tear down the just-created session so it
-                // doesn't consume an active-session slot.
-                if (result is JoinResult.Failure) {
-                    removeSession(sessionId)
-                }
-
-                result
-            } catch (t: Throwable) {
-                // Best-effort cleanup. removeSession will shutdown actor, revoke bus, and close permit.
-                removeSession(sessionId)
-                throw t
-            }
+            return firstJoinResult
+        } catch (t: Throwable) {
+            completeCreationFailure(
+                entry = creatingEntry,
+                sessionId = sessionId,
+                errorCode = "session_creation_failed",
+                message = "session creation failed",
+            )
+            removeSession(sessionId)
+            throw t
         } finally {
             if (!transferred) {
                 newActor?.shutdown()
@@ -269,8 +267,6 @@ internal class SessionManager @Inject constructor(
             }
         }
     }
-
-
 
     private suspend fun awaitCreationAndJoin(
         entry: SessionEntry.Creating,
