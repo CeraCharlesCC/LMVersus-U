@@ -196,10 +196,10 @@ internal class SessionManager @Inject constructor(
             // Permit is now owned by the entry and will be released from removeSession.
             transferred = true
 
-            // IMPORTANT: joinExistingSession is suspendable and could throw; if it does,
-            // we must remove the entry and release the permit to avoid leaking capacity.
+            // joinExistingSession is suspendable and could throw; if it does, we must remove the entry and
+            // release the permit to avoid leaking capacity.
             return try {
-                joinExistingSession(
+                val result = joinExistingSession(
                     entry = newEntry,
                     sessionId = sessionId,
                     clientIdentity = clientIdentity,
@@ -207,6 +207,14 @@ internal class SessionManager @Inject constructor(
                     opponentSpecId = opponentSpecId,
                     isNewSession = true,
                 )
+
+                // If the very first join attempt fails, tear down the just-created session so it
+                // doesn't consume an active-session slot.
+                if (result is JoinResult.Failure) {
+                    removeSession(sessionId)
+                }
+
+                result
             } catch (t: Throwable) {
                 // Best-effort cleanup. removeSession will shutdown actor, revoke bus, and close permit.
                 removeSession(sessionId)
@@ -218,6 +226,7 @@ internal class SessionManager @Inject constructor(
             }
         }
     }
+
 
 
     private suspend fun joinExistingSession(
