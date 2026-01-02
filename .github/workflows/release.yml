@@ -7,10 +7,15 @@ on:
         description: "Release tag (e.g., v1.2.3)"
         required: true
         type: string
-      targetCommitId:
-        description: "Target commit SHA to release"
-        required: true
+      releaseBranch:
+        description: "Branch to release from (defaults to the branch you ran this workflow on)"
+        required: false
         type: string
+      prerelease:
+        description: "Mark GitHub Release as prerelease"
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -25,13 +30,37 @@ jobs:
   release:
     runs-on: ubuntu-latest
 
+    env:
+      CHANGELOG_PATH: CHANGELOG.md
+      INSTRUCT_PATH: .github/workflows/script/changelog_instruct.txt
+
+      # Git identity (for committing CHANGELOG)
+      GIT_AUTHOR_NAME: github-actions[bot]
+      GIT_AUTHOR_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+      GIT_COMMITTER_NAME: github-actions[bot]
+      GIT_COMMITTER_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+
     steps:
+      - name: Resolve branch
+        id: branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          BRANCH="${{ inputs.releaseBranch }}"
+          if [ -z "$BRANCH" ]; then
+            BRANCH="${{ github.ref_name }}"
+          fi
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+          echo "Using branch: $BRANCH"
+
       - name: Checkout (full history + tags)
         uses: actions/checkout@v4
         with:
+          ref: ${{ steps.branch.outputs.branch }}
           fetch-depth: 0
+          persist-credentials: true
 
-      - name: Validate inputs
+      - name: Validate inputs + tag availability
         shell: bash
         run: |
           set -euo pipefail
@@ -40,14 +69,75 @@ jobs:
             echo "releaseTag must look like vX.Y.Z (example: v1.2.3)" >&2
             exit 1
           fi
-          git cat-file -e "${{ inputs.targetCommitId }}^{commit}"
 
-      - name: Checkout target commit
+          # Make sure we have up-to-date tags from origin
+          git fetch --tags --force
+
+          if git rev-parse -q --verify "refs/tags/${TAG}" >/dev/null; then
+            echo "Tag ${TAG} already exists. Aborting." >&2
+            exit 1
+          fi
+
+      - name: Configure git user
         shell: bash
         run: |
           set -euo pipefail
-          git checkout --force "${{ inputs.targetCommitId }}"
-          git status --porcelain
+          git config user.name "${GIT_AUTHOR_NAME}"
+          git config user.email "${GIT_AUTHOR_EMAIL}"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install changelog generator dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install "openai>=1.0.0,<2"
+
+      - name: Generate CHANGELOG.md via LLM
+        env:
+          NEW_TAG: ${{ inputs.releaseTag }}
+
+          # LLM config (recommended as repo secrets; base URL optional)
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+          LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
+          LLM_MODEL: ${{ secrets.LLM_MODEL }}
+          LLM_TEMPERATURE: ${{ secrets.LLM_TEMPERATURE }}
+          LLM_MAX_TOKENS: ${{ secrets.LLM_MAX_TOKENS }}
+
+          INSTRUCT_PATH: ${{ env.INSTRUCT_PATH }}
+          CHANGELOG_PATH: ${{ env.CHANGELOG_PATH }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python .github/workflows/script/generate_changelog.py --new-tag "$NEW_TAG"
+
+      - name: Commit + push CHANGELOG (if changed)
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${{ inputs.releaseTag }}"
+          BRANCH="${{ steps.branch.outputs.branch }}"
+
+          if git diff --quiet -- "${{ env.CHANGELOG_PATH }}"; then
+            echo "No changelog changes to commit."
+          else
+            git add "${{ env.CHANGELOG_PATH }}"
+            git commit -m "chore(changelog): update for ${TAG}"
+            git push origin "HEAD:${BRANCH}"
+          fi
+
+      - name: Create & push tag at release commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${{ inputs.releaseTag }}"
+          git tag -a "${TAG}" -m "Release ${TAG}"
+          git push origin "${TAG}"
 
       - name: Set up Java 21 (Gradle cache)
         uses: actions/setup-java@v4
@@ -67,7 +157,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # Ktor plugin commonly emits *-all.jar for fat jars; fall back to any jar.
           JAR="$(ls -1 build/libs/*all.jar 2>/dev/null | head -n 1 || true)"
           if [ -z "$JAR" ]; then
             JAR="$(ls -1 build/libs/*.jar | head -n 1)"
@@ -94,40 +183,6 @@ jobs:
         with:
           subject-path: ${{ steps.jar.outputs.jar_path }}
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          cache: pip
-
-      - name: Install changelog generator dependencies
-        shell: bash
-        run: |
-          set -euo pipefail
-          python -m pip install --upgrade pip
-          pip install "openai>=1.0.0,<2"
-
-      - name: Generate CHANGELOG.md via LLM
-        env:
-          # Inputs
-          NEW_TAG: ${{ inputs.releaseTag }}
-          TARGET_COMMIT: ${{ inputs.targetCommitId }}
-
-          # LLM config (recommended as repo secrets; base URL optional)
-          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
-          LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
-          LLM_MODEL: ${{ secrets.LLM_MODEL }}
-          LLM_TEMPERATURE: ${{ secrets.LLM_TEMPERATURE }}
-          LLM_MAX_TOKENS: ${{ secrets.LLM_MAX_TOKENS }}
-
-          # Files
-          INSTRUCT_PATH: .github/workflows/script/changelog_instruct.txt
-          CHANGELOG_PATH: CHANGELOG.md
-        shell: bash
-        run: |
-          set -euo pipefail
-          python .github/workflows/script/generate_changelog.py --new-tag "$NEW_TAG"
-
       - name: Extract release notes for this tag
         id: notes
         shell: bash
@@ -135,15 +190,13 @@ jobs:
           set -euo pipefail
           TAG="${{ inputs.releaseTag }}"
 
-          # Extract the section starting at "## [TAG]" up to (but not including) the next "## ["
           awk -v tag="$TAG" '
             BEGIN {p=0}
             $0 ~ "^## \\[" tag "\\]" {p=1}
             p==1 {print}
             p==1 && NR>1 && $0 ~ "^## \\[" && $0 !~ "^## \\[" tag "\\]" {exit}
-          ' CHANGELOG.md > release_notes.md || true
+          ' "${{ env.CHANGELOG_PATH }}" > release_notes.md || true
 
-          # If the last line is the next header, drop it.
           tail_line="$(tail -n 1 release_notes.md 2>/dev/null || true)"
           if [[ "$tail_line" =~ ^##\ \[ && ! "$tail_line" =~ ^##\ \[$TAG\] ]]; then
             head -n -1 release_notes.md > release_notes.tmp && mv release_notes.tmp release_notes.md
@@ -162,16 +215,19 @@ jobs:
         run: |
           set -euo pipefail
           TAG="${{ inputs.releaseTag }}"
-          TARGET="${{ inputs.targetCommitId }}"
           NOTES="${{ steps.notes.outputs.notes_path }}"
           JAR="${{ steps.jar.outputs.jar_path }}"
           SHA="${{ steps.sums.outputs.sha_file }}"
 
+          PRERELEASE_FLAG=""
+          if [ "${{ inputs.prerelease }}" = "true" ]; then
+            PRERELEASE_FLAG="--prerelease"
+          fi
+
           if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release edit "$TAG" --notes-file "$NOTES"
+            gh release edit "$TAG" --notes-file "$NOTES" $PRERELEASE_FLAG
           else
-            # Creates tag if missing; points it at --target
-            gh release create "$TAG" --target "$TARGET" --title "$TAG" --notes-file "$NOTES"
+            gh release create "$TAG" --title "$TAG" --notes-file "$NOTES" $PRERELEASE_FLAG
           fi
 
           gh release upload "$TAG" "$JAR" "$SHA" --clobber
