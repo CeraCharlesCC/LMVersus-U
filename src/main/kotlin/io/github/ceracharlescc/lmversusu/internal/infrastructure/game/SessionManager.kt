@@ -392,7 +392,7 @@ internal class SessionManager @Inject constructor(
         val entry = actors.remove(sessionId)
         if (entry != null) {
             entry.actor.shutdown()
-            entry.permit?.close()
+            entry.permit.close()
         }
         gameEventBus.revokeSession(sessionId)
     }
