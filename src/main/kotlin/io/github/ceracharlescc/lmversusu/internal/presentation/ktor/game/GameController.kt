@@ -2,8 +2,8 @@ package io.github.ceracharlescc.lmversusu.internal.presentation.ktor.game
 
 import io.github.ceracharlescc.lmversusu.internal.domain.entity.GameEvent
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.ClientIdentity
-import io.github.ceracharlescc.lmversusu.internal.utils.NicknameValidator
 import io.github.ceracharlescc.lmversusu.internal.infrastructure.game.SessionManager
+import io.github.ceracharlescc.lmversusu.internal.utils.NicknameValidator
 import java.time.Instant
 import javax.inject.Inject
 import javax.inject.Singleton

@@ -1,6 +1,5 @@
 package io.github.ceracharlescc.lmversusu.internal.presentation.ktor.game.ws
 
-import io.github.ceracharlescc.lmversusu.internal.application.port.AnswerVerifier
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.Answer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable

@@ -751,8 +751,7 @@ internal class SessionManager @Inject constructor(
     private fun removeSession(sessionId: Uuid) {
         idleTimeoutJobs.remove(sessionId)?.cancel()
         maxLifespanJobs.remove(sessionId)?.cancel()
-        val entry = actors.remove(sessionId)
-        when (entry) {
+        when (val entry = actors.remove(sessionId)) {
             is SessionEntry.Active -> {
                 playerActiveSessionIndex.clear(entry.ownerPlayerId, sessionId)
                 logger.debug("Cleared active session binding for player {} session {}", entry.ownerPlayerId, sessionId)
@@ -825,8 +824,7 @@ internal class SessionManager @Inject constructor(
         binding: PlayerActiveSessionIndex.Binding,
         playerId: Uuid,
     ): SessionEntry? {
-        val entry = actors[binding.sessionId]
-        return when (entry) {
+        return when (val entry = actors[binding.sessionId]) {
             is SessionEntry.Active -> {
                 if (entry.ownerPlayerId == playerId) entry else null
             }

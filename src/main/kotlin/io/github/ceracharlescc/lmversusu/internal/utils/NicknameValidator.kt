@@ -1,7 +1,5 @@
 package io.github.ceracharlescc.lmversusu.internal.utils
 
-import kotlin.text.iterator
-
 /**
  * Validates nicknames to prevent bandwidth/memory griefing attacks.
  *

@@ -1,9 +1,9 @@
 package io.github.ceracharlescc.lmversusu.internal.presentation.ktor.game
 
+import io.github.ceracharlescc.lmversusu.internal.AppConfig
 import io.github.ceracharlescc.lmversusu.internal.application.port.GameEventBus
 import io.github.ceracharlescc.lmversusu.internal.application.port.GameEventListener
 import io.github.ceracharlescc.lmversusu.internal.domain.entity.ServiceSession
-import io.github.ceracharlescc.lmversusu.internal.AppConfig
 import io.github.ceracharlescc.lmversusu.internal.presentation.ktor.game.ws.*
 import io.ktor.http.HttpHeaders
 import io.ktor.server.plugins.origin

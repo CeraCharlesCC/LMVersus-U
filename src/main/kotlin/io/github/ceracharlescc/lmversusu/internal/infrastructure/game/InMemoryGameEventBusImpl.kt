@@ -26,7 +26,7 @@ internal class InMemoryGameEventBusImpl @Inject constructor(
     }
 
     private val listenersBySession = ConcurrentHashMap<Uuid, CopyOnWriteArraySet<GameEventListener>>()
-    
+
     private val authorizedPlayersBySession: Cache<Uuid, Uuid> = Caffeine.newBuilder()
         .expireAfterWrite(AUTHORIZATION_TTL)
         .build()
