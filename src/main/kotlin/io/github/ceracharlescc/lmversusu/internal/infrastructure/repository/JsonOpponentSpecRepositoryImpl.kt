@@ -4,6 +4,7 @@ import io.github.ceracharlescc.lmversusu.internal.di.annotation.ConfigDirectory
 import io.github.ceracharlescc.lmversusu.internal.domain.entity.OpponentSpec
 import io.github.ceracharlescc.lmversusu.internal.domain.repository.OpponentSpecRepository
 import kotlinx.serialization.json.Json
+import org.slf4j.Logger
 import java.nio.file.Files
 import java.nio.file.Path
 import javax.inject.Inject
@@ -14,6 +15,7 @@ import kotlin.io.path.readText
 
 @Singleton
 internal class JsonOpponentSpecRepositoryImpl @Inject constructor(
+    private val logger: Logger,
     @param:ConfigDirectory private val configDirectory: Path
 ) : OpponentSpecRepository {
 
@@ -54,7 +56,8 @@ internal class JsonOpponentSpecRepositoryImpl @Inject constructor(
                     .map { it!! }
                     .toList()
             }
-        } catch (_: Exception) {
+        } catch (exception: Exception) {
+            logger.error("Failed to load opponent specs from disk at $llmConfigsDir", exception)
             emptyList()
         }
     }
