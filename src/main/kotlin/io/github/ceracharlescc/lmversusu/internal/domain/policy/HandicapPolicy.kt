@@ -7,13 +7,15 @@ import io.github.ceracharlescc.lmversusu.internal.utils.scaledBy
 import java.time.Duration
 
 internal object HandicapPolicy {
-    private val LIGHTWEIGHT_BASE_HANDICAP = Duration.ofSeconds(3)
+    private val LIGHTWEIGHT_BASE_HANDICAP = Duration.ofSeconds(1)
     private val PREMIUM_BASE_HANDICAP = Duration.ofSeconds(1)
 
     private val DIFFICULTY_MULTIPLIERS = mapOf(
-        Difficulty.EASY to 2.0,
-        Difficulty.MEDIUM to 1.5,
-        Difficulty.HARD to 1.0,
+        Difficulty.VERY_EASY to 5,
+        Difficulty.EASY to 12.5,
+        Difficulty.MEDIUM to 25.0,
+        Difficulty.HARD to 37.5,
+        Difficulty.VERY_HARD to 45.0
     )
 
     /**
