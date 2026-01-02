@@ -173,6 +173,48 @@ internal class SessionManager @Inject constructor(
             else -> null
         }
 
+        // SECURITY: Pre-reservation ownership check
+        // Reject joins for sessions owned by other players BEFORE any binding is created
+        // This prevents the bind→terminate DoS attack where an attacker creates a binding
+        // for a victim's session and then terminates it via terminateActiveSessionByOwner()
+        if (sessionId != null) {
+            when (val existingEntry = actors[sessionId]) {
+                is SessionEntry.Active -> {
+                    if (existingEntry.ownerPlayerId != playerId) {
+                        logger.debug(
+                            "Rejecting join for player {} - session {} owned by different player",
+                            playerId,
+                            sessionId
+                        )
+                        return JoinResult.Failure(
+                            sessionId = sessionId,
+                            errorCode = "session_not_owned",
+                            message = "session is owned by another player",
+                        )
+                    }
+                }
+
+                is SessionEntry.Creating -> {
+                    // Don't allow joining a Creating session by explicit ID unless it matches player's existing binding
+                    val existingBinding = playerActiveSessionIndex.get(playerId)
+                    if (existingBinding?.sessionId != sessionId) {
+                        logger.debug(
+                            "Rejecting join for player {} - session {} is being created by another player",
+                            playerId,
+                            sessionId
+                        )
+                        return JoinResult.Failure(
+                            sessionId = sessionId,
+                            errorCode = "session_creating",
+                            message = "session is being created by another player",
+                        )
+                    }
+                }
+
+                null -> Unit // OK to proceed with new session creation
+            }
+        }
+
         var chosenSessionId = sessionId ?: Uuid.random()
         var chosenOpponentSpecId = opponentSpecId
         var shouldReserve = true
@@ -529,6 +571,8 @@ internal class SessionManager @Inject constructor(
                 if (isNewSession) {
                     removeSession(sessionId)
                 }
+                // Best-effort cleanup of any poisonous binding on rejection
+                playerActiveSessionIndex.clear(clientIdentity.playerId, sessionId)
                 JoinResult.Failure(
                     sessionId = sessionId,
                     errorCode = joinResponse.errorCode,
@@ -540,6 +584,8 @@ internal class SessionManager @Inject constructor(
                 if (isNewSession) {
                     removeSession(sessionId)
                 }
+                // Best-effort cleanup of any poisonous binding on timeout
+                playerActiveSessionIndex.clear(clientIdentity.playerId, sessionId)
                 JoinResult.Failure(
                     sessionId = sessionId,
                     errorCode = "join_timeout",
@@ -664,6 +710,19 @@ internal class SessionManager @Inject constructor(
         val binding = playerActiveSessionIndex.takeByOwner(playerId)
         if (binding == null) {
             logger.debug("No active session to terminate for player {}", playerId)
+            return null
+        }
+
+        // SECURITY: Double-check ownership of the actual session entry
+        // This is defense-in-depth in case a poisonous binding somehow exists
+        val entry = actors[binding.sessionId] as? SessionEntry.Active
+        if (entry != null && entry.ownerPlayerId != playerId) {
+            logger.warn(
+                "Player {} attempted to terminate session {} but it's owned by {}",
+                playerId,
+                binding.sessionId,
+                entry.ownerPlayerId
+            )
             return null
         }
 
