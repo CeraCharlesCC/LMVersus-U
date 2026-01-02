@@ -37,6 +37,7 @@ internal class GameEventFrameMapper @Inject constructor(
                 roundNumber = event.roundNumber,
                 questionPrompt = localized?.prompt ?: event.questionPrompt,
                 choices = localized?.choices ?: event.choices,
+                expectedAnswerType = event.expectedAnswerType,
                 releasedAtEpochMs = event.releasedAt.toEpochMilli(),
                 handicapMs = event.handicapMs,
                 deadlineAtEpochMs = event.deadlineAt.toEpochMilli(),
@@ -60,6 +61,12 @@ internal class GameEventFrameMapper @Inject constructor(
             sessionId = event.sessionId.toString(),
             errorCode = event.errorCode,
             message = event.message,
+        )
+
+
+        is GameEvent.LlmThinking -> WsLlmThinking(
+            sessionId = event.sessionId.toString(),
+            roundId = event.roundId.toString(),
         )
 
         is GameEvent.LlmReasoningDelta -> WsLlmReasoningDelta(
@@ -125,7 +132,6 @@ internal class GameEventFrameMapper @Inject constructor(
 
         is GameEvent.SessionCreated,
         is GameEvent.SubmissionReceived,
-        is GameEvent.LlmThinking,
         is GameEvent.SessionCompleted -> null
     }
 }

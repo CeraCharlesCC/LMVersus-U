@@ -57,7 +57,8 @@ class SessionManagerConcurrencyTest {
             llmPlayerGateway = mockk(relaxed = true),
             llmStreamOrchestrator = mockk(relaxed = true),
             resultsRepository = mockk(relaxed = true),
-            clock = Clock.systemUTC()
+            clock = Clock.systemUTC(),
+            playerActiveSessionIndex = InMemoryPlayerActiveSessionIndex(),
         )
 
         val attackerIp = "192.168.1.66"
@@ -115,7 +116,8 @@ class SessionManagerConcurrencyTest {
             llmPlayerGateway = mockk(relaxed = true),
             llmStreamOrchestrator = mockk(relaxed = true),
             resultsRepository = mockk(relaxed = true),
-            clock = Clock.systemUTC()
+            clock = Clock.systemUTC(),
+            playerActiveSessionIndex = InMemoryPlayerActiveSessionIndex(),
         )
 
         val targetSessionId = Uuid.random()
@@ -146,9 +148,262 @@ class SessionManagerConcurrencyTest {
             // The other should fail with 'session_taken' or similar logic inside SessionActor
             val failure = listOf(r1, r2).filterIsInstance<SessionManager.JoinResult.Failure>().first()
 
-            // Note: In SessionActor logic, if a new player tries to join an existing session owned by someone else,
-            // it returns Rejected("session_taken").
-            assertEquals("session_taken", failure.errorCode)
+            // Note: Error can be session_taken (SessionActor), session_creating (pre-reservation check),
+            // or session_not_owned (ownership check) depending on timing
+            val validErrorCodes = listOf("session_taken", "session_creating", "session_not_owned")
+            assertTrue(
+                failure.errorCode in validErrorCodes,
+                "Error code should be session security related, got: ${failure.errorCode}"
+            )
+        }
+
+        manager.shutdownAll()
+    }
+
+    @Test
+    fun `Adversarial - Bind Terminate DoS Attack Prevention`() {
+        // Setup: Player A creates and owns a session
+        // Attack: Player B tries to join with Player A's sessionId
+        // Expected: Player B's join is rejected with "session_not_owned", Player A's session remains active
+        val playerActiveSessionIndex = InMemoryPlayerActiveSessionIndex()
+
+        val specRepo = mockk<OpponentSpecRepository>()
+        every { specRepo.findById(any()) } returns mockk<OpponentSpec.Lightweight>(relaxed = true) {
+            every { id } returns "spec-1"
+        }
+
+        val manager = SessionManager(
+            logger = mockk(relaxed = true),
+            appConfig = AppConfig(),
+            opponentSpecRepository = specRepo,
+            gameEventBus = mockk(relaxed = true),
+            startRoundUseCase = mockk(relaxed = true),
+            submitAnswerUseCase = mockk(relaxed = true),
+            answerVerifier = mockk(relaxed = true),
+            llmPlayerGateway = mockk(relaxed = true),
+            llmStreamOrchestrator = mockk(relaxed = true),
+            resultsRepository = mockk(relaxed = true),
+            clock = Clock.systemUTC(),
+            playerActiveSessionIndex = playerActiveSessionIndex,
+        )
+
+        val playerA = Uuid.random()
+        val playerB = Uuid.random()
+
+        runBlocking {
+            // Player A creates a session
+            val resultA = manager.joinSession(
+                sessionId = null, // Let system generate sessionId
+                clientIdentity = ClientIdentity(playerA, "1.1.1.1"),
+                nickname = "PlayerA",
+                opponentSpecId = "spec-1"
+            )
+
+            assertTrue(resultA is SessionManager.JoinResult.Success, "Player A should create session successfully")
+            val sessionIdA = (resultA as SessionManager.JoinResult.Success).sessionId
+
+            // Player B tries to hijack Player A's session by explicitly providing the sessionId
+            val resultB = manager.joinSession(
+                sessionId = sessionIdA, // Explicitly try to join A's session
+                clientIdentity = ClientIdentity(playerB, "2.2.2.2"),
+                nickname = "PlayerB",
+                opponentSpecId = "spec-1"
+            )
+
+            // Player B should be rejected with "session_not_owned"
+            assertTrue(resultB is SessionManager.JoinResult.Failure, "Player B should be rejected")
+            val failure = resultB as SessionManager.JoinResult.Failure
+            assertEquals("session_not_owned", failure.errorCode, "Should reject with session_not_owned")
+
+            // Player B should NOT have a binding for A's session
+            val bindingB = playerActiveSessionIndex.get(playerB)
+            assertTrue(
+                bindingB == null || bindingB.sessionId != sessionIdA,
+                "Player B should not have a poisonous binding to A's session"
+            )
+
+            // Player B tries to terminate - should NOT affect Player A's session
+            val terminated = manager.terminateActiveSessionByOwner(playerB)
+            assertTrue(terminated == null || terminated != sessionIdA, "Should not terminate A's session")
+
+            // Verify Player A's session is still active
+            val activeA = manager.getActiveSession(playerA, sessionIdA)
+            assertTrue(activeA != null, "Player A's session should still be active")
+        }
+
+        manager.shutdownAll()
+    }
+
+    @Test
+    fun `Adversarial - Cannot hijack Creating session`() {
+        // Two players race to create the same session ID - one should be rejected
+        val playerActiveSessionIndex = InMemoryPlayerActiveSessionIndex()
+
+        val specRepo = mockk<OpponentSpecRepository>()
+        every { specRepo.findById(any()) } returns mockk<OpponentSpec.Lightweight>(relaxed = true) {
+            every { id } returns "spec-1"
+        }
+
+        val manager = SessionManager(
+            logger = mockk(relaxed = true),
+            appConfig = AppConfig(),
+            opponentSpecRepository = specRepo,
+            gameEventBus = mockk(relaxed = true),
+            startRoundUseCase = mockk(relaxed = true),
+            submitAnswerUseCase = mockk(relaxed = true),
+            answerVerifier = mockk(relaxed = true),
+            llmPlayerGateway = mockk(relaxed = true),
+            llmStreamOrchestrator = mockk(relaxed = true),
+            resultsRepository = mockk(relaxed = true),
+            clock = Clock.systemUTC(),
+            playerActiveSessionIndex = playerActiveSessionIndex,
+        )
+
+        val playerA = Uuid.random()
+        val playerB = Uuid.random()
+        val targetSessionId = Uuid.random()
+
+        runBlocking(Dispatchers.Default) {
+            val p1 = async {
+                manager.joinSession(
+                    sessionId = targetSessionId,
+                    clientIdentity = ClientIdentity(playerA, "1.1.1.1"),
+                    nickname = "PlayerA",
+                    opponentSpecId = "spec-1"
+                )
+            }
+
+            val p2 = async {
+                manager.joinSession(
+                    sessionId = targetSessionId,
+                    clientIdentity = ClientIdentity(playerB, "2.2.2.2"),
+                    nickname = "PlayerB",
+                    opponentSpecId = "spec-1"
+                )
+            }
+
+            val results = listOf(p1.await(), p2.await())
+            val successes = results.filterIsInstance<SessionManager.JoinResult.Success>()
+            val failures = results.filterIsInstance<SessionManager.JoinResult.Failure>()
+
+            // Only one should succeed
+            assertEquals(1, successes.size, "Only one player should own the session")
+            assertEquals(1, failures.size, "One player should be rejected")
+
+            // The failure should be one of: session_creating, session_not_owned, or session_taken
+            val validErrorCodes = listOf("session_creating", "session_not_owned", "session_taken")
+            assertTrue(
+                failures.first().errorCode in validErrorCodes,
+                "Error code should be session security related, got: ${failures.first().errorCode}"
+            )
+        }
+
+        manager.shutdownAll()
+    }
+
+    @Test
+    fun `Binding not poisoned on opponent_spec_not_found`() {
+        // Verify that no binding is created when opponent spec is invalid
+        val playerActiveSessionIndex = InMemoryPlayerActiveSessionIndex()
+        val playerId = Uuid.random()
+
+        val specRepo = mockk<OpponentSpecRepository>()
+        every { specRepo.findById("invalid-spec") } returns null
+        every { specRepo.findById("valid-spec") } returns mockk<OpponentSpec.Lightweight>(relaxed = true) {
+            every { id } returns "valid-spec"
+        }
+
+        val manager = SessionManager(
+            logger = mockk(relaxed = true),
+            appConfig = AppConfig(),
+            opponentSpecRepository = specRepo,
+            gameEventBus = mockk(relaxed = true),
+            startRoundUseCase = mockk(relaxed = true),
+            submitAnswerUseCase = mockk(relaxed = true),
+            answerVerifier = mockk(relaxed = true),
+            llmPlayerGateway = mockk(relaxed = true),
+            llmStreamOrchestrator = mockk(relaxed = true),
+            resultsRepository = mockk(relaxed = true),
+            clock = Clock.systemUTC(),
+            playerActiveSessionIndex = playerActiveSessionIndex,
+        )
+
+        runBlocking {
+            val result = manager.joinSession(
+                sessionId = null,
+                clientIdentity = ClientIdentity(playerId, "1.1.1.1"),
+                nickname = "Player",
+                opponentSpecId = "invalid-spec"
+            )
+
+            assertTrue(result is SessionManager.JoinResult.Failure, "Should fail for invalid spec")
+            assertEquals("opponent_spec_not_found", (result as SessionManager.JoinResult.Failure).errorCode)
+
+            // Critical: no binding should exist
+            val binding = playerActiveSessionIndex.get(playerId)
+            assertTrue(binding == null, "No binding should be created for invalid spec")
+        }
+
+        manager.shutdownAll()
+    }
+
+    @Test
+    fun `getActiveSession heals missing binding`() {
+        // Create session, clear binding, verify getActiveSession restores it
+        val playerActiveSessionIndex = InMemoryPlayerActiveSessionIndex()
+        val playerId = Uuid.random()
+
+        val specRepo = mockk<OpponentSpecRepository>()
+        every { specRepo.findById(any()) } returns mockk<OpponentSpec.Lightweight>(relaxed = true) {
+            every { id } returns "spec-1"
+        }
+
+        val manager = SessionManager(
+            logger = mockk(relaxed = true),
+            appConfig = AppConfig(),
+            opponentSpecRepository = specRepo,
+            gameEventBus = mockk(relaxed = true),
+            startRoundUseCase = mockk(relaxed = true),
+            submitAnswerUseCase = mockk(relaxed = true),
+            answerVerifier = mockk(relaxed = true),
+            llmPlayerGateway = mockk(relaxed = true),
+            llmStreamOrchestrator = mockk(relaxed = true),
+            resultsRepository = mockk(relaxed = true),
+            clock = Clock.systemUTC(),
+            playerActiveSessionIndex = playerActiveSessionIndex,
+        )
+
+        runBlocking {
+            // Create session
+            val result = manager.joinSession(
+                sessionId = null,
+                clientIdentity = ClientIdentity(playerId, "1.1.1.1"),
+                nickname = "Player",
+                opponentSpecId = "spec-1"
+            )
+            assertTrue(result is SessionManager.JoinResult.Success)
+            val sessionId = (result as SessionManager.JoinResult.Success).sessionId
+
+            // Verify binding exists
+            assertTrue(playerActiveSessionIndex.get(playerId)?.sessionId == sessionId, "Binding should exist")
+
+            // Manually clear the binding (simulate corruption)
+            playerActiveSessionIndex.clear(playerId, sessionId)
+            assertTrue(playerActiveSessionIndex.get(playerId) == null, "Binding should be cleared")
+
+            // Call getActiveSession with hint - should heal binding
+            val snapshot = manager.getActiveSession(playerId, sessionId)
+            assertTrue(snapshot != null, "Should find session via hint")
+            assertEquals(sessionId, snapshot!!.sessionId)
+
+            // Binding should be restored
+            val healedBinding = playerActiveSessionIndex.get(playerId)
+            assertTrue(healedBinding != null, "Binding should be healed")
+            assertEquals(sessionId, healedBinding!!.sessionId)
+
+            // terminateActiveSessionByOwner should now work
+            val terminated = manager.terminateActiveSessionByOwner(playerId)
+            assertEquals(sessionId, terminated, "Should terminate session via healed binding")
         }
 
         manager.shutdownAll()

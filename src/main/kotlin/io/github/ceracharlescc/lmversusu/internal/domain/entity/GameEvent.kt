@@ -30,6 +30,7 @@ internal sealed class GameEvent {
         val roundNumber: Int,
         val questionPrompt: String,
         val choices: List<String>?,
+        val expectedAnswerType: String,
         val releasedAt: Instant,
         val handicapMs: Long,
         val deadlineAt: Instant,

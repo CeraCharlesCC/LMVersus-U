@@ -806,6 +806,7 @@ function resetRoundUi() {
     state.reasoningSummary = null;
     state.streamError = null;
     state.roundResolveReason = null;
+    state.freeAnswerMode = "text";
 
     state.ui.reasoningPinnedToTop = true;
     const sc = getLlmScrollEl();
@@ -1000,7 +1001,7 @@ function maybeShowHiddenSquares() {
         if (since < 700) return;
 
         state.reasoningSquaresShown = true;
-        const blocks = "■".repeat(64);
+        const blocks = "███".repeat(64);
         state.reasoningBuf += `\n\n\`${blocks}\``;
         scheduleReasoningRender();
     }, 900);
@@ -1118,6 +1119,12 @@ function handleServerEvent(msg) {
         state.questionPrompt = msg.questionPrompt || "";
         state.choices = msg.choices ?? null;
 
+        if (msg.expectedAnswerType === "integer") {
+            state.freeAnswerMode = "int";
+        } else if (msg.expectedAnswerType === "free_text") {
+            state.freeAnswerMode = "text";
+        }
+
         state.releasedAt = msg.releasedAtEpochMs || Date.now();
         state.handicapMs = msg.handicapMs || 0;
         state.deadlineAt = msg.deadlineAtEpochMs || (state.releasedAt + 60000);
@@ -1130,6 +1137,13 @@ function handleServerEvent(msg) {
         startTimers();
         updateTimers(Date.now());
         enforceDeadline(); // In case of clock skew, immediately lock if already past deadline
+        return;
+    }
+
+    if (type === "llm_thinking") {
+        if (msg.roundId !== state.roundId) return;
+        state.llmStatus = "THINKING";
+        updateLlmStatusPill();
         return;
     }
 
@@ -1239,13 +1253,16 @@ function handleServerEvent(msg) {
         const lines = [];
         const note = roundResolveLine(msg.reason);
 
+        const hMark = msg.humanCorrect === true ? " ✅" : (msg.humanCorrect === false ? " ❌" : "");
+        const lMark = msg.llmCorrect === true ? " ✅" : (msg.llmCorrect === false ? " ❌" : "");
+
         if (msg.humanScore != null || msg.llmScore != null) {
             lines.push(`${t("roundScore")}: ${fmtScore(msg.humanScore)} - ${fmtScore(msg.llmScore)}`);
         }
 
         lines.push(`${t("correctAnswerLabel")}: ${formatAnswerDisplay(msg.correctAnswer, state.choices)}`);
-        lines.push(`${t("yourAnswerLabel")}: ${state.humanAnswer ? formatAnswerDisplay(state.humanAnswer, state.choices) : t("noAnswer")}`);
-        lines.push(`${t("oppAnswerLabel")}: ${state.finalAnswer ? formatAnswerDisplay(state.finalAnswer, state.choices) : (msg.reason === "TIMEOVER_LLM" ? t("noAnswer") : t("oppPending"))}`);
+        lines.push(`${t("yourAnswerLabel")}${hMark}: ${state.humanAnswer ? formatAnswerDisplay(state.humanAnswer, state.choices) : t("noAnswer")}`);
+        lines.push(`${t("oppAnswerLabel")}${lMark}: ${state.finalAnswer ? formatAnswerDisplay(state.finalAnswer, state.choices) : (msg.reason === "TIMEOVER_LLM" ? t("noAnswer") : t("oppPending"))}`);
 
         renderResultDetails(note, lines);
         return;
