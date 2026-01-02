@@ -62,6 +62,13 @@ internal data class WsRoundResolved(
 ) : WsGameFrame
 
 @Serializable
+@SerialName("llm_thinking")
+internal data class WsLlmThinking(
+    val sessionId: String,
+    val roundId: String,
+) : WsGameFrame
+
+@Serializable
 @SerialName("llm_reasoning_delta")
 internal data class WsLlmReasoningDelta(
     val sessionId: String,

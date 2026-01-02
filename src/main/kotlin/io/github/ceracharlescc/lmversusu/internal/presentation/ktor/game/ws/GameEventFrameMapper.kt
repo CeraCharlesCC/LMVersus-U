@@ -62,6 +62,12 @@ internal class GameEventFrameMapper @Inject constructor(
             message = event.message,
         )
 
+
+        is GameEvent.LlmThinking -> WsLlmThinking(
+            sessionId = event.sessionId.toString(),
+            roundId = event.roundId.toString(),
+        )
+
         is GameEvent.LlmReasoningDelta -> WsLlmReasoningDelta(
             sessionId = event.sessionId.toString(),
             roundId = event.roundId.toString(),
@@ -125,7 +131,6 @@ internal class GameEventFrameMapper @Inject constructor(
 
         is GameEvent.SessionCreated,
         is GameEvent.SubmissionReceived,
-        is GameEvent.LlmThinking,
         is GameEvent.SessionCompleted -> null
     }
 }
