@@ -98,10 +98,11 @@ internal class SessionManager @Inject constructor(
         val opponentSpec = opponentSpecRepository.findById(opponentSpecId)
             ?: return JoinResult.Failure(
                 sessionId = sessionId,
-                errorCode = "opponent_not_found",
+                errorCode = "opponent_spec_not_found",
                 message = "opponent spec not found",
             )
 
+        // Fast-path: session already exists.
         actors[sessionId]?.let { existing ->
             return joinExistingSession(
                 entry = existing,
@@ -118,6 +119,7 @@ internal class SessionManager @Inject constructor(
 
         val permit = activeSessionLimiter.tryAcquire(mode)
         if (permit == null) {
+            // If a creator won the race between our first check and acquiring the permit, join it.
             actors[sessionId]?.let { existing ->
                 return joinExistingSession(
                     entry = existing,
@@ -136,7 +138,9 @@ internal class SessionManager @Inject constructor(
             )
         }
 
+        var transferred = false
         try {
+            // Re-check after acquiring permit to avoid creating a duplicate actor.
             actors[sessionId]?.let { existing ->
                 return joinExistingSession(
                     entry = existing,
@@ -177,9 +181,8 @@ internal class SessionManager @Inject constructor(
             val newEntry = ActorEntry(actor = newActor, mode = mode, permit = permit)
             val existingAfterInsert = actors.putIfAbsent(sessionId, newEntry)
             if (existingAfterInsert != null) {
-                // Lost the race: join the winner; release permit and join existing.
+                // Lost the race: shut down ours, release permit, and join the winner.
                 newActor.shutdown()
-                permit.close()
                 return joinExistingSession(
                     entry = existingAfterInsert,
                     sessionId = sessionId,
@@ -190,9 +193,10 @@ internal class SessionManager @Inject constructor(
                 )
             }
 
-            // Permit successfully transferred to entry - do not close in finally
-            return joinExistingSession(
+            // Permit is now owned by the entry and will be released from removeSession.
+            transferred = true
 
+            return joinExistingSession(
                 entry = newEntry,
                 sessionId = sessionId,
                 clientIdentity = clientIdentity,
@@ -200,13 +204,13 @@ internal class SessionManager @Inject constructor(
                 opponentSpecId = opponentSpecId,
                 isNewSession = true,
             )
-        } catch (e: Exception) {
-            // On any exception after permit acquisition, release it
-            permit.close()
-            throw e
+        } finally {
+            if (!transferred) {
+                permit.close()
+            }
         }
-
     }
+
 
 
     private suspend fun joinExistingSession(
