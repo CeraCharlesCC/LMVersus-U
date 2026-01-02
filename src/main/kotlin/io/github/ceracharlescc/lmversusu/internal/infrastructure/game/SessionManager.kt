@@ -116,7 +116,8 @@ internal class SessionManager @Inject constructor(
         val mode = opponentSpec.mode
         val limitContext = limitContextFor(mode)
 
-        if (!activeSessionLimiter.tryAcquire(mode)) {
+        val permit = activeSessionLimiter.tryAcquire(mode)
+        if (permit == null) {
             actors[sessionId]?.let { existing ->
                 return joinExistingSession(
                     entry = existing,
@@ -135,7 +136,6 @@ internal class SessionManager @Inject constructor(
             )
         }
 
-        var shouldReleasePermit = true
         try {
             actors[sessionId]?.let { existing ->
                 return joinExistingSession(
@@ -174,11 +174,12 @@ internal class SessionManager @Inject constructor(
                 onTerminate = { id -> removeSession(id) },
             )
 
-            val newEntry = ActorEntry(actor = newActor, mode = mode, holdsPermit = true)
+            val newEntry = ActorEntry(actor = newActor, mode = mode, permit = permit)
             val existingAfterInsert = actors.putIfAbsent(sessionId, newEntry)
             if (existingAfterInsert != null) {
-                // Lost the race: join the winner; our permit must be released in finally.
+                // Lost the race: join the winner; release permit and join existing.
                 newActor.shutdown()
+                permit.close()
                 return joinExistingSession(
                     entry = existingAfterInsert,
                     sessionId = sessionId,
@@ -189,9 +190,9 @@ internal class SessionManager @Inject constructor(
                 )
             }
 
-            shouldReleasePermit = false
-
+            // Permit successfully transferred to entry - do not close in finally
             return joinExistingSession(
+
                 entry = newEntry,
                 sessionId = sessionId,
                 clientIdentity = clientIdentity,
@@ -199,11 +200,12 @@ internal class SessionManager @Inject constructor(
                 opponentSpecId = opponentSpecId,
                 isNewSession = true,
             )
-        } finally {
-            if (shouldReleasePermit) {
-                activeSessionLimiter.release(mode)
-            }
+        } catch (e: Exception) {
+            // On any exception after permit acquisition, release it
+            permit.close()
+            throw e
         }
+
     }
 
 
@@ -370,9 +372,7 @@ internal class SessionManager @Inject constructor(
         val entry = actors.remove(sessionId)
         if (entry != null) {
             entry.actor.shutdown()
-            if (entry.holdsPermit) {
-                activeSessionLimiter.release(entry.mode)
-            }
+            entry.permit?.close()
         }
         gameEventBus.revokeSession(sessionId)
     }
@@ -401,7 +401,7 @@ internal class SessionManager @Inject constructor(
     private data class ActorEntry(
         val actor: SessionActor,
         val mode: GameMode,
-        val holdsPermit: Boolean,
+        val permit: ActiveSessionLimiter.Permit?,
     )
 
     private fun limitContextFor(mode: GameMode): LimitContext =
