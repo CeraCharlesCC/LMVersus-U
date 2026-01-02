@@ -78,13 +78,16 @@ internal class SessionManager @Inject constructor(
         data object SessionNotFound : TouchResult
     }
 
-    private val actors = ConcurrentHashMap<Uuid, SessionActor>()
+    private val actors = ConcurrentHashMap<Uuid, ActorEntry>()
     private val supervisorScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     private val idleTimeoutJobs = ConcurrentHashMap<Uuid, Job>()
 
     private val maxLifespanJobs = ConcurrentHashMap<Uuid, Job>()
     private val sessionLimitRegistry = SessionLimitRegistry(clock)
+    private val activeSessionLimiter = ActiveSessionLimiter { mode ->
+        limitContextFor(mode).limitConfig.maxActiveSessions
+    }
 
     suspend fun joinSession(
         sessionId: Uuid,
@@ -99,43 +102,95 @@ internal class SessionManager @Inject constructor(
                 message = "opponent spec not found",
             )
 
-        val mailboxCapacity = appConfig.sessionLimitConfig.actorMailboxCapacity.coerceAtLeast(1)
-        val newActor = SessionActor(
-            logger = logger,
-            sessionId = sessionId,
-            opponentSpec = opponentSpec,
-            gameEventBus = gameEventBus,
-            startRoundUseCase = startRoundUseCase,
-            submitAnswerUseCase = submitAnswerUseCase,
-            answerVerifier = answerVerifier,
-            llmPlayerGateway = llmPlayerGateway,
-            llmStreamOrchestrator = llmStreamOrchestrator,
-            resultsRepository = resultsRepository,
-            clock = clock,
-            mailboxCapacity = mailboxCapacity,
-            onTerminate = { id -> removeSession(id) },
-        )
-
-        val existingActor = actors.putIfAbsent(sessionId, newActor)
-        val isNewSession = existingActor == null
-        val actor = existingActor ?: newActor
-
-        if (!isNewSession) {
-            newActor.shutdown()
+        val existingEntry = actors[sessionId]
+        if (existingEntry != null) {
+            return joinExistingSession(
+                entry = existingEntry,
+                sessionId = sessionId,
+                clientIdentity = clientIdentity,
+                nickname = nickname,
+                opponentSpecId = opponentSpecId,
+                isNewSession = false,
+            )
         }
 
-        if (isNewSession) {
+        val limitContext = limitContextFor(opponentSpec.mode)
+        if (!activeSessionLimiter.tryAcquire(opponentSpec.mode)) {
+            return JoinResult.Failure(
+                sessionId = sessionId,
+                errorCode = "session_limit_exceeded",
+                message = "too many active ${limitContext.modeLabel} sessions",
+            )
+        }
+
+        var shouldReleasePermit = true
+        try {
             val limitFailure = checkSessionCreationLimits(clientIdentity, opponentSpec.mode)
             if (limitFailure != null) {
-                removeSession(sessionId)
                 return JoinResult.Failure(
                     sessionId = sessionId,
                     errorCode = limitFailure.errorCode,
                     message = limitFailure.message,
                 )
             }
-        }
 
+            val mailboxCapacity = appConfig.sessionLimitConfig.actorMailboxCapacity.coerceAtLeast(1)
+            val newActor = SessionActor(
+                logger = logger,
+                sessionId = sessionId,
+                opponentSpec = opponentSpec,
+                gameEventBus = gameEventBus,
+                startRoundUseCase = startRoundUseCase,
+                submitAnswerUseCase = submitAnswerUseCase,
+                answerVerifier = answerVerifier,
+                llmPlayerGateway = llmPlayerGateway,
+                llmStreamOrchestrator = llmStreamOrchestrator,
+                resultsRepository = resultsRepository,
+                clock = clock,
+                mailboxCapacity = mailboxCapacity,
+                onTerminate = { id -> removeSession(id) },
+            )
+
+            val newEntry = ActorEntry(actor = newActor, mode = opponentSpec.mode, holdsPermit = true)
+            val existingAfterInsert = actors.putIfAbsent(sessionId, newEntry)
+            if (existingAfterInsert != null) {
+                newActor.shutdown()
+                return joinExistingSession(
+                    entry = existingAfterInsert,
+                    sessionId = sessionId,
+                    clientIdentity = clientIdentity,
+                    nickname = nickname,
+                    opponentSpecId = opponentSpecId,
+                    isNewSession = false,
+                )
+            }
+
+            shouldReleasePermit = false
+
+            return joinExistingSession(
+                entry = newEntry,
+                sessionId = sessionId,
+                clientIdentity = clientIdentity,
+                nickname = nickname,
+                opponentSpecId = opponentSpecId,
+                isNewSession = true,
+            )
+        } finally {
+            if (shouldReleasePermit) {
+                activeSessionLimiter.release(opponentSpec.mode)
+            }
+        }
+    }
+
+    private suspend fun joinExistingSession(
+        entry: ActorEntry,
+        sessionId: Uuid,
+        clientIdentity: ClientIdentity,
+        nickname: String,
+        opponentSpecId: String,
+        isNewSession: Boolean,
+    ): JoinResult {
+        val actor = entry.actor
         if (actor.opponentSpecId != opponentSpecId) {
             return JoinResult.Failure(
                 sessionId = sessionId,
@@ -204,7 +259,7 @@ internal class SessionManager @Inject constructor(
     }
 
     suspend fun startNextRound(sessionId: Uuid, playerId: Uuid): CommandResult {
-        val actor = actors[sessionId]
+        val actor = actors[sessionId]?.actor
             ?: return CommandResult.Failure(
                 sessionId = sessionId,
                 errorCode = "session_not_found",
@@ -230,7 +285,7 @@ internal class SessionManager @Inject constructor(
         answer: io.github.ceracharlescc.lmversusu.internal.domain.vo.Answer,
         clientSentAt: Instant?,
     ): CommandResult {
-        val actor = actors[sessionId]
+        val actor = actors[sessionId]?.actor
             ?: return CommandResult.Failure(
                 sessionId = sessionId,
                 errorCode = "session_not_found",
@@ -271,7 +326,7 @@ internal class SessionManager @Inject constructor(
         idleTimeoutJobs[sessionId]?.cancel()
         idleTimeoutJobs[sessionId] = supervisorScope.launch {
             delay(IDLE_TIMEOUT_MS)
-            actors[sessionId]?.submit(SessionCommand.Timeout(reason = "timeout"))
+            actors[sessionId]?.actor?.submit(SessionCommand.Timeout(reason = "timeout"))
         }
     }
 
@@ -280,20 +335,31 @@ internal class SessionManager @Inject constructor(
         maxLifespanJobs[sessionId] = supervisorScope.launch {
             delay(MAX_LIFESPAN_MS)
             // Route through actor to ensure SessionResolved is emitted
-            actors[sessionId]?.submitCritical(SessionCommand.Timeout(reason = "max_lifespan"))
+            actors[sessionId]?.actor?.submitCritical(SessionCommand.Timeout(reason = "max_lifespan"))
         }
     }
 
     private fun removeSession(sessionId: Uuid) {
         idleTimeoutJobs.remove(sessionId)?.cancel()
         maxLifespanJobs.remove(sessionId)?.cancel()
-        actors.remove(sessionId)?.shutdown()
+        val entry = actors.remove(sessionId)
+        if (entry != null) {
+            entry.actor.shutdown()
+            if (entry.holdsPermit) {
+                activeSessionLimiter.release(entry.mode)
+            }
+        }
         gameEventBus.revokeSession(sessionId)
     }
 
     fun shutdownAll() {
         supervisorScope.cancel()
-        actors.forEach { (_, actor) -> actor.shutdown() }
+        actors.forEach { (_, entry) ->
+            entry.actor.shutdown()
+            if (entry.holdsPermit) {
+                activeSessionLimiter.release(entry.mode)
+            }
+        }
         actors.clear()
         idleTimeoutJobs.clear()
         maxLifespanJobs.clear()
@@ -309,11 +375,14 @@ internal class SessionManager @Inject constructor(
         val message: String,
     )
 
-    private fun checkSessionCreationLimits(
-        clientIdentity: ClientIdentity,
-        mode: GameMode,
-    ): LimitFailure? {
-        val limitContext = when (mode) {
+    private data class ActorEntry(
+        val actor: SessionActor,
+        val mode: GameMode,
+        val holdsPermit: Boolean,
+    )
+
+    private fun limitContextFor(mode: GameMode): LimitContext =
+        when (mode) {
             GameMode.PREMIUM -> LimitContext(
                 limitConfig = appConfig.sessionLimitConfig.premium,
                 modeLabel = "premium",
@@ -325,14 +394,11 @@ internal class SessionManager @Inject constructor(
             )
         }
 
-        val activeSessions = countActiveSessions(mode)
-        val maxActive = limitContext.limitConfig.maxActiveSessions
-        if (maxActive in 1..activeSessions) {
-            return LimitFailure(
-                errorCode = "session_limit_exceeded",
-                message = "too many active ${limitContext.modeLabel} sessions",
-            )
-        }
+    private fun checkSessionCreationLimits(
+        clientIdentity: ClientIdentity,
+        mode: GameMode,
+    ): LimitFailure? {
+        val limitContext = limitContextFor(mode)
 
         val ipAddress = clientIdentity.ipAddress.ifBlank { "unknown" }
         val playerKey = clientIdentity.playerId.toString()
@@ -431,9 +497,5 @@ internal class SessionManager @Inject constructor(
         }
 
         return null
-    }
-
-    private fun countActiveSessions(mode: GameMode): Int {
-        return actors.values.count { actor -> actor.mode == mode }
     }
 }
