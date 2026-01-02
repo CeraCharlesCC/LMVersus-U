@@ -45,15 +45,5 @@ internal class InMemoryPlayerActiveSessionIndex @Inject constructor() : PlayerAc
         }
     }
 
-    override fun takeByOwner(playerId: Uuid): PlayerActiveSessionIndex.Binding? {
-        var taken: PlayerActiveSessionIndex.Binding? = null
-        bindings.compute(playerId) { _, existing ->
-            if (existing == null) null
-            else {
-                taken = existing
-                null
-            }
-        }
-        return taken
-    }
+    override fun takeByOwner(playerId: Uuid): PlayerActiveSessionIndex.Binding? = bindings.remove(playerId)
 }
