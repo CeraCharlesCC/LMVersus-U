@@ -15,6 +15,7 @@ import io.ktor.server.testing.testApplication
 import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
+import java.nio.file.Paths
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -28,9 +29,15 @@ class ApplicationTest {
         @BeforeAll
         fun setUpOnce() {
             originalConfigDir = System.getProperty(CONFIG_DIR_PROPERTY)
-            // Set configDir to project root where LLM-Configs exists
-            // This ensures consistent resolution on both local and CI environments
-            System.setProperty(CONFIG_DIR_PROPERTY, System.getProperty("user.dir"))
+
+            val cl = Thread.currentThread().contextClassLoader
+            val llmConfigsUrl = cl.getResource("LLM-Configs")
+                ?: error("Missing test resource folder: src/test/resources/LLM-Configs")
+
+            val configDir = Paths.get(llmConfigsUrl.toURI()).parent
+                ?: error("Could not resolve parent directory for LLM-Configs")
+
+            System.setProperty(CONFIG_DIR_PROPERTY, configDir.toString())
         }
 
         @JvmStatic

@@ -1,0 +1,13 @@
+{
+  "id": "ci-light-1",
+  "mode": "LIGHTWEIGHT",
+  "displayName": "CI Lightweight",
+  "llmProfile": {
+    "modelName": "gpt-4o-mini",
+    "displayName": "CI Model"
+  },
+  "streaming": {},
+  "questionSetPath": "questions/test.json",
+  "questionSetDisplayName": "Test Questions",
+  "datasetPath": "datasets/test.json"
+}
