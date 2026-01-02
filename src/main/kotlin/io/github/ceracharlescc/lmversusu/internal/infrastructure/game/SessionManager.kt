@@ -196,21 +196,30 @@ internal class SessionManager @Inject constructor(
             // Permit is now owned by the entry and will be released from removeSession.
             transferred = true
 
-            return joinExistingSession(
-                entry = newEntry,
-                sessionId = sessionId,
-                clientIdentity = clientIdentity,
-                nickname = nickname,
-                opponentSpecId = opponentSpecId,
-                isNewSession = true,
-            )
+            // IMPORTANT: joinExistingSession is suspendable and could throw; if it does,
+            // we must remove the entry and release the permit to avoid leaking capacity.
+            return try {
+                joinExistingSession(
+                    entry = newEntry,
+                    sessionId = sessionId,
+                    clientIdentity = clientIdentity,
+                    nickname = nickname,
+                    opponentSpecId = opponentSpecId,
+                    isNewSession = true,
+                )
+            } catch (t: Throwable) {
+                // Best-effort cleanup. removeSession will shutdown actor, revoke bus, and close permit.
+                removeSession(sessionId)
+                throw t
+            }
         } finally {
             if (!transferred) {
                 permit.close()
             }
         }
     }
-    
+
+
     private suspend fun joinExistingSession(
         entry: ActorEntry,
         sessionId: Uuid,
@@ -403,7 +412,7 @@ internal class SessionManager @Inject constructor(
     private data class ActorEntry(
         val actor: SessionActor,
         val mode: GameMode,
-        val permit: ActiveSessionLimiter.Permit?,
+        val permit: ActiveSessionLimiter.Permit,
     )
 
     private fun limitContextFor(mode: GameMode): LimitContext =
