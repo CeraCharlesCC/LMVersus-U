@@ -102,10 +102,9 @@ internal class SessionManager @Inject constructor(
                 message = "opponent spec not found",
             )
 
-        val existingEntry = actors[sessionId]
-        if (existingEntry != null) {
+        actors[sessionId]?.let { existing ->
             return joinExistingSession(
-                entry = existingEntry,
+                entry = existing,
                 sessionId = sessionId,
                 clientIdentity = clientIdentity,
                 nickname = nickname,
@@ -114,8 +113,21 @@ internal class SessionManager @Inject constructor(
             )
         }
 
-        val limitContext = limitContextFor(opponentSpec.mode)
-        if (!activeSessionLimiter.tryAcquire(opponentSpec.mode)) {
+        val mode = opponentSpec.mode
+        val limitContext = limitContextFor(mode)
+
+        if (!activeSessionLimiter.tryAcquire(mode)) {
+            actors[sessionId]?.let { existing ->
+                return joinExistingSession(
+                    entry = existing,
+                    sessionId = sessionId,
+                    clientIdentity = clientIdentity,
+                    nickname = nickname,
+                    opponentSpecId = opponentSpecId,
+                    isNewSession = false,
+                )
+            }
+
             return JoinResult.Failure(
                 sessionId = sessionId,
                 errorCode = "session_limit_exceeded",
@@ -125,7 +137,18 @@ internal class SessionManager @Inject constructor(
 
         var shouldReleasePermit = true
         try {
-            val limitFailure = checkSessionCreationLimits(clientIdentity, opponentSpec.mode)
+            actors[sessionId]?.let { existing ->
+                return joinExistingSession(
+                    entry = existing,
+                    sessionId = sessionId,
+                    clientIdentity = clientIdentity,
+                    nickname = nickname,
+                    opponentSpecId = opponentSpecId,
+                    isNewSession = false,
+                )
+            }
+
+            val limitFailure = checkSessionCreationLimits(clientIdentity, mode)
             if (limitFailure != null) {
                 return JoinResult.Failure(
                     sessionId = sessionId,
@@ -151,9 +174,10 @@ internal class SessionManager @Inject constructor(
                 onTerminate = { id -> removeSession(id) },
             )
 
-            val newEntry = ActorEntry(actor = newActor, mode = opponentSpec.mode, holdsPermit = true)
+            val newEntry = ActorEntry(actor = newActor, mode = mode, holdsPermit = true)
             val existingAfterInsert = actors.putIfAbsent(sessionId, newEntry)
             if (existingAfterInsert != null) {
+                // Lost the race: join the winner; our permit must be released in finally.
                 newActor.shutdown()
                 return joinExistingSession(
                     entry = existingAfterInsert,
@@ -177,10 +201,11 @@ internal class SessionManager @Inject constructor(
             )
         } finally {
             if (shouldReleasePermit) {
-                activeSessionLimiter.release(opponentSpec.mode)
+                activeSessionLimiter.release(mode)
             }
         }
     }
+
 
     private suspend fun joinExistingSession(
         entry: ActorEntry,
