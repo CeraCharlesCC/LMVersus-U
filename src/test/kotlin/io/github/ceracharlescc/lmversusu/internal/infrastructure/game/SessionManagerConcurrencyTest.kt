@@ -57,7 +57,8 @@ class SessionManagerConcurrencyTest {
             llmPlayerGateway = mockk(relaxed = true),
             llmStreamOrchestrator = mockk(relaxed = true),
             resultsRepository = mockk(relaxed = true),
-            clock = Clock.systemUTC()
+            clock = Clock.systemUTC(),
+            playerActiveSessionIndex = InMemoryPlayerActiveSessionIndex(),
         )
 
         val attackerIp = "192.168.1.66"
@@ -115,7 +116,8 @@ class SessionManagerConcurrencyTest {
             llmPlayerGateway = mockk(relaxed = true),
             llmStreamOrchestrator = mockk(relaxed = true),
             resultsRepository = mockk(relaxed = true),
-            clock = Clock.systemUTC()
+            clock = Clock.systemUTC(),
+            playerActiveSessionIndex = InMemoryPlayerActiveSessionIndex(),
         )
 
         val targetSessionId = Uuid.random()

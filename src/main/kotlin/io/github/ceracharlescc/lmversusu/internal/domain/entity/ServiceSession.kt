@@ -6,4 +6,9 @@ import kotlinx.serialization.Serializable
 internal data class ServiceSession(
     val playerId: String,
     val issuedAtEpochMs: Long,
-)
+    val activeSessionId: String,
+) {
+    companion object {
+        const val ACTIVE_SESSION_NONE = "null"
+    }
+}

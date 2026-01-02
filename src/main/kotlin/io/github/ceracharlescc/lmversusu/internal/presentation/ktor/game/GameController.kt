@@ -79,10 +79,14 @@ internal class GameController @Inject constructor(
             playerId = parsedPlayerId,
             ipAddress = normalizedIpAddress,
         )
-        val resolvedSessionId = parsedSessionId ?: Uuid.random()
-
-        return when (val result =
-            sessionManager.joinSession(resolvedSessionId, clientIdentity, trimmedNickname, opponentSpecId)) {
+        return when (
+            val result = sessionManager.joinSession(
+                parsedSessionId,
+                clientIdentity,
+                trimmedNickname,
+                opponentSpecId
+            )
+        ) {
             is SessionManager.JoinResult.Success -> JoinResult.Success(
                 sessionId = result.sessionId,
                 playerId = result.playerId,

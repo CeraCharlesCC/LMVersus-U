@@ -155,7 +155,13 @@ class GameRoutesSecurityTest {
 
             // Inject a session for every call
             intercept(io.ktor.server.application.ApplicationCallPipeline.Plugins) {
-                call.sessions.set(ServiceSession("player-123", System.currentTimeMillis()))
+                call.sessions.set(
+                    ServiceSession(
+                        playerId = "player-123",
+                        issuedAtEpochMs = System.currentTimeMillis(),
+                        activeSessionId = ServiceSession.ACTIVE_SESSION_NONE,
+                    )
+                )
             }
 
             routing {

@@ -15,6 +15,7 @@ import kotlin.uuid.Uuid
 internal data class PlayerSessionResponse(
     val playerId: String,
     val issuedAtEpochMs: Long,
+    val activeSessionId: String,
 )
 
 @OptIn(ExperimentalUuidApi::class)
@@ -27,6 +28,7 @@ internal fun Route.playerSessionRoutes() {
                 PlayerSessionResponse(
                     playerId = existingSession.playerId,
                     issuedAtEpochMs = existingSession.issuedAtEpochMs,
+                    activeSessionId = existingSession.activeSessionId,
                 )
             )
         } else {
@@ -34,6 +36,7 @@ internal fun Route.playerSessionRoutes() {
             val newSession = ServiceSession(
                 playerId = Uuid.random().toString(),
                 issuedAtEpochMs = now,
+                activeSessionId = ServiceSession.ACTIVE_SESSION_NONE,
             )
 
             call.sessions.set(newSession)
@@ -42,6 +45,7 @@ internal fun Route.playerSessionRoutes() {
                 PlayerSessionResponse(
                     playerId = newSession.playerId,
                     issuedAtEpochMs = newSession.issuedAtEpochMs,
+                    activeSessionId = newSession.activeSessionId,
                 )
             )
         }

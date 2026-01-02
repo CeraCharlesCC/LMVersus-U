@@ -36,7 +36,10 @@ internal fun Application.module(
     configureRouting(appComponent.logger())
 
     routing {
-        apiV1Routes(appComponent.apiController())
+        apiV1Routes(
+            apiController = appComponent.apiController(),
+            playerActiveSessionController = appComponent.playerActiveSessionController(),
+        )
         gameRoutes(
             gameController = appComponent.gameController(),
             gameEventBus = appComponent.gameEventBus(),
