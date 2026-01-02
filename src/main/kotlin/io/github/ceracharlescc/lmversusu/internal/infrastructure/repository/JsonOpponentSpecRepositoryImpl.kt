@@ -29,7 +29,7 @@ internal class JsonOpponentSpecRepositoryImpl @Inject constructor(
     @Volatile
     private var cachedSpecs: List<OpponentSpec>? = null
 
-    override fun getAllSpecs(): List<OpponentSpec>? {
+    override fun getAllSpecs(): List<OpponentSpec> {
         cachedSpecs?.let { return it }
 
         return synchronized(this) {
@@ -38,12 +38,12 @@ internal class JsonOpponentSpecRepositoryImpl @Inject constructor(
     }
 
     override fun findById(id: String): OpponentSpec? =
-        getAllSpecs()?.firstOrNull { it.id == id }
+        getAllSpecs().firstOrNull { it.id == id }
 
-    private fun loadFromDisk(): List<OpponentSpec>? {
+    private fun loadFromDisk(): List<OpponentSpec> {
         val llmConfigsDir = configDirectory.resolve("LLM-Configs")
 
-        if (!Files.isDirectory(llmConfigsDir)) return null
+        if (!Files.isDirectory(llmConfigsDir)) return emptyList()
 
         return try {
             Files.list(llmConfigsDir).use { stream ->
@@ -55,7 +55,7 @@ internal class JsonOpponentSpecRepositoryImpl @Inject constructor(
                     .toList()
             }
         } catch (_: Exception) {
-            null
+            emptyList()
         }
     }
 
