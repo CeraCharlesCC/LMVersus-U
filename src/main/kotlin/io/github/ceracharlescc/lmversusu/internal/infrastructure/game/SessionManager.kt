@@ -210,9 +210,7 @@ internal class SessionManager @Inject constructor(
             }
         }
     }
-
-
-
+    
     private suspend fun joinExistingSession(
         entry: ActorEntry,
         sessionId: Uuid,
