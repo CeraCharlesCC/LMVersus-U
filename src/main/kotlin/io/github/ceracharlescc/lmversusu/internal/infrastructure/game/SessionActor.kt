@@ -155,7 +155,7 @@ internal class SessionActor(
                     nickname = llm.nickname,
                 )
             )
-            command.response.complete(JoinResponse.Accepted)
+            command.response.complete(JoinResponse.Accepted(roundSnapshot = null))
             return
         }
 
@@ -170,7 +170,9 @@ internal class SessionActor(
             )
         } else {
             // Same player rejoining - allowed
-            command.response.complete(JoinResponse.Accepted)
+            // Build a snapshot of the current round if one is in progress
+            val roundSnapshot = buildRoundSnapshot(existingSession)
+            command.response.complete(JoinResponse.Accepted(roundSnapshot = roundSnapshot))
         }
     }
 
@@ -823,6 +825,35 @@ internal class SessionActor(
         return sessionId.toString()
     }
 
+    /**
+     * Builds a RoundStarted snapshot for the currently in-progress round, if any.
+     * Used to replay round state when a player reconnects mid-round.
+     */
+    private fun buildRoundSnapshot(gameSession: GameSession): GameEvent.RoundStarted? {
+        val activeRound = gameSession.rounds.lastOrNull { it.isInProgress } ?: return null
+        val roundNumber = gameSession.rounds.indexOfFirst { it.roundId == activeRound.roundId } + 1
+
+        val expectedAnswerType = when {
+            activeRound.question.choices != null -> "multiple_choice"
+            activeRound.question.verifierSpec is VerifierSpec.IntegerRange -> "integer"
+            else -> "free_text"
+        }
+
+        return GameEvent.RoundStarted(
+            sessionId = sessionId,
+            questionId = activeRound.question.questionId,
+            roundId = activeRound.roundId,
+            roundNumber = roundNumber,
+            questionPrompt = activeRound.question.prompt,
+            choices = activeRound.question.choices,
+            expectedAnswerType = expectedAnswerType,
+            releasedAt = activeRound.releasedAt,
+            handicapMs = activeRound.handicap.toMillis(),
+            deadlineAt = activeRound.deadline,
+            nonceToken = activeRound.nonceToken,
+        )
+    }
+
     private suspend fun handleTimeout(command: SessionCommand.Timeout) {
         val currentSession = session ?: return
         if (currentSession.isCompleted) return
@@ -848,7 +879,7 @@ internal class SessionActor(
 }
 
 internal sealed interface JoinResponse {
-    data object Accepted : JoinResponse
+    data class Accepted(val roundSnapshot: GameEvent.RoundStarted?) : JoinResponse
     data class Rejected(val errorCode: String, val message: String) : JoinResponse
 }
 

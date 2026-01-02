@@ -9,6 +9,7 @@ import io.github.ceracharlescc.lmversusu.internal.application.port.LlmPlayerGate
 import io.github.ceracharlescc.lmversusu.internal.application.service.LlmStreamOrchestrator
 import io.github.ceracharlescc.lmversusu.internal.application.usecase.StartRoundUseCase
 import io.github.ceracharlescc.lmversusu.internal.application.usecase.SubmitAnswerUseCase
+import io.github.ceracharlescc.lmversusu.internal.domain.entity.GameEvent
 import io.github.ceracharlescc.lmversusu.internal.domain.entity.GameMode
 import io.github.ceracharlescc.lmversusu.internal.domain.repository.OpponentSpecRepository
 import io.github.ceracharlescc.lmversusu.internal.domain.repository.ResultsRepository
@@ -56,6 +57,7 @@ internal class SessionManager @Inject constructor(
             val playerId: Uuid,
             val opponentSpecId: String,
             val nickname: String,
+            val roundSnapshot: GameEvent.RoundStarted? = null,
         ) : JoinResult
 
         data class Failure(
@@ -559,6 +561,7 @@ internal class SessionManager @Inject constructor(
                     playerId = clientIdentity.playerId,
                     opponentSpecId = opponentSpecId,
                     nickname = nickname,
+                    roundSnapshot = joinResponse.roundSnapshot,
                 )
             }
 

@@ -267,4 +267,39 @@ class SessionActorIntegrityTest {
     private fun startRound() {
         actor.submit(SessionCommand.StartNextRound(sessionId, humanId))
     }
+
+    @Test
+    fun `Rejoin Session returns Round Snapshot if round is in progress`() = runTest {
+        every { llmGateway.streamAnswer(any()) } returns kotlinx.coroutines.flow.emptyFlow()
+
+        currentTestScheduler = testScheduler
+        actor = createActor(StandardTestDispatcher(testScheduler))
+
+        // First join - creates session
+        joinSession()
+        testScheduler.runCurrent()
+
+        // Start a round
+        startRound()
+        testScheduler.runCurrent()
+
+        // Verify round started
+        val roundStartedSlot = slot<GameEvent.RoundStarted>()
+        coVerify { eventBus.publish(capture(roundStartedSlot)) }
+        val roundEvent = roundStartedSlot.captured
+
+        // Now rejoin - simulate browser refresh
+        val rejoinDeferred = CompletableDeferred<JoinResponse>()
+        actor.submit(SessionCommand.JoinSession(sessionId, humanId, "Tester", rejoinDeferred))
+        testScheduler.runCurrent()
+        val rejoinResponse = rejoinDeferred.await()
+
+        // Verify the response contains the round snapshot
+        assertIs<JoinResponse.Accepted>(rejoinResponse)
+        val snapshot = rejoinResponse.roundSnapshot
+        assertIs<GameEvent.RoundStarted>(snapshot!!)
+        assertEquals(roundEvent.roundId, snapshot.roundId)
+        assertEquals(roundEvent.questionPrompt, snapshot.questionPrompt)
+        assertEquals(roundEvent.nonceToken, snapshot.nonceToken)
+    }
 }

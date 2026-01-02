@@ -175,6 +175,13 @@ internal fun Route.gameWebSocket(
                                             opponentSpecId = result.opponentSpecId,
                                         )
                                     )
+                                    // Send round snapshot if rejoining mid-round
+                                    result.roundSnapshot?.let { snapshot ->
+                                        val snapshotFrame = frameMapper.toFrame(snapshot, clientLocale)
+                                        if (snapshotFrame != null) {
+                                            sendFrame(json, snapshotFrame)
+                                        }
+                                    }
                                 }
 
                                 is GameController.JoinResult.Failure -> {

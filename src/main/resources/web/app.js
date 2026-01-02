@@ -9,6 +9,7 @@ const md = window.markdownit({
 });
 
 const MAX_NICKNAME_LEN = 16;
+const STORAGE_KEY_NICKNAME = "lmvu_nickname";
 
 function detectLang() {
     const raw = (navigator.language || "en").toLowerCase();
@@ -113,6 +114,13 @@ const I18N = {
         rateLimitedTitle: "Rate limit",
         rateLimitedMsg: "Too many requests. Try again in {s}s.",
         rateLimitedMsgNoTime: "Too many requests. Please try again shortly.",
+
+        // give up / recover
+        giveUp: "Give Up",
+        giveUpConfirm: "Are you sure you want to forfeit this match?",
+        recovering: "Reconnecting…",
+        recovered: "Session restored",
+        giveUpFailed: "Could not forfeit match.",
     },
     ja: {
         exit: "戻る",
@@ -208,6 +216,13 @@ const I18N = {
         rateLimitedTitle: "レート制限",
         rateLimitedMsg: "リクエストが多すぎます。{s}秒後に試してください。",
         rateLimitedMsgNoTime: "リクエストが多すぎます。少し待ってから試してください。",
+
+        // give up / recover
+        giveUp: "降参",
+        giveUpConfirm: "本当にこの対戦を放棄しますか？",
+        recovering: "再接続中…",
+        recovered: "セッションを復活しました",
+        giveUpFailed: "降参できませんでした。",
     }
 };
 
@@ -486,6 +501,7 @@ function setSubmitFrozen(on) {
 /** ---- UI wiring (static labels) ---- */
 function initStaticText() {
     $("#btnExit").textContent = t("exit");
+    $("#btnGiveUp").textContent = t("giveUp");
 
     document.querySelectorAll(".tab-btn").forEach((btn) => {
         const tab = btn.dataset.tab;
@@ -567,12 +583,91 @@ function showLobby() {
     hideMatchEndModal();
     $("#lobbyScreen").classList.add("screen-active");
     $("#gameScreen").classList.remove("screen-active");
+    setGiveUpVisible(false);
 }
 
 function showGame() {
     hideMatchEndModal();
     $("#lobbyScreen").classList.remove("screen-active");
     $("#gameScreen").classList.add("screen-active");
+    setGiveUpVisible(true);
+}
+
+function setGiveUpVisible(visible) {
+    $("#btnGiveUp")?.classList.toggle("hidden", !visible);
+}
+
+/** ---- Session Recovery (F5) ---- */
+async function tryRecoverActiveSession() {
+    try {
+        const res = await fetch("/api/v1/player/active-session", { credentials: "include" });
+        if (res.status === 204) {
+            // No active session, stay on lobby
+            return false;
+        }
+        if (!res.ok) {
+            // error - just ignore and stay on lobby
+            return false;
+        }
+        const data = await res.json();
+        if (!data.activeSessionId || !data.opponentSpecId) {
+            return false;
+        }
+
+        // Try to recover display name from opponent specs
+        const models = [...(state.models.LIGHTWEIGHT || []), ...(state.models.PREMIUM || [])];
+        const matchingModel = models.find(m => m.id === data.opponentSpecId);
+        const displayName = matchingModel?.displayName || matchingModel?.llmProfile?.displayName || data.opponentSpecId;
+
+        // We have an active session, attempt to rejoin via WebSocket
+        toast(t("toastSession"), t("recovering"));
+
+        state.sessionId = data.activeSessionId;
+        state.opponentSpecId = data.opponentSpecId;
+        state.opponentDisplayName = displayName;
+        // Nickname is not returned by this endpoint, so we use a placeholder
+        state.nickname = state.nickname || t("yourId");
+
+        openWsAndJoin({
+            sessionId: data.activeSessionId,
+            opponentSpecId: data.opponentSpecId,
+            nickname: state.nickname,
+            locale: navigator.language || (LANG === "ja" ? "ja-JP" : "en"),
+        });
+
+        return true;
+    } catch (e) {
+        // Network error - ignore and stay on lobby
+        console.warn("Session recovery failed:", e);
+        return false;
+    }
+}
+
+/** ---- Give Up (Terminate Active Session) ---- */
+async function giveUp() {
+    if (!confirm(t("giveUpConfirm"))) {
+        return;
+    }
+
+    try {
+        const res = await fetch("/api/v1/player/active-session/terminate", {
+            method: "POST",
+            credentials: "include",
+        });
+        if (!res.ok && res.status !== 204) {
+            const errBody = await readErrorBody(res);
+            toast(t("toastError"), errBody || t("giveUpFailed"), "error");
+            return;
+        }
+
+        // Close websocket and return to lobby
+        closeWs();
+        showLobby();
+        resetRoundUi();
+        state.sessionId = null;
+    } catch (e) {
+        toast(t("toastError"), t("giveUpFailed"), "error");
+    }
 }
 
 /** ---- Models / leaderboard ---- */
@@ -1355,6 +1450,8 @@ function startMatch(mode) {
     state.opponentSpecId = opponentSpecId;
     state.opponentDisplayName = displayName;
 
+    localStorage.setItem(STORAGE_KEY_NICKNAME, nickname);
+
     updateMatchupUi();
 
     openWsAndJoin({
@@ -1452,6 +1549,8 @@ function bindUi() {
         showLobby();
         resetRoundUi();
     });
+
+    $("#btnGiveUp").addEventListener("click", giveUp);
 
     $("#btnEndLobby").addEventListener("click", () => {
         hideMatchEndModal();
@@ -1589,6 +1688,17 @@ function scrollLlmPanelToBottom() {
 
 async function main() {
     initStaticText();
+
+    // Load saved nickname
+    const savedNick = localStorage.getItem(STORAGE_KEY_NICKNAME);
+    if (savedNick) {
+        state.nickname = savedNick;
+        const nl = $("#nicknameLight");
+        const np = $("#nicknamePremium");
+        if (nl) nl.value = savedNick;
+        if (np) np.value = savedNick;
+    }
+
     bindUi();
     setNet(false);
     resetRoundUi();
@@ -1598,6 +1708,9 @@ async function main() {
     try {
         await ensurePlayerSession();
         await loadModels();
+
+        // Attempt to recover an active session (e.g., after F5 refresh)
+        await tryRecoverActiveSession();
     } catch (e) {
         showNetError(e);
     }

@@ -300,6 +300,12 @@ a{ color:inherit; }
 .btn.primary:hover{ background: rgba(110,231,255,.18); }
 .btn.ghost{ background:transparent; }
 .btn.small{ padding:8px 12px; font-weight:800; font-size:12px; }
+.btn.danger{
+    border-color: rgba(255,107,107,.30);
+    background: rgba(255,107,107,.14);
+    color: #ffd6d6;
+}
+.btn.danger:hover{ background: rgba(255,107,107,.22); }
 
 /* ---- Submit "pending" (after user submits) ---- */
 .btn.is-frozen{

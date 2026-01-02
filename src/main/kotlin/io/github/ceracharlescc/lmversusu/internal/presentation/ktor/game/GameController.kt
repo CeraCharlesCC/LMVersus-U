@@ -1,5 +1,6 @@
 package io.github.ceracharlescc.lmversusu.internal.presentation.ktor.game
 
+import io.github.ceracharlescc.lmversusu.internal.domain.entity.GameEvent
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.ClientIdentity
 import io.github.ceracharlescc.lmversusu.internal.utils.NicknameValidator
 import io.github.ceracharlescc.lmversusu.internal.infrastructure.game.SessionManager
@@ -21,6 +22,7 @@ internal class GameController @Inject constructor(
             val playerId: Uuid,
             val opponentSpecId: String,
             val nickname: String,
+            val roundSnapshot: GameEvent.RoundStarted? = null,
         ) : JoinResult
 
         data class Failure(
@@ -92,6 +94,7 @@ internal class GameController @Inject constructor(
                 playerId = result.playerId,
                 opponentSpecId = result.opponentSpecId,
                 nickname = result.nickname,
+                roundSnapshot = result.roundSnapshot,
             )
 
             is SessionManager.JoinResult.Failure -> JoinResult.Failure(
