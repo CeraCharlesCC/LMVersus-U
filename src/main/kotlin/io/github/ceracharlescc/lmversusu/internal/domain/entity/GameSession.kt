@@ -17,7 +17,7 @@ internal data class GameSession(
     val createdAt: Instant = Instant.now()
 ) {
     companion object {
-        const val TOTAL_ROUNDS = 3
+        const val TOTAL_ROUNDS = 5
     }
 
     val currentRound: Round?
