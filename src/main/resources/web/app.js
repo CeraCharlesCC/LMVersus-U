@@ -806,6 +806,7 @@ function resetRoundUi() {
     state.reasoningSummary = null;
     state.streamError = null;
     state.roundResolveReason = null;
+    state.freeAnswerMode = "text";
 
     state.ui.reasoningPinnedToTop = true;
     const sc = getLlmScrollEl();
