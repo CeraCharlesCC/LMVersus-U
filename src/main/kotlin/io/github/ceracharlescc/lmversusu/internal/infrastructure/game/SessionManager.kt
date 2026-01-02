@@ -231,6 +231,14 @@ internal class SessionManager @Inject constructor(
             logger.debug("Continuing reserved session {} for player {}", binding.sessionId, playerId)
         }
 
+        // Validate opponent spec BEFORE creating any binding to prevent poisoned bindings
+        val opponentSpec = opponentSpecRepository.findById(chosenOpponentSpecId)
+            ?: return JoinResult.Failure(
+                sessionId = failureSessionId,
+                errorCode = "opponent_spec_not_found",
+                message = "opponent spec not found",
+            )
+
         if (shouldReserve) {
             val newBinding = PlayerActiveSessionIndex.Binding(
                 sessionId = chosenSessionId,
@@ -298,13 +306,6 @@ internal class SessionManager @Inject constructor(
             } else {
             }
         }
-
-        val opponentSpec = opponentSpecRepository.findById(chosenOpponentSpecId)
-            ?: return JoinResult.Failure(
-                sessionId = failureSessionId,
-                errorCode = "opponent_spec_not_found",
-                message = "opponent spec not found",
-            )
 
         // Fast-path: session already exists.
         when (val existing = actors[chosenSessionId]) {
@@ -666,6 +667,8 @@ internal class SessionManager @Inject constructor(
         if (activeSessionIdHint != null) {
             val hintEntry = getOwnedActiveEntry(playerId, activeSessionIdHint)
             if (hintEntry != null) {
+                // Heal binding if missing so terminateActiveSessionByOwner() works correctly
+                ensureActiveBinding(hintEntry, playerId)
                 val hintBinding = playerActiveSessionIndex.get(playerId)
                 val opponentSpecId = hintBinding?.opponentSpecId ?: hintEntry.actor.opponentSpecId
                 val createdAt = hintBinding?.createdAt ?: clock.instant()
