@@ -18,7 +18,7 @@ internal class ActiveSessionLimiter(
     fun release(mode: GameMode) {
         val maxActive = maxActiveByMode(mode)
         if (maxActive <= 0) return
-        semaphoreFor(mode, maxActive).release()
+        semaphores[mode]?.release()
     }
 
     private fun semaphoreFor(mode: GameMode, maxActive: Int): Semaphore =

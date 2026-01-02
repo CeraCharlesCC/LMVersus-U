@@ -354,12 +354,10 @@ internal class SessionManager @Inject constructor(
 
     fun shutdownAll() {
         supervisorScope.cancel()
-        actors.forEach { (_, entry) ->
-            entry.actor.shutdown()
-            if (entry.holdsPermit) {
-                activeSessionLimiter.release(entry.mode)
-            }
-        }
+
+        val sessionIds = actors.keys.toList()
+        sessionIds.forEach { removeSession(it) }
+
         actors.clear()
         idleTimeoutJobs.clear()
         maxLifespanJobs.clear()
