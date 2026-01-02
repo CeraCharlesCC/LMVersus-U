@@ -219,12 +219,7 @@ internal class SessionManager @Inject constructor(
         var chosenOpponentSpecId = opponentSpecId
         var shouldReserve = true
 
-        if (binding != null && sessionId != null && sessionId == binding.sessionId) {
-            chosenSessionId = binding.sessionId
-            chosenOpponentSpecId = binding.opponentSpecId
-            shouldReserve = false
-            logger.debug("Continuing reserved session {} for player {}", binding.sessionId, playerId)
-        } else if (binding != null && sessionId == null) {
+        if (binding != null && (sessionId == null || sessionId == binding.sessionId)) {
             chosenSessionId = binding.sessionId
             chosenOpponentSpecId = binding.opponentSpecId
             shouldReserve = false
