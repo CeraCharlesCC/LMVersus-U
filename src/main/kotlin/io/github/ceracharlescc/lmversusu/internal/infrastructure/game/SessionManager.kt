@@ -78,7 +78,7 @@ internal class SessionManager @Inject constructor(
         data object SessionNotFound : TouchResult
     }
 
-    private val actors = ConcurrentHashMap<Uuid, ActorEntry>()
+    private val actors = ConcurrentHashMap<Uuid, SessionEntry>()
     private val supervisorScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     private val idleTimeoutJobs = ConcurrentHashMap<Uuid, Job>()
@@ -103,57 +103,84 @@ internal class SessionManager @Inject constructor(
             )
 
         // Fast-path: session already exists.
-        actors[sessionId]?.let { existing ->
-            return joinExistingSession(
-                entry = existing,
-                sessionId = sessionId,
-                clientIdentity = clientIdentity,
-                nickname = nickname,
-                opponentSpecId = opponentSpecId,
-                isNewSession = false,
-            )
+        when (val existing = actors[sessionId]) {
+            is SessionEntry.Active -> {
+                return joinExistingSession(
+                    entry = existing,
+                    sessionId = sessionId,
+                    clientIdentity = clientIdentity,
+                    nickname = nickname,
+                    opponentSpecId = opponentSpecId,
+                    isNewSession = false,
+                )
+            }
+
+            is SessionEntry.Creating -> {
+                return awaitCreationAndJoin(
+                    entry = existing,
+                    sessionId = sessionId,
+                    clientIdentity = clientIdentity,
+                    nickname = nickname,
+                    opponentSpecId = opponentSpecId,
+                )
+            }
+
+            null -> Unit
         }
 
         val mode = opponentSpec.mode
         val limitContext = limitContextFor(mode)
 
-        val permit = activeSessionLimiter.tryAcquire(mode)
-        if (permit == null) {
-            // If a creator won the race between our first check and acquiring the permit, join it.
-            actors[sessionId]?.let { existing ->
-                return joinExistingSession(
-                    entry = existing,
+        val creatingEntry = SessionEntry.Creating(CompletableDeferred())
+        val racedEntry = actors.putIfAbsent(sessionId, creatingEntry)
+        if (racedEntry != null) {
+            return when (racedEntry) {
+                is SessionEntry.Active -> joinExistingSession(
+                    entry = racedEntry,
                     sessionId = sessionId,
                     clientIdentity = clientIdentity,
                     nickname = nickname,
                     opponentSpecId = opponentSpecId,
                     isNewSession = false,
                 )
-            }
 
-            return JoinResult.Failure(
-                sessionId = sessionId,
-                errorCode = "session_limit_exceeded",
-                message = "too many active ${limitContext.modeLabel} sessions",
-            )
-        }
-
-        var transferred = false
-        try {
-            // Re-check after acquiring permit to avoid creating a duplicate actor.
-            actors[sessionId]?.let { existing ->
-                return joinExistingSession(
-                    entry = existing,
+                is SessionEntry.Creating -> awaitCreationAndJoin(
+                    entry = racedEntry,
                     sessionId = sessionId,
                     clientIdentity = clientIdentity,
                     nickname = nickname,
                     opponentSpecId = opponentSpecId,
-                    isNewSession = false,
+                )
+            }
+        }
+
+        var transferred = false
+        var permit: ActiveSessionLimiter.Permit? = null
+        var newActor: SessionActor? = null
+        try {
+            permit = activeSessionLimiter.tryAcquire(mode)
+            if (permit == null) {
+                completeCreationFailure(
+                    entry = creatingEntry,
+                    sessionId = sessionId,
+                    errorCode = "session_limit_exceeded",
+                    message = "too many active ${limitContext.modeLabel} sessions",
+                )
+                return JoinResult.Failure(
+                    sessionId = sessionId,
+                    errorCode = "session_limit_exceeded",
+                    message = "too many active ${limitContext.modeLabel} sessions",
                 )
             }
 
             val limitFailure = checkSessionCreationLimits(clientIdentity, mode)
             if (limitFailure != null) {
+                completeCreationFailure(
+                    entry = creatingEntry,
+                    sessionId = sessionId,
+                    errorCode = limitFailure.errorCode,
+                    message = limitFailure.message,
+                )
                 return JoinResult.Failure(
                     sessionId = sessionId,
                     errorCode = limitFailure.errorCode,
@@ -162,7 +189,7 @@ internal class SessionManager @Inject constructor(
             }
 
             val mailboxCapacity = appConfig.sessionLimitConfig.actorMailboxCapacity.coerceAtLeast(1)
-            val newActor = SessionActor(
+            newActor = SessionActor(
                 logger = logger,
                 sessionId = sessionId,
                 opponentSpec = opponentSpec,
@@ -178,23 +205,38 @@ internal class SessionManager @Inject constructor(
                 onTerminate = { id -> removeSession(id) },
             )
 
-            val newEntry = ActorEntry(actor = newActor, mode = mode, permit = permit)
-            val existingAfterInsert = actors.putIfAbsent(sessionId, newEntry)
-            if (existingAfterInsert != null) {
-                // Lost the race: shut down ours, release permit, and join the winner.
-                newActor.shutdown()
-                return joinExistingSession(
-                    entry = existingAfterInsert,
+            val newEntry = SessionEntry.Active(actor = newActor, mode = mode, permit = permit)
+            if (!actors.replace(sessionId, creatingEntry, newEntry)) {
+                val currentEntry = actors[sessionId]
+                if (currentEntry is SessionEntry.Active) {
+                    creatingEntry.deferred.complete(CreationOutcome.Created(currentEntry))
+                    newActor.shutdown()
+                    return joinExistingSession(
+                        entry = currentEntry,
+                        sessionId = sessionId,
+                        clientIdentity = clientIdentity,
+                        nickname = nickname,
+                        opponentSpecId = opponentSpecId,
+                        isNewSession = false,
+                    )
+                }
+
+                completeCreationFailure(
+                    entry = creatingEntry,
                     sessionId = sessionId,
-                    clientIdentity = clientIdentity,
-                    nickname = nickname,
-                    opponentSpecId = opponentSpecId,
-                    isNewSession = false,
+                    errorCode = "session_busy",
+                    message = "session is busy, please retry",
+                )
+                return JoinResult.Failure(
+                    sessionId = sessionId,
+                    errorCode = "session_busy",
+                    message = "session is busy, please retry",
                 )
             }
 
             // Permit is now owned by the entry and will be released from removeSession.
             transferred = true
+            creatingEntry.deferred.complete(CreationOutcome.Created(newEntry))
 
             // joinExistingSession is suspendable and could throw; if it does, we must remove the entry and
             // release the permit to avoid leaking capacity.
@@ -222,15 +264,47 @@ internal class SessionManager @Inject constructor(
             }
         } finally {
             if (!transferred) {
-                permit.close()
+                newActor?.shutdown()
+                permit?.close()
             }
         }
     }
 
 
 
+    private suspend fun awaitCreationAndJoin(
+        entry: SessionEntry.Creating,
+        sessionId: Uuid,
+        clientIdentity: ClientIdentity,
+        nickname: String,
+        opponentSpecId: String,
+    ): JoinResult {
+        return when (val outcome = withTimeoutOrNull(JOIN_SESSION_TIMEOUT_MS) { entry.deferred.await() }) {
+            is CreationOutcome.Created -> joinExistingSession(
+                entry = outcome.entry,
+                sessionId = sessionId,
+                clientIdentity = clientIdentity,
+                nickname = nickname,
+                opponentSpecId = opponentSpecId,
+                isNewSession = false,
+            )
+
+            is CreationOutcome.Failed -> JoinResult.Failure(
+                sessionId = sessionId,
+                errorCode = outcome.errorCode,
+                message = outcome.message,
+            )
+
+            null -> JoinResult.Failure(
+                sessionId = sessionId,
+                errorCode = "join_timeout",
+                message = "session join timed out",
+            )
+        }
+    }
+
     private suspend fun joinExistingSession(
-        entry: ActorEntry,
+        entry: SessionEntry.Active,
         sessionId: Uuid,
         clientIdentity: ClientIdentity,
         nickname: String,
@@ -306,7 +380,7 @@ internal class SessionManager @Inject constructor(
     }
 
     suspend fun startNextRound(sessionId: Uuid, playerId: Uuid): CommandResult {
-        val actor = actors[sessionId]?.actor
+        val actor = (actors[sessionId] as? SessionEntry.Active)?.actor
             ?: return CommandResult.Failure(
                 sessionId = sessionId,
                 errorCode = "session_not_found",
@@ -332,7 +406,7 @@ internal class SessionManager @Inject constructor(
         answer: io.github.ceracharlescc.lmversusu.internal.domain.vo.Answer,
         clientSentAt: Instant?,
     ): CommandResult {
-        val actor = actors[sessionId]?.actor
+        val actor = (actors[sessionId] as? SessionEntry.Active)?.actor
             ?: return CommandResult.Failure(
                 sessionId = sessionId,
                 errorCode = "session_not_found",
@@ -362,7 +436,7 @@ internal class SessionManager @Inject constructor(
     }
 
     suspend fun touchSession(sessionId: Uuid): TouchResult {
-        if (!actors.containsKey(sessionId)) {
+        if (actors[sessionId] !is SessionEntry.Active) {
             return TouchResult.SessionNotFound
         }
         scheduleIdleTimeout(sessionId)
@@ -373,7 +447,7 @@ internal class SessionManager @Inject constructor(
         idleTimeoutJobs[sessionId]?.cancel()
         idleTimeoutJobs[sessionId] = supervisorScope.launch {
             delay(IDLE_TIMEOUT_MS)
-            actors[sessionId]?.actor?.submit(SessionCommand.Timeout(reason = "timeout"))
+            (actors[sessionId] as? SessionEntry.Active)?.actor?.submit(SessionCommand.Timeout(reason = "timeout"))
         }
     }
 
@@ -382,7 +456,7 @@ internal class SessionManager @Inject constructor(
         maxLifespanJobs[sessionId] = supervisorScope.launch {
             delay(MAX_LIFESPAN_MS)
             // Route through actor to ensure SessionResolved is emitted
-            actors[sessionId]?.actor?.submitCritical(SessionCommand.Timeout(reason = "max_lifespan"))
+            (actors[sessionId] as? SessionEntry.Active)?.actor?.submitCritical(SessionCommand.Timeout(reason = "max_lifespan"))
         }
     }
 
@@ -390,9 +464,22 @@ internal class SessionManager @Inject constructor(
         idleTimeoutJobs.remove(sessionId)?.cancel()
         maxLifespanJobs.remove(sessionId)?.cancel()
         val entry = actors.remove(sessionId)
-        if (entry != null) {
-            entry.actor.shutdown()
-            entry.permit.close()
+        when (entry) {
+            is SessionEntry.Active -> {
+                entry.actor.shutdown()
+                entry.permit.close()
+            }
+
+            is SessionEntry.Creating -> {
+                entry.deferred.complete(
+                    CreationOutcome.Failed(
+                        errorCode = "session_creation_cancelled",
+                        message = "session creation cancelled",
+                    )
+                )
+            }
+
+            null -> Unit
         }
         gameEventBus.revokeSession(sessionId)
     }
@@ -418,11 +505,29 @@ internal class SessionManager @Inject constructor(
         val message: String,
     )
 
-    private data class ActorEntry(
-        val actor: SessionActor,
-        val mode: GameMode,
-        val permit: ActiveSessionLimiter.Permit,
-    )
+    private sealed interface SessionEntry {
+        data class Creating(val deferred: CompletableDeferred<CreationOutcome>) : SessionEntry
+        data class Active(
+            val actor: SessionActor,
+            val mode: GameMode,
+            val permit: ActiveSessionLimiter.Permit,
+        ) : SessionEntry
+    }
+
+    private sealed interface CreationOutcome {
+        data class Created(val entry: SessionEntry.Active) : CreationOutcome
+        data class Failed(val errorCode: String, val message: String) : CreationOutcome
+    }
+
+    private fun completeCreationFailure(
+        entry: SessionEntry.Creating,
+        sessionId: Uuid,
+        errorCode: String,
+        message: String,
+    ) {
+        entry.deferred.complete(CreationOutcome.Failed(errorCode = errorCode, message = message))
+        actors.remove(sessionId, entry)
+    }
 
     private fun limitContextFor(mode: GameMode): LimitContext =
         when (mode) {
