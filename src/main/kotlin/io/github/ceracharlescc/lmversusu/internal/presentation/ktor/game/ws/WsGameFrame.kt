@@ -1,5 +1,6 @@
 package io.github.ceracharlescc.lmversusu.internal.presentation.ktor.game.ws
 
+import io.github.ceracharlescc.lmversusu.internal.application.port.AnswerVerifier
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.Answer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -41,6 +42,7 @@ internal data class WsRoundStarted(
     val roundNumber: Int,
     val questionPrompt: String,
     val choices: List<String>?,
+    val expectedAnswerType: String,
     val releasedAtEpochMs: Long,
     val handicapMs: Long,
     val deadlineAtEpochMs: Long,

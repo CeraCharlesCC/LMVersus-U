@@ -186,6 +186,11 @@ internal class SessionActor(
             is StartRoundUseCase.Result.Success -> {
                 session = result.session
                 val round = result.round
+                val expectedAnswerType = when {
+                    round.question.choices != null -> "multiple_choice"
+                    round.question.verifierSpec is VerifierSpec.IntegerRange -> "integer"
+                    else -> "free_text"
+                }
                 gameEventBus.publish(
                     GameEvent.RoundStarted(
                         sessionId = sessionId,
@@ -194,6 +199,7 @@ internal class SessionActor(
                         roundNumber = result.roundNumber,
                         questionPrompt = round.question.prompt,
                         choices = round.question.choices,
+                        expectedAnswerType = expectedAnswerType,
                         releasedAt = round.releasedAt,
                         handicapMs = round.handicap.toMillis(),
                         deadlineAt = round.deadline,
