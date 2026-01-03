@@ -138,6 +138,7 @@ class SessionActorIntegrityTest {
                 sessionId = sessionId,
                 playerId = humanId,
                 roundId = roundEvent.roundId,
+                commandId = Uuid.random(),
                 nonceToken = roundEvent.nonceToken,
                 answer = Answer.MultipleChoice(0),
                 clientSentAt = null,
@@ -151,6 +152,7 @@ class SessionActorIntegrityTest {
                 sessionId = sessionId,
                 playerId = humanId,
                 roundId = roundEvent.roundId,
+                commandId = Uuid.random(),
                 nonceToken = roundEvent.nonceToken,
                 answer = Answer.MultipleChoice(1),
                 clientSentAt = null
@@ -197,6 +199,7 @@ class SessionActorIntegrityTest {
                 sessionId = sessionId,
                 playerId = humanId,
                 roundId = roundEvent.roundId,
+                commandId = Uuid.random(),
                 nonceToken = "wrong-nonce-value",
                 answer = Answer.MultipleChoice(0),
                 clientSentAt = null
@@ -241,6 +244,7 @@ class SessionActorIntegrityTest {
                 sessionId = sessionId,
                 playerId = humanId,
                 roundId = roundEvent.roundId,
+                commandId = Uuid.random(),
                 nonceToken = roundEvent.nonceToken,
                 answer = Answer.MultipleChoice(0),
                 clientSentAt = null
@@ -265,7 +269,7 @@ class SessionActorIntegrityTest {
     }
 
     private fun startRound() {
-        actor.submit(SessionCommand.StartNextRound(sessionId, humanId))
+        actor.submit(SessionCommand.StartNextRound(sessionId, humanId, Uuid.random()))
     }
 
     @Test

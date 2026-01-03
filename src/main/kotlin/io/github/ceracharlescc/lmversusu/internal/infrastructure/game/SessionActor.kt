@@ -17,6 +17,7 @@ import io.github.ceracharlescc.lmversusu.internal.domain.vo.streaming.LlmStreamE
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.streaming.StreamSeq
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.ClosedReceiveChannelException
 import kotlinx.coroutines.selects.select
 import org.slf4j.Logger
 import java.time.Clock
@@ -129,18 +130,23 @@ internal class SessionActor(
     }
 
     private suspend fun drainInternalQueues() {
-        while (currentCoroutineContext().isActive) {
-            val command = criticalQueue.tryReceive().getOrNull()
-                ?: select {
-                    criticalQueue.onReceive { it }
-                    internalQueue.onReceive { it }
-                }
+        try {
+            while (currentCoroutineContext().isActive) {
+                val command = criticalQueue.tryReceive().getOrNull()
+                    ?: select {
+                        criticalQueue.onReceive { it }
+                        internalQueue.onReceive { it }
+                    }
 
-            val sent = runCatching { mailbox.send(command) }
-            if (sent.isFailure) {
-                logger.warn("Failed to forward internal command for session {}", sessionId, sent.exceptionOrNull())
-                return
+                val sent = runCatching { mailbox.send(command) }
+                if (sent.isFailure) {
+                    logger.warn("Failed to forward internal command for session {}", sessionId, sent.exceptionOrNull())
+                    return
+                }
             }
+        } catch (e: ClosedReceiveChannelException) {
+            // Graceful shutdown: channels were closed via shutdown()
+            logger.debug("Internal queue drained for session {} (channel closed)", sessionId)
         }
     }
 
