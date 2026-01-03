@@ -602,7 +602,14 @@ internal class SessionManager @Inject constructor(
             )
 
         scheduleIdleTimeout(sessionId)
-        if (!actor.submit(SessionCommand.StartNextRound(sessionId = sessionId, playerId = playerId, commandId = commandId))) {
+        if (!actor.submit(
+                SessionCommand.StartNextRound(
+                    sessionId = sessionId,
+                    playerId = playerId,
+                    commandId = commandId
+                )
+            )
+        ) {
             return CommandResult.Failure(
                 sessionId = sessionId,
                 errorCode = "session_busy",
