@@ -1112,6 +1112,14 @@ internal sealed interface JoinResponse {
     data class Rejected(val errorCode: String, val message: String) : JoinResponse
 }
 
+/**
+ * A simple LRU set implementation using LinkedHashMap.
+ * Evicts the least recently used entries when capacity is exceeded.
+ * IMPORTANT: Not thread-safe. supposed to be used within a single coroutine context. (in this application, single-threaded actor mailbox handler)
+ *
+ * @param T The type of elements in the set.
+ * @property capacity The maximum number of elements the set can hold.
+ */
 private class LruSet<T>(private val capacity: Int) {
     private val entries = LinkedHashMap<T, Unit>(capacity, 0.75f, true)
 
