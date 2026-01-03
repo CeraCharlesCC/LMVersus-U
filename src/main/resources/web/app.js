@@ -432,6 +432,7 @@ const state = {
     reasoningSummary: null,
     streamError: null,
     roundResolveReason: null,
+    reasoningRevealed: false,
 
     timers: {
         tickHandle: null,
@@ -902,6 +903,7 @@ function resetRoundUi() {
     state.streamError = null;
     state.roundResolveReason = null;
     state.freeAnswerMode = "text";
+    state.reasoningRevealed = false;
 
     state.ui.reasoningPinnedToTop = true;
     const sc = getLlmScrollEl();
@@ -1090,13 +1092,15 @@ function maybeShowHiddenSquares() {
     if (state.reasoningSquaresShown) return;
 
     setTimeout(() => {
+        if (!state.inRound) return;
         if (!state.reasoningEnded || state.reasoningSquaresShown) return;
+        if (state.reasoningRevealed) return;
 
         const since = Date.now() - (state.lastReasoningAt || 0);
         if (since < 700) return;
 
         state.reasoningSquaresShown = true;
-        const blocks = "██████████████████████████ \n".repeat(4);
+        const blocks = "██████████████████████████ \n".repeat(16);
         state.reasoningBuf += `\n\n\`${blocks}\``;
         scheduleReasoningRender();
     }, 900);
@@ -1365,6 +1369,7 @@ function handleServerEvent(msg) {
 
     if (type === "llm_reasoning_reveal") {
         if (msg.roundId !== state.roundId) return;
+        state.reasoningRevealed = true;
         state.reasoningBuf = msg.fullReasoning || "";
         scheduleReasoningRender();
         $("#reasoningWrap").classList.remove("masked");
