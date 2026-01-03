@@ -330,10 +330,10 @@ internal class SessionActor(
         val currentSession = session
             ?: return publishError("session_not_ready", "session not initialized")
 
-        if (isDuplicateSubmitAnswer(command.roundId, command.commandId)) return
+        val round = currentSession.rounds.firstOrNull { it.roundId == command.roundId }
+        if (round != null && isDuplicateSubmitAnswer(command.roundId, command.commandId)) return
 
         // Semantic idempotency: treat "already submitted" as no-op success
-        val round = currentSession.rounds.firstOrNull { it.roundId == command.roundId }
         if (round != null) {
             val isHuman = currentSession.players.human.playerId == command.playerId
             val isLlm = currentSession.players.llm.playerId == command.playerId
