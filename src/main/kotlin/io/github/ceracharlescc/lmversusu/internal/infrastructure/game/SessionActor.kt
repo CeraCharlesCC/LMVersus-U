@@ -140,7 +140,7 @@ internal class SessionActor(
 
                 val sent = runCatching { mailbox.send(command) }
                 if (sent.isFailure) {
-                    logger.warn("Failed to forward internal command for session {}", sessionId, sent.exceptionOrNull())
+                    logger.error("Failed to forward internal command for session {}", sessionId, sent.exceptionOrNull())
                     return
                 }
             }
