@@ -2,6 +2,7 @@
 
 package io.github.ceracharlescc.lmversusu.internal.infrastructure.game
 
+import com.openai.errors.OpenAIServiceException
 import io.github.ceracharlescc.lmversusu.internal.application.port.*
 import io.github.ceracharlescc.lmversusu.internal.application.service.LlmStreamOrchestrator
 import io.github.ceracharlescc.lmversusu.internal.application.usecase.StartRoundUseCase
@@ -15,6 +16,7 @@ import io.github.ceracharlescc.lmversusu.internal.domain.vo.VerifierSpec
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.streaming.LlmAnswer
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.streaming.LlmStreamEvent
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.streaming.StreamSeq
+import io.github.ceracharlescc.lmversusu.internal.infrastructure.llm.dao.OpenAIApiStreamException
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ClosedReceiveChannelException
@@ -576,40 +578,23 @@ internal class SessionActor(
                 message = command.message,
             )
         )
+
+        if (!generateSequence(command.cause) { it.cause }
+                .any { it is OpenAIApiStreamException || it is OpenAIServiceException }) return
+        if (round.llmSubmission != null) return
+
+        val fallbackAnswer = buildOpenAiStreamFallbackAnswer(round.question) ?: return
+        submitLlmAnswerForRound(
+            round = round,
+            answer = LlmAnswer(finalAnswer = fallbackAnswer),
+        )
     }
 
     private suspend fun handleLlmFinalAnswer(command: SessionCommand.LlmFinalAnswerReceived) {
         val currentSession = session ?: return
         val round = currentSession.rounds.firstOrNull { it.roundId == command.roundId } ?: return
         if (!round.isInProgress) return
-        val llmPlayerId = currentSession.players.llm.playerId
-
-        val streamState = roundStreamStates.computeIfAbsent(command.roundId) { RoundStreamState() }
-        streamState.pendingFinalAnswer = command.answer
-
-        val result = submitAnswerUseCase.execute(
-            session = currentSession,
-            playerId = llmPlayerId,
-            roundId = command.roundId,
-            nonceToken = round.nonceToken,
-            answer = command.answer.finalAnswer,
-            clientSentAt = null,
-        )
-
-        if (result !is SubmitAnswerUseCase.Result.Success) return
-        session = result.session
-
-        val updatedRound = result.session.rounds.firstOrNull { it.roundId == command.roundId } ?: return
-
-        // If human already submitted, publish final answer now (once)
-        if (updatedRound.humanSubmission != null) {
-            publishFinalAnswerIfNeeded(command.roundId)
-        } else if (!streamState.lockInEmitted) {
-            streamState.lockInEmitted = true
-            enqueueEvent(GameEvent.LlmAnswerLockIn(sessionId = sessionId, roundId = command.roundId))
-        }
-
-        resolveRoundIfReady(command.roundId)
+        submitLlmAnswerForRound(round, command.answer)
     }
 
     private suspend fun publishFinalAnswerIfNeeded(roundId: Uuid) {
@@ -631,6 +616,49 @@ internal class SessionActor(
         if (result == EnqueueResult.Success) {
             streamState.finalAnswerPublished = true
         }
+    }
+
+    private fun buildOpenAiStreamFallbackAnswer(question: Question): Answer? {
+        return when (val spec = question.verifierSpec) {
+            is VerifierSpec.MultipleChoice -> Answer.MultipleChoice(spec.correctIndex + 1)
+            is VerifierSpec.IntegerRange -> Answer.Integer(spec.maxValue + 1)
+            is VerifierSpec.FreeResponse -> null
+        }
+    }
+
+    private suspend fun submitLlmAnswerForRound(
+        round: Round,
+        answer: LlmAnswer,
+    ) {
+        val currentSession = session ?: return
+        val llmPlayerId = currentSession.players.llm.playerId
+
+        val streamState = roundStreamStates.computeIfAbsent(round.roundId) { RoundStreamState() }
+        streamState.pendingFinalAnswer = answer
+
+        val result = submitAnswerUseCase.execute(
+            session = currentSession,
+            playerId = llmPlayerId,
+            roundId = round.roundId,
+            nonceToken = round.nonceToken,
+            answer = answer.finalAnswer,
+            clientSentAt = null,
+        )
+
+        if (result !is SubmitAnswerUseCase.Result.Success) return
+        session = result.session
+
+        val updatedRound = result.session.rounds.firstOrNull { it.roundId == round.roundId } ?: return
+
+        // If human already submitted, publish final answer now (once)
+        if (updatedRound.humanSubmission != null) {
+            publishFinalAnswerIfNeeded(round.roundId)
+        } else if (!streamState.lockInEmitted) {
+            streamState.lockInEmitted = true
+            enqueueEvent(GameEvent.LlmAnswerLockIn(sessionId = sessionId, roundId = round.roundId))
+        }
+
+        resolveRoundIfReady(round.roundId)
     }
 
     private suspend fun resolveRoundIfReady(roundId: Uuid) {

@@ -3,6 +3,7 @@ package io.github.ceracharlescc.lmversusu.internal.infrastructure.llm.dao
 import com.openai.client.OpenAIClient
 import com.openai.client.okhttp.OpenAIOkHttpClient
 import com.openai.core.JsonValue
+import com.openai.errors.OpenAIServiceException
 import com.openai.helpers.ChatCompletionAccumulator
 import com.openai.helpers.ResponseAccumulator
 import com.openai.models.ChatModel
@@ -259,10 +260,15 @@ internal class OpenAIApiDao(
                     }
                 }
             } catch (error: Exception) {
+                val message = error.message ?: "Failed to stream response from $providerName"
+
+                val causeForEvent: Throwable =
+                    error as? OpenAIServiceException ?: OpenAIApiStreamException(message, error)
+
                 trySend(
                     LlmStreamEvent.Error(
-                        message = error.message ?: "Failed to stream chat completion from $providerName",
-                        cause = error,
+                        message = message,
+                        cause = causeForEvent,
                     )
                 )
             } finally {
@@ -306,10 +312,15 @@ internal class OpenAIApiDao(
                 trySend(LlmStreamEvent.ReasoningEnded)
                 trySend(LlmStreamEvent.FinalAnswer(answer))
             } catch (error: Exception) {
+                val message = error.message ?: "Failed to stream response from $providerName"
+
+                val causeForEvent: Throwable =
+                    error as? OpenAIServiceException ?: OpenAIApiStreamException(message, error)
+
                 trySend(
                     LlmStreamEvent.Error(
-                        message = error.message ?: "Failed to stream response from $providerName",
-                        cause = error,
+                        message = message,
+                        cause = causeForEvent,
                     )
                 )
             } finally {
@@ -685,3 +696,8 @@ internal class OpenAIApiDao(
         }
     }
 }
+
+internal class OpenAIApiStreamException(
+    message: String,
+    cause: Throwable,
+) : RuntimeException(message, cause)
