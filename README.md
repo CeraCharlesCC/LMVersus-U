@@ -224,39 +224,3 @@ At a high level:
 Important gameplay constraint (enforced server-side): **the LLM's final answer is not sent to the client until the human has submitted**.
 
 The "Leaderboard" is currently **in-memory** and resets when the server restarts.
-
----
-
-## Architecture (in the spirit of `PLAN.md`)
-
-The repo is organized around a simple clean-architecture shape:
-
-* **Domain**: game entities (rounds/sessions), deterministic policies (scoring/handicap), value objects
-* **Application**: use-cases + ports (question bank, LLM gateway, verifier, event bus)
-* **Infrastructure**: adapters (file-backed datasets, OpenAI-compatible client, in-memory repositories/event bus)
-* **Presentation**: Ktor routes + websocket frame mapping + static web UI
-
-Two design choices from `PLAN.md` show up everywhere:
-
-1. **The model never grades itself.**
-   Answer verification and scoring live in deterministic policies (`AnswerVerifierImpl`, `ScorePolicy`).
-
-2. **Model output is a stream, and shaping the stream is its own concern.**
-   `LlmPlayerGateway` produces upstream events. `LlmStreamOrchestrator` applies the "game" policy (pacing, truncation, withholding), independent of whether the source is replay or live API.
-
----
-
-## Development
-
-Helpful commands (from the Gradle build):
-
-```bash
-./gradlew test      # unit + contract tests
-./gradlew testRun   # run the server from the project directory
-```
-
-The main server module is `io.github.ceracharlescc.lmversusu.internal.ApplicationKt.module`.
-
-Coding conventions and project rules live in `AGENTS.md`.
-
----
