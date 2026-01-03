@@ -52,7 +52,6 @@ internal class FileQuestionLocalizerImpl @Inject constructor(
         canonicalChoices: List<String>?,
     ): LocalizedQuestion {
         val normalized = normalizeLocale(locale)
-        logger.info("localize: raw='{}' normalized='{}' qid='{}'", locale, normalized, questionId)
         if (normalized == null || normalized == "en") {
             return LocalizedQuestion(canonicalPrompt, canonicalChoices)
         }
