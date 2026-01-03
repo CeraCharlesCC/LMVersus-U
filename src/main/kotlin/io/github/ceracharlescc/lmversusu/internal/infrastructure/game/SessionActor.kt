@@ -378,18 +378,18 @@ internal class SessionActor(
 
     }
 
-    private fun isDuplicateSubmitAnswer(roundId: Uuid, commandId: Uuid): Boolean {
-        val seenCommands = submitAnswerCommandIdsByRound.getOrPut(roundId) {
+    private fun getSubmitAnswerDedupSet(roundId: Uuid): LruSet<Uuid> {
+        return submitAnswerCommandIdsByRound.getOrPut(roundId) {
             LruSet(SUBMIT_ANSWER_DEDUP_CAPACITY)
         }
-        return seenCommands.contains(commandId)
+    }
+
+    private fun isDuplicateSubmitAnswer(roundId: Uuid, commandId: Uuid): Boolean {
+        return getSubmitAnswerDedupSet(roundId).contains(commandId)
     }
 
     private fun recordSubmitAnswerCommand(roundId: Uuid, commandId: Uuid) {
-        val seenCommands = submitAnswerCommandIdsByRound.getOrPut(roundId) {
-            LruSet(SUBMIT_ANSWER_DEDUP_CAPACITY)
-        }
-        seenCommands.add(commandId)
+        getSubmitAnswerDedupSet(roundId).add(commandId)
     }
 
     private suspend fun handleStartLlm(command: SessionCommand.StartLlmForRound) {
