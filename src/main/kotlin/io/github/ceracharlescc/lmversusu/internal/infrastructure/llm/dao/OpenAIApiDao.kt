@@ -597,25 +597,27 @@ internal class OpenAIApiDao(
         val multipleChoice = mapOf(
             "type" to "object",
             "properties" to mapOf(
-                "type" to mapOf("enum" to listOf("multiple_choice")),
+                "type" to mapOf("type" to "string", "enum" to listOf("multiple_choice")),
                 "choiceIndex" to mapOf("type" to "integer", "minimum" to 0),
             ),
             "required" to listOf("type", "choiceIndex"),
             "additionalProperties" to false,
         )
+
         val integerAnswer = mapOf(
             "type" to "object",
             "properties" to mapOf(
-                "type" to mapOf("enum" to listOf("integer")),
+                "type" to mapOf("type" to "string", "enum" to listOf("integer")),
                 "value" to mapOf("type" to "integer"),
             ),
             "required" to listOf("type", "value"),
             "additionalProperties" to false,
         )
+
         val freeText = mapOf(
             "type" to "object",
             "properties" to mapOf(
-                "type" to mapOf("enum" to listOf("free_text")),
+                "type" to mapOf("type" to "string", "enum" to listOf("free_text")),
                 "text" to mapOf("type" to "string"),
             ),
             "required" to listOf("type", "text"),
@@ -626,8 +628,7 @@ internal class OpenAIApiDao(
             "type" to "object",
             "properties" to mapOf(
                 "finalAnswer" to mapOf(
-                    "type" to "object",
-                    "oneOf" to listOf(multipleChoice, integerAnswer, freeText),
+                    "anyOf" to listOf(multipleChoice, integerAnswer, freeText),
                 ),
             ),
             "required" to listOf("finalAnswer"),
@@ -638,6 +639,7 @@ internal class OpenAIApiDao(
             IllegalStateException("Failed to build JSON schema for LlmAnswer")
         }
     }
+
 
     private fun estimateTokenCount(text: String): Int {
         if (text.isEmpty()) return 0
