@@ -13,8 +13,10 @@ import java.util.Optional
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.io.path.absolutePathString
 import kotlin.io.path.div
 import kotlin.io.path.exists
+import kotlin.io.path.isRegularFile
 import kotlin.io.path.readText
 import kotlin.uuid.Uuid
 
@@ -38,7 +40,7 @@ internal class FileQuestionLocalizerImpl @Inject constructor(
     @ConfigDirectory configDir: Path,
     private val logger: Logger,
 ) : QuestionLocalizer {
-    private val i18nBasePath: Path = configDir / "Datasets" / "i18n"
+    private val i18nBasePath: Path = configDir / "LLM-Configs" / "Datasets" / "i18n"
 
     private val cache = ConcurrentHashMap<CacheKey, Optional<TranslationFile>>()
     private val json = Json { ignoreUnknownKeys = true }
@@ -50,6 +52,7 @@ internal class FileQuestionLocalizerImpl @Inject constructor(
         canonicalChoices: List<String>?,
     ): LocalizedQuestion {
         val normalized = normalizeLocale(locale)
+        logger.info("localize: raw='{}' normalized='{}' qid='{}'", locale, normalized, questionId)
         if (normalized == null || normalized == "en") {
             return LocalizedQuestion(canonicalPrompt, canonicalChoices)
         }
@@ -57,6 +60,8 @@ internal class FileQuestionLocalizerImpl @Inject constructor(
         val key = CacheKey(normalized, questionId)
 
         val cached = cache[key]
+
+        logger.debug("localize: cache hit='{}' for locale='{}' qid='{}'", (cached != null), normalized, questionId)
         val translation = if (cached != null) {
             cached.orElse(null)
         } else {
@@ -73,14 +78,29 @@ internal class FileQuestionLocalizerImpl @Inject constructor(
 
     private suspend fun loadTranslationFile(locale: String, questionId: Uuid): TranslationFile? =
         withContext(Dispatchers.IO) {
+            val filePath = (i18nBasePath / locale / "$questionId.json")
             try {
-                val filePath = i18nBasePath / locale / "$questionId.json"
-                if (!filePath.exists()) return@withContext null
+                if (!filePath.isRegularFile()) {
+                    logger.warn(
+                        "translation file not found: '{}' (base='{}')",
+                        filePath.absolutePathString(),
+                        i18nBasePath.absolutePathString(),
+                    )
+                    return@withContext null
+                }
 
-                val content = filePath.readText(Charsets.UTF_8)
+                logger.info("loading translation file: '{}'", filePath.absolutePathString())
+
+                val content = filePath.readText(Charsets.UTF_8) // single read, correct charset
                 json.decodeFromString<TranslationFile>(content)
             } catch (e: Exception) {
-                logger.warn("Failed to load translation for locale='$locale', questionId='$questionId': ${e.message}")
+                logger.warn(
+                    "Failed to load translation for locale='{}', questionId='{}' from path='{}'",
+                    locale,
+                    questionId,
+                    filePath.absolutePathString(),
+                    e
+                )
                 null
             }
         }
