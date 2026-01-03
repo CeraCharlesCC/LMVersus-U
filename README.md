@@ -1,6 +1,20 @@
+<div align="center">
+
 # LMVersus-U
 
-A small Kotlin/Ktor web app where **you** race an LLM on quiz questions.
+A small Kotlin/Ktor web app where **you** race an LLM on benchmarks.
+
+</div>
+
+<div align="center">
+
+![OpenJDK](https://img.shields.io/badge/OpenJDK-21+-%2332C955.svg?style=flat&labelColor=%23E5531A&logo=openjdk&logoColor=white)
+![Kotlin](https://img.shields.io/badge/Kotlin-2.2.21-%2332C955.svg?style=flat&logo=kotlin&logoColor=white&labelColor=%237F52FF)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/CeraCharlesCC/LMVersus-U)
+![Build](https://github.com/CeraCharlesCC/LMVersus-U/actions/workflows/release.yml/badge.svg)
+
+  
+</div>
 
 - **LIGHTWEIGHT** mode plays against a *pre-recorded replay* (no API calls).
 - **PREMIUM** mode plays against a *live* LLM via an *OpenAI-compatible* API.
