@@ -1,0 +1,35 @@
+## [v0.3.0] - 2026-01-03
+### Added
+- Add session recovery allowing players to rejoin and receive a round snapshot
+- Add 'Give Up' button to forfeit an active match
+- Add player active session management API and infrastructure
+- Add expectedAnswerType to round started event
+- Add WsLlmThinking frame for LlmThinking game event
+- Add VERY_EASY and VERY_HARD difficulty levels
+- Add idempotency to round start and answer submit commands via commandId
+- Add replay_generator.py utility script
+
+### Changed
+- Refactor session models and commands into separate files for clarity
+- Update handicap multipliers and set LIGHTWEIGHT_BASE_HANDICAP to 1 second
+- Refine Japanese descriptions and reformat CSS for better readability
+- Persist nickname in local storage and improve UI/UX on rejoin
+
+### Fixed
+- Fix binding creation on invalid opponent spec and heal missing bindings
+- Harden session join and termination security checks to prevent hijacking
+- Handle ClosedReceiveChannelException gracefully in SessionActor
+
+### Security
+- Enforce single active session per player and add ownership checks
+
+### Documentation
+- Update README to reflect app's benchmark feature
+- Remove architecture and development sections from README
+- Delete PLAN.md
+
+### Internal
+- Clean up unused imports and code across multiple files
+- Extract ConnectionRateLimiter to a utility file
+- Update CI release workflow configuration
+
