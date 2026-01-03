@@ -39,7 +39,7 @@ internal class SessionActor(
     private val resultsRepository: ResultsRepository,
     private val clock: Clock,
     private val mailboxCapacity: Int,
-    private val onTerminate: (Uuid) -> Unit,
+    private val onTerminate: suspend (Uuid) -> Unit,
     private val dispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) {
     companion object {
@@ -59,6 +59,7 @@ internal class SessionActor(
     private val eventQueue = Channel<GameEvent>(
         (mailboxCapacity * EVENT_QUEUE_CAPACITY_MULTIPLIER).coerceAtLeast(1)
     )
+    private val eventDrainJob = scope.launch { drainEvents() }
     private val llmJobs = ConcurrentHashMap<Uuid, Job>()
     private val roundDeadlineJobs = ConcurrentHashMap<Uuid, Job>()
     private var session: GameSession? = null
@@ -84,9 +85,6 @@ internal class SessionActor(
     init {
         scope.launch {
             drainInternalQueues()
-        }
-        scope.launch {
-            drainEvents()
         }
         scope.launch {
             for (command in mailbox) {
@@ -120,6 +118,12 @@ internal class SessionActor(
         eventQueue.close()
         mailbox.close()
         scope.cancel()
+    }
+
+    private suspend fun terminateAfterEvents() {
+        eventQueue.close()
+        eventDrainJob.join()
+        onTerminate(sessionId)
     }
 
     private suspend fun submitToInternalQueue(queue: Channel<SessionCommand>, command: SessionCommand) {
@@ -716,7 +720,7 @@ internal class SessionActor(
                         reason = "completed",
                     )
                 )
-                onTerminate(sessionId)
+                terminateAfterEvents()
             }
         }
     }
@@ -960,7 +964,7 @@ internal class SessionActor(
                         reason = "completed",
                     )
                 )
-                onTerminate(sessionId)
+                terminateAfterEvents()
             }
         }
     }
@@ -1103,7 +1107,7 @@ internal class SessionActor(
                 reason = command.reason,
             )
         )
-        onTerminate(sessionId)
+        terminateAfterEvents()
     }
 }
 
