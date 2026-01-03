@@ -11,11 +11,11 @@ internal object HandicapPolicy {
     private val PREMIUM_BASE_HANDICAP = Duration.ofSeconds(1)
 
     private val DIFFICULTY_MULTIPLIERS = mapOf(
-        Difficulty.VERY_EASY to 5.0,
-        Difficulty.EASY to 12.0,
-        Difficulty.MEDIUM to 25.0,
-        Difficulty.HARD to 37.0,
-        Difficulty.VERY_HARD to 45.0
+        Difficulty.VERY_EASY to 3.0,
+        Difficulty.EASY to 8.0,
+        Difficulty.MEDIUM to 17.0,
+        Difficulty.HARD to 25.0,
+        Difficulty.VERY_HARD to 37.0
     )
 
     /**
