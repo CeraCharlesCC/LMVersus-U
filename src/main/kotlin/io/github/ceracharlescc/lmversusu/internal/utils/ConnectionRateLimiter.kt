@@ -1,8 +1,12 @@
 package io.github.ceracharlescc.lmversusu.internal.utils
 
 /**
- * A simple, non-thread-safe rate limiter for a single connection.
- * It relies on being called from a single thread, like Ktor's WebSocket `incoming` loop.
+ * A simple rate limiter for a single connection.
+ *
+ * <strong>NOT thread-safe:</strong> this class must only be used from a single thread and
+ * assumes all calls come from the same execution context (for example, Ktor's WebSocket
+ * `incoming` loop). Concurrent access from multiple threads is unsupported and will result
+ * in data races and undefined behavior unless external synchronization is provided.
  */
 class ConnectionRateLimiter(
     private val windowMillis: Long,
