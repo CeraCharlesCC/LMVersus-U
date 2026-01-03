@@ -128,9 +128,9 @@ const I18N = {
         premium: "PREMIUM",
         leaderboard: "Leaderboard",
         descLight:
-            "Lightweightは事前に準備されたリプレイファイルとの対戦です…問題が表示されてからLLMが回答するまでには少しハンディキャップ時間があります。また、Reasoningのうち最終盤は見ることはできません。",
+            "Lightweightは事前に準備されたリプレイファイルとの対戦です。\n 問題が表示されてからLLMが回答するまでには少しハンディキャップ時間があります。",
         descPremium:
-            "PremiumはAPI経由で実際にLLMとリアルタイムで対戦します…Reasoningのうち最終盤は見ることはできません。",
+            "PremiumはAPI経由で実際にLLMとリアルタイムで対戦します。 \n 問題が表示されてからLLMが回答するまでには少しハンディキャップ時間があります。",
         nickname: "ニックネーム",
         opponent: "対戦相手",
         startMatch: "対戦開始",
