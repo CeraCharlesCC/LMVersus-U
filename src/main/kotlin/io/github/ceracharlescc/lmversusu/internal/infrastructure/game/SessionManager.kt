@@ -51,41 +51,6 @@ internal class SessionManager @Inject constructor(
         internal const val JOIN_SESSION_TIMEOUT_MS = 5000L
     }
 
-    sealed interface JoinResult {
-        data class Success(
-            val sessionId: Uuid,
-            val playerId: Uuid,
-            val opponentSpecId: String,
-            val nickname: String,
-            val roundSnapshot: GameEvent.RoundStarted? = null,
-        ) : JoinResult
-
-        data class Failure(
-            val sessionId: Uuid? = null,
-            val errorCode: String,
-            val message: String,
-        ) : JoinResult
-    }
-
-    sealed interface CommandResult {
-        data class Success(val sessionId: Uuid) : CommandResult
-        data class Failure(
-            val sessionId: Uuid? = null,
-            val errorCode: String,
-            val message: String,
-        ) : CommandResult
-    }
-
-    sealed interface TouchResult {
-        data object Success : TouchResult
-        data object SessionNotFound : TouchResult
-    }
-
-    data class ActiveSessionSnapshot(
-        val sessionId: Uuid,
-        val opponentSpecId: String,
-        val createdAt: Instant,
-    )
 
     private val actors = ConcurrentHashMap<Uuid, SessionEntry>()
     private val supervisorScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)

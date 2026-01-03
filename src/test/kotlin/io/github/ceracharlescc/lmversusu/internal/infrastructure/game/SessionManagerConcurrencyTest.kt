@@ -78,8 +78,8 @@ class SessionManagerConcurrencyTest {
 
             val results = jobs.awaitAll()
 
-            val successes = results.count { it is SessionManager.JoinResult.Success }
-            val failures = results.count { it is SessionManager.JoinResult.Failure }
+            val successes = results.count { it is JoinResult.Success }
+            val failures = results.count { it is JoinResult.Failure }
 
             assertEquals(
                 ACTIVE_SESSIONS_LIMIT,
@@ -89,7 +89,7 @@ class SessionManagerConcurrencyTest {
 
             assertTrue(failures >= 15, "Remaining attempts should fail")
 
-            val limitError = results.filterIsInstance<SessionManager.JoinResult.Failure>()
+            val limitError = results.filterIsInstance<JoinResult.Failure>()
                 .firstOrNull()
 
             assertEquals("session_limit_exceeded", limitError?.errorCode)
@@ -143,11 +143,11 @@ class SessionManagerConcurrencyTest {
             val (r1, r2) = listOf(p1.await(), p2.await())
 
             // Only one should succeed
-            val successCount = listOf(r1, r2).count { it is SessionManager.JoinResult.Success }
+            val successCount = listOf(r1, r2).count { it is JoinResult.Success }
             assertEquals(1, successCount, "Only one player should own the session")
 
             // The other should fail with 'session_taken' or similar logic inside SessionActor
-            val failure = listOf(r1, r2).filterIsInstance<SessionManager.JoinResult.Failure>().first()
+            val failure = listOf(r1, r2).filterIsInstance<JoinResult.Failure>().first()
 
             // Note: Error can be session_taken (SessionActor), session_creating (pre-reservation check),
             // or session_not_owned (ownership check) depending on timing
@@ -200,8 +200,8 @@ class SessionManagerConcurrencyTest {
                 opponentSpecId = "spec-1"
             )
 
-            assertTrue(resultA is SessionManager.JoinResult.Success, "Player A should create session successfully")
-            val sessionIdA = (resultA as SessionManager.JoinResult.Success).sessionId
+            assertTrue(resultA is JoinResult.Success, "Player A should create session successfully")
+            val sessionIdA = (resultA as JoinResult.Success).sessionId
 
             // Player B tries to hijack Player A's session by explicitly providing the sessionId
             val resultB = manager.joinSession(
@@ -212,8 +212,8 @@ class SessionManagerConcurrencyTest {
             )
 
             // Player B should be rejected with "session_not_owned"
-            assertTrue(resultB is SessionManager.JoinResult.Failure, "Player B should be rejected")
-            val failure = resultB as SessionManager.JoinResult.Failure
+            assertTrue(resultB is JoinResult.Failure, "Player B should be rejected")
+            val failure = resultB as JoinResult.Failure
             assertEquals("session_not_owned", failure.errorCode, "Should reject with session_not_owned")
 
             // Player B should NOT have a binding for A's session
@@ -284,8 +284,8 @@ class SessionManagerConcurrencyTest {
             }
 
             val results = listOf(p1.await(), p2.await())
-            val successes = results.filterIsInstance<SessionManager.JoinResult.Success>()
-            val failures = results.filterIsInstance<SessionManager.JoinResult.Failure>()
+            val successes = results.filterIsInstance<JoinResult.Success>()
+            val failures = results.filterIsInstance<JoinResult.Failure>()
 
             // Only one should succeed
             assertEquals(1, successes.size, "Only one player should own the session")
@@ -337,8 +337,8 @@ class SessionManagerConcurrencyTest {
                 opponentSpecId = "invalid-spec"
             )
 
-            assertTrue(result is SessionManager.JoinResult.Failure, "Should fail for invalid spec")
-            assertEquals("opponent_spec_not_found", (result as SessionManager.JoinResult.Failure).errorCode)
+            assertTrue(result is JoinResult.Failure, "Should fail for invalid spec")
+            assertEquals("opponent_spec_not_found", (result as JoinResult.Failure).errorCode)
 
             // Critical: no binding should exist
             val binding = playerActiveSessionIndex.get(playerId)
@@ -382,8 +382,8 @@ class SessionManagerConcurrencyTest {
                 nickname = "Player",
                 opponentSpecId = "spec-1"
             )
-            assertTrue(result is SessionManager.JoinResult.Success)
-            val sessionId = (result as SessionManager.JoinResult.Success).sessionId
+            assertTrue(result is JoinResult.Success)
+            val sessionId = (result as JoinResult.Success).sessionId
 
             // Verify binding exists
             assertTrue(playerActiveSessionIndex.get(playerId)?.sessionId == sessionId, "Binding should exist")
@@ -478,12 +478,12 @@ class SessionManagerConcurrencyTest {
                 nickname = "Player",
                 opponentSpecId = "spec-1"
             )
-            assertTrue(joinResult is SessionManager.JoinResult.Success)
-            val sessionId = (joinResult as SessionManager.JoinResult.Success).sessionId
+            assertTrue(joinResult is JoinResult.Success)
+            val sessionId = (joinResult as JoinResult.Success).sessionId
 
             // Start first round
             val firstStartResult = manager.startNextRound(sessionId, playerId, Uuid.random())
-            assertTrue(firstStartResult is SessionManager.CommandResult.Success, "First startNextRound should succeed")
+            assertTrue(firstStartResult is CommandResult.Success, "First startNextRound should succeed")
 
             // Give the actor some time to process
             kotlinx.coroutines.delay(100)
@@ -491,7 +491,7 @@ class SessionManagerConcurrencyTest {
             // Try to start another round with a DIFFERENT commandId (simulating client retry)
             val secondStartResult = manager.startNextRound(sessionId, playerId, Uuid.random())
             assertTrue(
-                secondStartResult is SessionManager.CommandResult.Success,
+                secondStartResult is CommandResult.Success,
                 "Second startNextRound should also succeed (no-op)"
             )
 
@@ -626,8 +626,8 @@ class SessionManagerConcurrencyTest {
                 nickname = "Player",
                 opponentSpecId = "spec-1"
             )
-            assertTrue(joinResult is SessionManager.JoinResult.Success)
-            val sessionId = (joinResult as SessionManager.JoinResult.Success).sessionId
+            assertTrue(joinResult is JoinResult.Success)
+            val sessionId = (joinResult as JoinResult.Success).sessionId
 
             // Start a round
             manager.startNextRound(sessionId, playerId, Uuid.random())
@@ -644,7 +644,7 @@ class SessionManagerConcurrencyTest {
                 answer = answer,
                 clientSentAt = null,
             )
-            assertTrue(firstSubmitResult is SessionManager.CommandResult.Success, "First submit should succeed")
+            assertTrue(firstSubmitResult is CommandResult.Success, "First submit should succeed")
 
             kotlinx.coroutines.delay(100)
 
@@ -661,7 +661,7 @@ class SessionManagerConcurrencyTest {
             // The second submit should also succeed (either as a true no-op via semantic idempotency,
             // or by the use case handling the already_submitted case)
             assertTrue(
-                secondSubmitResult is SessionManager.CommandResult.Success,
+                secondSubmitResult is CommandResult.Success,
                 "Second submit should also succeed (no-op)"
             )
         }

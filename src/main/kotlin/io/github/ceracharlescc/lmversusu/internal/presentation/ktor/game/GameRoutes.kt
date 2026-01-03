@@ -22,6 +22,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import java.net.URI
+import io.github.ceracharlescc.lmversusu.internal.utils.ConnectionRateLimiter
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
@@ -265,30 +266,6 @@ private suspend fun io.ktor.websocket.WebSocketSession.sendFrame(
 ) {
     val payload = json.encodeToString(WsGameFrame.serializer(), frame)
     outgoing.send(Frame.Text(payload))
-}
-
-/**
- * A simple, non-thread-safe rate limiter for a single connection.
- * It relies on being called from a single thread, like Ktor's WebSocket `incoming` loop.
- */
-private class ConnectionRateLimiter(
-    private val windowMillis: Long,
-    private val maxMessages: Int,
-) {
-    private var windowStartMs: Long = System.currentTimeMillis()
-    private var count: Int = 0
-
-    fun tryConsume(): Boolean {
-        if (windowMillis <= 0 || maxMessages <= 0) return true
-        val nowMs = System.currentTimeMillis()
-        if (nowMs - windowStartMs >= windowMillis) {
-            windowStartMs = nowMs
-            count = 0
-        }
-        if (count >= maxMessages) return false
-        count++
-        return true
-    }
 }
 
 
