@@ -159,8 +159,14 @@ internal class SessionActor(
         }
     }
 
-    private fun enqueueEvent(event: GameEvent, droppable: Boolean = false) {
-        if (eventQueue.trySend(event).isSuccess) return
+    private sealed interface EnqueueResult {
+        data object Success : EnqueueResult
+        data object Dropped : EnqueueResult
+        data object Failed : EnqueueResult
+    }
+
+    private suspend fun enqueueEvent(event: GameEvent, droppable: Boolean = false): EnqueueResult {
+        if (eventQueue.trySend(event).isSuccess) return EnqueueResult.Success
 
         // Drop reasoning deltas if listeners are slow to keep the actor responsive.
         if (droppable) {
@@ -172,15 +178,18 @@ internal class SessionActor(
                     sessionId
                 )
             }
-            return
+            return EnqueueResult.Dropped
         }
 
-        scope.launch {
-            runCatching { eventQueue.send(event) }
-                .onFailure { throwable ->
+        // Suspending send for strict ordering of non-droppable events
+        return runCatching { eventQueue.send(event) }
+            .fold(
+                onSuccess = { EnqueueResult.Success },
+                onFailure = { throwable ->
                     logger.warn("Failed to enqueue event for session {}", sessionId, throwable)
+                    EnqueueResult.Failed
                 }
-        }
+            )
     }
 
     private suspend fun handle(command: SessionCommand) {
@@ -272,6 +281,12 @@ internal class SessionActor(
             return publishError("forbidden", "player cannot start round")
         }
 
+        // Semantic idempotency: round already in progress → no-op success
+        if (currentSession.rounds.any { it.isInProgress }) {
+            startRoundCommandIds.add(command.commandId)
+            return
+        }
+
         when (val result = startRoundUseCase.execute(currentSession, opponentSpec)) {
             is StartRoundUseCase.Result.Success -> {
                 startRoundCommandIds.add(command.commandId)
@@ -312,6 +327,22 @@ internal class SessionActor(
             ?: return publishError("session_not_ready", "session not initialized")
 
         if (isDuplicateSubmitAnswer(command.roundId, command.commandId)) return
+
+        // Semantic idempotency: treat "already submitted" as no-op success
+        val round = currentSession.rounds.firstOrNull { it.roundId == command.roundId }
+        if (round != null) {
+            val isHuman = currentSession.players.human.playerId == command.playerId
+            val isLlm = currentSession.players.llm.playerId == command.playerId
+            val alreadySubmitted = when {
+                isHuman -> round.humanSubmission != null
+                isLlm -> round.llmSubmission != null
+                else -> false
+            }
+            if (alreadySubmitted) {
+                recordSubmitAnswerCommand(command.roundId, command.commandId)
+                return // No-op: submission already exists
+            }
+        }
 
         when (
             val result = submitAnswerUseCase.execute(
@@ -586,14 +617,16 @@ internal class SessionActor(
         if (streamState.finalAnswerPublished) return
         if (round.humanSubmission == null) return // hard gate
 
-        streamState.finalAnswerPublished = true
-        enqueueEvent(
+        val result = enqueueEvent(
             GameEvent.LlmFinalAnswer(
                 sessionId = sessionId,
                 roundId = roundId,
                 answer = pending,
             )
         )
+        if (result == EnqueueResult.Success) {
+            streamState.finalAnswerPublished = true
+        }
     }
 
     private suspend fun resolveRoundIfReady(roundId: Uuid) {
@@ -752,7 +785,7 @@ internal class SessionActor(
 
         val durationMs = Duration.between(currentSession.createdAt, resolvedAt).toMillis()
 
-        enqueueEvent(
+        val result = enqueueEvent(
             GameEvent.SessionResolved(
                 sessionId = sessionId,
                 state = state,
@@ -767,7 +800,11 @@ internal class SessionActor(
             )
         )
 
-        sessionResolvedEmitted = true
+        if (result == EnqueueResult.Success) {
+            sessionResolvedEmitted = true
+        } else {
+            logger.warn("Failed to emit SessionResolved for session {}", sessionId)
+        }
     }
 
 
@@ -948,14 +985,16 @@ internal class SessionActor(
                 }
 
             if (answer != null) {
-                streamState?.let { it.finalAnswerPublished = true }
-                enqueueEvent(
+                val result = enqueueEvent(
                     GameEvent.LlmFinalAnswer(
                         sessionId = sessionId,
                         roundId = roundId,
                         answer = answer,
                     )
                 )
+                if (result == EnqueueResult.Success) {
+                    streamState?.let { it.finalAnswerPublished = true }
+                }
             }
         }
 
@@ -982,15 +1021,17 @@ internal class SessionActor(
             }
 
             if (revealText.isNotEmpty()) {
-                streamState?.let { it.reasoningRevealPublished = true }
                 logger.debug("Reasoning reveal for session {}, round {}: {}", sessionId, roundId, revealText)
-                enqueueEvent(
+                val result = enqueueEvent(
                     GameEvent.LlmReasoningReveal(
                         sessionId = sessionId,
                         roundId = roundId,
                         fullReasoning = revealText,
                     )
                 )
+                if (result == EnqueueResult.Success) {
+                    streamState?.let { it.reasoningRevealPublished = true }
+                }
             }
         }
     }

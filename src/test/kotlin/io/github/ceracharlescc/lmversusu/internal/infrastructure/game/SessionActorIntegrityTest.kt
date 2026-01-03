@@ -146,7 +146,7 @@ class SessionActorIntegrityTest {
         )
         testScheduler.runCurrent()
 
-        // Second submit (should be rejected)
+        // Second submit (should be a no-op due to semantic idempotency)
         actor.submit(
             SessionCommand.SubmitAnswer(
                 sessionId = sessionId,
@@ -169,7 +169,8 @@ class SessionActorIntegrityTest {
             )
         }
 
-        coVerify {
+        // No error should be produced for the second submission (it's a no-op, not an error)
+        coVerify(exactly = 0) {
             eventBus.publish(
                 match { it is GameEvent.SessionError && it.errorCode == "already_submitted" },
             )

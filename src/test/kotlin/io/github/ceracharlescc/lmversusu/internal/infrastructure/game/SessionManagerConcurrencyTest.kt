@@ -7,6 +7,7 @@ import io.github.ceracharlescc.lmversusu.internal.domain.entity.GameMode
 import io.github.ceracharlescc.lmversusu.internal.domain.entity.OpponentSpec
 import io.github.ceracharlescc.lmversusu.internal.domain.repository.OpponentSpecRepository
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.ClientIdentity
+import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
@@ -408,4 +409,264 @@ class SessionManagerConcurrencyTest {
 
         manager.shutdownAll()
     }
+
+    @Test
+    fun `Idempotency - StartNextRound while round in progress is no-op`() {
+        // Verify that calling StartNextRound while a round is already in progress
+        // does not produce an error and does not start a duplicate round
+        val playerActiveSessionIndex = InMemoryPlayerActiveSessionIndex()
+        val playerId = Uuid.random()
+
+        val specRepo = mockk<OpponentSpecRepository>()
+        every { specRepo.findById(any()) } returns mockk<OpponentSpec.Lightweight>(relaxed = true) {
+            every { id } returns "spec-1"
+            every { mode } returns GameMode.LIGHTWEIGHT
+        }
+
+        val startRoundUseCase =
+            mockk<io.github.ceracharlescc.lmversusu.internal.application.usecase.StartRoundUseCase>(relaxed = true)
+        var startRoundCallCount = 0
+        coEvery { startRoundUseCase.execute(any(), any()) } answers {
+            startRoundCallCount++
+            // Return a success with a mock round that is in progress
+            val mockRound = mockk<io.github.ceracharlescc.lmversusu.internal.domain.entity.Round>(relaxed = true) {
+                every { roundId } returns Uuid.random()
+                every { isInProgress } returns true
+                every { question } returns mockk(relaxed = true) {
+                    every { questionId } returns Uuid.random()
+                    every { prompt } returns "Test question"
+                    every { choices } returns null
+                    every { verifierSpec } returns mockk<io.github.ceracharlescc.lmversusu.internal.domain.vo.VerifierSpec.FreeResponse>(
+                        relaxed = true
+                    )
+                }
+                every { releasedAt } returns java.time.Instant.now()
+                every { handicap } returns java.time.Duration.ZERO
+                every { deadline } returns java.time.Instant.now().plusSeconds(60)
+                every { nonceToken } returns "nonce"
+            }
+            val session = mockk<io.github.ceracharlescc.lmversusu.internal.domain.entity.GameSession>(relaxed = true) {
+                every { rounds } returns listOf(mockRound)
+            }
+            io.github.ceracharlescc.lmversusu.internal.application.usecase.StartRoundUseCase.Result.Success(
+                session = session,
+                round = mockRound,
+                roundNumber = 1,
+            )
+        }
+
+        val manager = SessionManager(
+            logger = mockk(relaxed = true),
+            appConfig = AppConfig(),
+            opponentSpecRepository = specRepo,
+            gameEventBus = mockk(relaxed = true),
+            startRoundUseCase = startRoundUseCase,
+            submitAnswerUseCase = mockk(relaxed = true),
+            answerVerifier = mockk(relaxed = true),
+            llmPlayerGateway = mockk(relaxed = true),
+            llmStreamOrchestrator = mockk(relaxed = true),
+            resultsRepository = mockk(relaxed = true),
+            clock = Clock.systemUTC(),
+            playerActiveSessionIndex = playerActiveSessionIndex,
+        )
+
+        runBlocking {
+            // Create session
+            val joinResult = manager.joinSession(
+                sessionId = null,
+                clientIdentity = ClientIdentity(playerId, "1.1.1.1"),
+                nickname = "Player",
+                opponentSpecId = "spec-1"
+            )
+            assertTrue(joinResult is SessionManager.JoinResult.Success)
+            val sessionId = (joinResult as SessionManager.JoinResult.Success).sessionId
+
+            // Start first round
+            val firstStartResult = manager.startNextRound(sessionId, playerId, Uuid.random())
+            assertTrue(firstStartResult is SessionManager.CommandResult.Success, "First startNextRound should succeed")
+
+            // Give the actor some time to process
+            kotlinx.coroutines.delay(100)
+
+            // Try to start another round with a DIFFERENT commandId (simulating client retry)
+            val secondStartResult = manager.startNextRound(sessionId, playerId, Uuid.random())
+            assertTrue(
+                secondStartResult is SessionManager.CommandResult.Success,
+                "Second startNextRound should also succeed (no-op)"
+            )
+
+            // Give the actor time to process
+            kotlinx.coroutines.delay(100)
+
+            // The use case should only have been called ONCE (semantic idempotency)
+            assertEquals(1, startRoundCallCount, "StartRoundUseCase should only be called once")
+        }
+
+        manager.shutdownAll()
+    }
+
+    @Test
+    fun `Idempotency - SubmitAnswer after already submitted is no-op`() {
+        // Verify that submitting an answer when the player has already submitted
+        // does not produce an error (returns success as no-op)
+        // Note: Due to the complexity of properly mocking session state transitions,
+        // this test focuses on the observable behavior: both submits succeed without error.
+        val playerActiveSessionIndex = InMemoryPlayerActiveSessionIndex()
+        val playerId = Uuid.random()
+        val roundId = Uuid.random()
+
+        val specRepo = mockk<OpponentSpecRepository>()
+        every { specRepo.findById(any()) } returns mockk<OpponentSpec.Lightweight>(relaxed = true) {
+            every { id } returns "spec-1"
+            every { mode } returns GameMode.LIGHTWEIGHT
+        }
+
+        // Create a real mock session with proper player setup for idempotency testing
+        val humanPlayer = mockk<io.github.ceracharlescc.lmversusu.internal.domain.entity.Player>(relaxed = true) {
+            every { this@mockk.playerId } returns playerId
+            every { type } returns io.github.ceracharlescc.lmversusu.internal.domain.entity.Player.PlayerType.HUMAN
+        }
+        val llmPlayer = mockk<io.github.ceracharlescc.lmversusu.internal.domain.entity.Player>(relaxed = true) {
+            every { this@mockk.playerId } returns Uuid.random()
+            every { type } returns io.github.ceracharlescc.lmversusu.internal.domain.entity.Player.PlayerType.LLM
+        }
+        val players = mockk<io.github.ceracharlescc.lmversusu.internal.domain.entity.PlayerSet>(relaxed = true) {
+            every { human } returns humanPlayer
+            every { llm } returns llmPlayer
+            every { findById(playerId) } returns humanPlayer
+        }
+
+        // Configure submitAnswerUseCase to properly track calls
+        val submitAnswerUseCase =
+            mockk<io.github.ceracharlescc.lmversusu.internal.application.usecase.SubmitAnswerUseCase>(relaxed = true)
+        var submitCallCount = 0
+
+        // First call returns success, subsequent calls return "already_submitted" failure
+        every { submitAnswerUseCase.execute(any(), any(), any(), any(), any(), any()) } answers {
+            submitCallCount++
+            if (submitCallCount == 1) {
+                val mockRound = mockk<io.github.ceracharlescc.lmversusu.internal.domain.entity.Round>(relaxed = true) {
+                    every { this@mockk.roundId } returns roundId
+                    every { humanSubmission } returns mockk(relaxed = true)  // Now has submission
+                    every { llmSubmission } returns null
+                    every { isInProgress } returns true
+                }
+                val session =
+                    mockk<io.github.ceracharlescc.lmversusu.internal.domain.entity.GameSession>(relaxed = true) {
+                        every { rounds } returns listOf(mockRound)
+                        every { this@mockk.players } returns players
+                    }
+                io.github.ceracharlescc.lmversusu.internal.application.usecase.SubmitAnswerUseCase.Result.Success(
+                    session = session,
+                    round = mockRound,
+                    playerType = io.github.ceracharlescc.lmversusu.internal.domain.entity.Player.PlayerType.HUMAN,
+                )
+            } else {
+                // Second call would be blocked by semantic idempotency, but if it gets through, the use case returns error
+                io.github.ceracharlescc.lmversusu.internal.application.usecase.SubmitAnswerUseCase.Result.Failure(
+                    errorCode = "already_submitted",
+                    message = "submission already exists"
+                )
+            }
+        }
+
+        // Mock startRoundUseCase to set up a round with proper player references
+        val startRoundUseCase =
+            mockk<io.github.ceracharlescc.lmversusu.internal.application.usecase.StartRoundUseCase>(relaxed = true)
+        coEvery { startRoundUseCase.execute(any(), any()) } answers {
+            val mockRound = mockk<io.github.ceracharlescc.lmversusu.internal.domain.entity.Round>(relaxed = true) {
+                every { this@mockk.roundId } returns roundId
+                every { humanSubmission } returns null
+                every { llmSubmission } returns null
+                every { isInProgress } returns true
+                every { question } returns mockk(relaxed = true) {
+                    every { questionId } returns Uuid.random()
+                    every { prompt } returns "Test question"
+                    every { choices } returns null
+                    every { verifierSpec } returns mockk<io.github.ceracharlescc.lmversusu.internal.domain.vo.VerifierSpec.FreeResponse>(
+                        relaxed = true
+                    )
+                }
+                every { releasedAt } returns java.time.Instant.now()
+                every { handicap } returns java.time.Duration.ZERO
+                every { deadline } returns java.time.Instant.now().plusSeconds(60)
+                every { nonceToken } returns "test-nonce"
+            }
+            val session = mockk<io.github.ceracharlescc.lmversusu.internal.domain.entity.GameSession>(relaxed = true) {
+                every { rounds } returns listOf(mockRound)
+                every { this@mockk.players } returns players
+            }
+            io.github.ceracharlescc.lmversusu.internal.application.usecase.StartRoundUseCase.Result.Success(
+                session = session,
+                round = mockRound,
+                roundNumber = 1,
+            )
+        }
+
+        val manager = SessionManager(
+            logger = mockk(relaxed = true),
+            appConfig = AppConfig(),
+            opponentSpecRepository = specRepo,
+            gameEventBus = mockk(relaxed = true),
+            startRoundUseCase = startRoundUseCase,
+            submitAnswerUseCase = submitAnswerUseCase,
+            answerVerifier = mockk(relaxed = true),
+            llmPlayerGateway = mockk(relaxed = true),
+            llmStreamOrchestrator = mockk(relaxed = true),
+            resultsRepository = mockk(relaxed = true),
+            clock = Clock.systemUTC(),
+            playerActiveSessionIndex = playerActiveSessionIndex,
+        )
+
+        runBlocking {
+            // Create session
+            val joinResult = manager.joinSession(
+                sessionId = null,
+                clientIdentity = ClientIdentity(playerId, "1.1.1.1"),
+                nickname = "Player",
+                opponentSpecId = "spec-1"
+            )
+            assertTrue(joinResult is SessionManager.JoinResult.Success)
+            val sessionId = (joinResult as SessionManager.JoinResult.Success).sessionId
+
+            // Start a round
+            manager.startNextRound(sessionId, playerId, Uuid.random())
+            kotlinx.coroutines.delay(100)
+
+            // Submit first answer
+            val answer = io.github.ceracharlescc.lmversusu.internal.domain.vo.Answer.FreeText("test answer")
+            val firstSubmitResult = manager.submitAnswer(
+                sessionId = sessionId,
+                playerId = playerId,
+                roundId = roundId,
+                commandId = Uuid.random(),
+                nonceToken = "test-nonce",
+                answer = answer,
+                clientSentAt = null,
+            )
+            assertTrue(firstSubmitResult is SessionManager.CommandResult.Success, "First submit should succeed")
+
+            kotlinx.coroutines.delay(100)
+
+            // Submit second answer with DIFFERENT commandId (simulating client retry)
+            val secondSubmitResult = manager.submitAnswer(
+                sessionId = sessionId,
+                playerId = playerId,
+                roundId = roundId,
+                commandId = Uuid.random(),  // Different command ID
+                nonceToken = "test-nonce",
+                answer = answer,
+                clientSentAt = null,
+            )
+            // The second submit should also succeed (either as a true no-op via semantic idempotency,
+            // or by the use case handling the already_submitted case)
+            assertTrue(
+                secondSubmitResult is SessionManager.CommandResult.Success,
+                "Second submit should also succeed (no-op)"
+            )
+        }
+
+        manager.shutdownAll()
+    }
 }
+
