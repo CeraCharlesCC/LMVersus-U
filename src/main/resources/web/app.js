@@ -1165,7 +1165,7 @@ function roundResolveLine(reason) {
 
 function sessionEndLine(reason) {
     const r = String(reason || "");
-    if (r === "idle_timeout") return t("sessionEndIdle");
+    if (r === "timeout") return t("sessionEndIdle");
     if (r === "max_lifespan") return t("sessionEndMax");
     if (r === "completed") return t("sessionEndCompleted");
     return t("sessionEndGeneric");
