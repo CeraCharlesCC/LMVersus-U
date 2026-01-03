@@ -55,6 +55,7 @@ internal class SessionActor(
 
     private data class RoundStreamState(
         val fullReasoningBuilder: StringBuilder = StringBuilder(),
+        var nextReasoningSeq: StreamSeq = StreamSeq(0),
         var lockInEmitted: Boolean = false,
         var getWithheldReasoning: (suspend () -> String)? = null,
 
@@ -70,7 +71,10 @@ internal class SessionActor(
     init {
         scope.launch {
             for (command in mailbox) {
-                handle(command)
+                runCatching { handle(command) }
+                    .onFailure { throwable ->
+                        logger.error("Session actor failed while handling {}", command::class.simpleName, throwable)
+                    }
             }
         }
     }
@@ -108,7 +112,12 @@ internal class SessionActor(
             is SessionCommand.StartNextRound -> handleStartNextRound(command)
             is SessionCommand.SubmitAnswer -> handleSubmitAnswer(command)
             is SessionCommand.StartLlmForRound -> handleStartLlm(command)
+            is SessionCommand.LlmStreamReady -> handleLlmStreamReady(command)
+            is SessionCommand.LlmReasoningDeltaReceived -> handleLlmReasoningDelta(command)
+            is SessionCommand.LlmReasoningTruncatedReceived -> handleLlmReasoningTruncated(command)
+            is SessionCommand.LlmReasoningEndedReceived -> handleLlmReasoningEnded(command)
             is SessionCommand.LlmFinalAnswerReceived -> handleLlmFinalAnswer(command)
+            is SessionCommand.LlmStreamErrored -> handleLlmStreamError(command)
             is SessionCommand.Timeout -> handleTimeout(command)
             is SessionCommand.RoundDeadlineReached -> handleRoundDeadlineReached(command.roundId)
         }
@@ -270,90 +279,87 @@ internal class SessionActor(
             )
         )
 
-        val streamState = roundStreamStates.computeIfAbsent(command.roundId) { RoundStreamState() }
+        roundStreamStates.computeIfAbsent(command.roundId) { RoundStreamState() }
 
         val job = scope.launch {
-            val expectedKind = when {
-                round.question.choices != null -> ExpectedAnswerKind.MULTIPLE_CHOICE
-                round.question.verifierSpec is VerifierSpec.IntegerRange -> ExpectedAnswerKind.INTEGER
-                else -> ExpectedAnswerKind.FREE_TEXT
-            }
+            runCatching {
+                val expectedKind = when {
+                    round.question.choices != null -> ExpectedAnswerKind.MULTIPLE_CHOICE
+                    round.question.verifierSpec is VerifierSpec.IntegerRange -> ExpectedAnswerKind.INTEGER
+                    else -> ExpectedAnswerKind.FREE_TEXT
+                }
 
-            val roundContext = RoundContext(
-                questionId = round.question.questionId,
-                questionPrompt = round.question.prompt,
-                choices = round.question.choices,
-                expectedAnswerKind = expectedKind,
-                opponentSpec = opponentSpec,
-            )
+                val roundContext = RoundContext(
+                    questionId = round.question.questionId,
+                    questionPrompt = round.question.prompt,
+                    choices = round.question.choices,
+                    expectedAnswerKind = expectedKind,
+                    opponentSpec = opponentSpec,
+                )
 
-            val upstream = llmPlayerGateway.streamAnswer(roundContext)
-            val orchestrationResult = llmStreamOrchestrator.applyWithReveal(opponentSpec.streaming, upstream)
+                val upstream = llmPlayerGateway.streamAnswer(roundContext)
+                val orchestrationResult = llmStreamOrchestrator.applyWithReveal(opponentSpec.streaming, upstream)
 
-            streamState.getWithheldReasoning = orchestrationResult.getWithheldReasoning
+                submitInternal(
+                    SessionCommand.LlmStreamReady(
+                        roundId = round.roundId,
+                        getWithheldReasoning = orchestrationResult.getWithheldReasoning,
+                    )
+                )
 
-            var seq = StreamSeq(0)
-
-            orchestrationResult.events.collect { event ->
-                when (event) {
-                    is LlmStreamEvent.ReasoningDelta -> {
-                        streamState.fullReasoningBuilder.append(event.deltaText)
-                        logger.debug("Delta for session {}, round {}: {}", sessionId, round.roundId, event.deltaText)
-
-                        gameEventBus.publish(
-                            GameEvent.LlmReasoningDelta(
-                                sessionId = sessionId,
-                                roundId = round.roundId,
-                                deltaText = event.deltaText,
-                                seq = seq,
+                orchestrationResult.events.collect { event ->
+                    when (event) {
+                        is LlmStreamEvent.ReasoningDelta -> {
+                            submitInternal(
+                                SessionCommand.LlmReasoningDeltaReceived(
+                                    roundId = round.roundId,
+                                    deltaText = event.deltaText,
+                                )
                             )
-                        )
-                        seq = seq.next()
-                    }
+                        }
 
-                    is LlmStreamEvent.ReasoningTruncated -> {
-                        gameEventBus.publish(
-                            GameEvent.LlmReasoningTruncated(
-                                sessionId = sessionId,
-                                roundId = round.roundId,
-                                droppedChars = event.droppedChars,
+                        is LlmStreamEvent.ReasoningTruncated -> {
+                            submitInternal(
+                                SessionCommand.LlmReasoningTruncatedReceived(
+                                    roundId = round.roundId,
+                                    droppedChars = event.droppedChars,
+                                )
                             )
-                        )
-                    }
+                        }
 
-                    is LlmStreamEvent.ReasoningEnded -> {
-                        logger.debug(event.toString())
-                        gameEventBus.publish(
-                            GameEvent.LlmReasoningEnded(
-                                sessionId = sessionId,
-                                roundId = round.roundId,
-                            )
-                        )
-                    }
+                        is LlmStreamEvent.ReasoningEnded -> {
+                            submitInternal(SessionCommand.LlmReasoningEndedReceived(roundId = round.roundId))
+                        }
 
-                    is LlmStreamEvent.FinalAnswer -> {
-                        logger.debug(event.toString())
-                        submitInternal(
-                            SessionCommand.LlmFinalAnswerReceived(
-                                roundId = round.roundId,
-                                answer = event.answer,
+                        is LlmStreamEvent.FinalAnswer -> {
+                            submitInternal(
+                                SessionCommand.LlmFinalAnswerReceived(
+                                    roundId = round.roundId,
+                                    answer = event.answer,
+                                )
                             )
-                        )
-                    }
+                        }
 
-                    is LlmStreamEvent.Error -> {
-                        logger.error(
-                            "LLM stream error for session $sessionId, round ${round.roundId}: ${event.message}",
-                            event.cause
-                        )
-                        gameEventBus.publish(
-                            GameEvent.LlmStreamError(
-                                sessionId = sessionId,
-                                roundId = round.roundId,
-                                message = event.message,
+                        is LlmStreamEvent.Error -> {
+                            submitInternal(
+                                SessionCommand.LlmStreamErrored(
+                                    roundId = round.roundId,
+                                    message = event.message,
+                                    cause = event.cause,
+                                )
                             )
-                        )
+                        }
                     }
+                }
+            }.onFailure { throwable ->
+                if (throwable !is CancellationException) {
+                    submitInternal(
+                        SessionCommand.LlmStreamErrored(
+                            roundId = round.roundId,
+                            message = throwable.message ?: "LLM stream failed",
+                            cause = throwable,
+                        )
+                    )
                 }
             }
         }
@@ -362,9 +368,87 @@ internal class SessionActor(
         llmJobs[command.roundId] = job
     }
 
+    private suspend fun handleLlmStreamReady(command: SessionCommand.LlmStreamReady) {
+        val currentSession = session ?: return
+        val round = currentSession.rounds.firstOrNull { it.roundId == command.roundId } ?: return
+        if (!round.isInProgress) return
+
+        val streamState = roundStreamStates.computeIfAbsent(command.roundId) { RoundStreamState() }
+        streamState.getWithheldReasoning = command.getWithheldReasoning
+    }
+
+    private suspend fun handleLlmReasoningDelta(command: SessionCommand.LlmReasoningDeltaReceived) {
+        val currentSession = session ?: return
+        val round = currentSession.rounds.firstOrNull { it.roundId == command.roundId } ?: return
+        if (!round.isInProgress) return
+
+        val streamState = roundStreamStates.computeIfAbsent(command.roundId) { RoundStreamState() }
+        streamState.fullReasoningBuilder.append(command.deltaText)
+        val seq = streamState.nextReasoningSeq
+        streamState.nextReasoningSeq = seq.next()
+
+        gameEventBus.publish(
+            GameEvent.LlmReasoningDelta(
+                sessionId = sessionId,
+                roundId = command.roundId,
+                deltaText = command.deltaText,
+                seq = seq,
+            )
+        )
+    }
+
+    private suspend fun handleLlmReasoningTruncated(command: SessionCommand.LlmReasoningTruncatedReceived) {
+        val currentSession = session ?: return
+        val round = currentSession.rounds.firstOrNull { it.roundId == command.roundId } ?: return
+        if (!round.isInProgress) return
+
+        gameEventBus.publish(
+            GameEvent.LlmReasoningTruncated(
+                sessionId = sessionId,
+                roundId = command.roundId,
+                droppedChars = command.droppedChars,
+            )
+        )
+    }
+
+    private suspend fun handleLlmReasoningEnded(command: SessionCommand.LlmReasoningEndedReceived) {
+        val currentSession = session ?: return
+        val round = currentSession.rounds.firstOrNull { it.roundId == command.roundId } ?: return
+        if (!round.isInProgress) return
+
+        gameEventBus.publish(
+            GameEvent.LlmReasoningEnded(
+                sessionId = sessionId,
+                roundId = command.roundId,
+            )
+        )
+    }
+
+    private suspend fun handleLlmStreamError(command: SessionCommand.LlmStreamErrored) {
+        val currentSession = session ?: return
+        val round = currentSession.rounds.firstOrNull { it.roundId == command.roundId } ?: return
+        if (!round.isInProgress) return
+
+        logger.error(
+            "LLM stream error for session {}, round {}: {}",
+            sessionId,
+            command.roundId,
+            command.message,
+            command.cause
+        )
+        gameEventBus.publish(
+            GameEvent.LlmStreamError(
+                sessionId = sessionId,
+                roundId = command.roundId,
+                message = command.message,
+            )
+        )
+    }
+
     private suspend fun handleLlmFinalAnswer(command: SessionCommand.LlmFinalAnswerReceived) {
         val currentSession = session ?: return
         val round = currentSession.rounds.firstOrNull { it.roundId == command.roundId } ?: return
+        if (!round.isInProgress) return
         val llmPlayerId = currentSession.players.llm.playerId
 
         val streamState = roundStreamStates.computeIfAbsent(command.roundId) { RoundStreamState() }
@@ -449,6 +533,8 @@ internal class SessionActor(
             },
         )
         session = updatedSession
+
+        llmJobs.remove(roundId)?.cancel()
 
         // Emit LLM artifacts before RoundResolved
         emitArtifactsAtRoundEnd(roundId, updatedRound)
@@ -639,10 +725,7 @@ internal class SessionActor(
             else -> RoundResolveReason.NORMAL
         }
 
-        // Stop the LLM stream if it didn't finish by deadline
-        if (llmMissing) {
-            llmJobs.remove(roundId)?.cancel()
-        }
+        llmJobs.remove(roundId)?.cancel()
 
         val correctAnswer = correctAnswerFor(round.question)
 
@@ -861,6 +944,12 @@ internal class SessionActor(
         val now = Instant.now(clock)
         session = currentSession.copy(state = SessionState.CANCELLED)
 
+        llmJobs.values.forEach { it.cancel() }
+        llmJobs.clear()
+        roundDeadlineJobs.values.forEach { it.cancel() }
+        roundDeadlineJobs.clear()
+        roundStreamStates.clear()
+
         // Emit SessionResolved immediately with current scores before termination
         emitSessionResolved(
             reason = command.reason,
@@ -909,9 +998,34 @@ internal sealed interface SessionCommand {
         val roundId: Uuid,
     ) : SessionCommand
 
+    data class LlmStreamReady(
+        val roundId: Uuid,
+        val getWithheldReasoning: (suspend () -> String)?,
+    ) : SessionCommand
+
+    data class LlmReasoningDeltaReceived(
+        val roundId: Uuid,
+        val deltaText: String,
+    ) : SessionCommand
+
+    data class LlmReasoningTruncatedReceived(
+        val roundId: Uuid,
+        val droppedChars: Int,
+    ) : SessionCommand
+
+    data class LlmReasoningEndedReceived(
+        val roundId: Uuid,
+    ) : SessionCommand
+
     data class LlmFinalAnswerReceived(
         val roundId: Uuid,
         val answer: LlmAnswer,
+    ) : SessionCommand
+
+    data class LlmStreamErrored(
+        val roundId: Uuid,
+        val message: String,
+        val cause: Throwable? = null,
     ) : SessionCommand
 
     data class Timeout(val reason: String = "timeout") : SessionCommand
