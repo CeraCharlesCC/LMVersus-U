@@ -26,9 +26,9 @@ const I18N = {
         premium: "PREMIUM",
         leaderboard: "Leaderboard",
         descLight:
-            "Lightweight is a match against a pre-prepared replay. After the question appears, the LLM has a small handicap delay before it starts answering. The final part of its reasoning is not visible.",
+            "Lightweight is a match against a pre-prepared replay. After the question appears, the LLM has a small handicap delay before it starts answering. ",
         descPremium:
-            "Premium is a real-time match against an LLM via API. The final part of its reasoning is not visible.",
+            "Premium is a real-time match against an LLM via API.",
         nickname: "Nickname",
         opponent: "Opponent",
         startMatch: "Start match",
@@ -1096,7 +1096,7 @@ function maybeShowHiddenSquares() {
         if (since < 700) return;
 
         state.reasoningSquaresShown = true;
-        const blocks = "███".repeat(64);
+        const blocks = "██████████████████████████ \n".repeat(4);
         state.reasoningBuf += `\n\n\`${blocks}\``;
         scheduleReasoningRender();
     }, 900);
