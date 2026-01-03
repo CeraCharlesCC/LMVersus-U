@@ -108,6 +108,7 @@ internal class GameController @Inject constructor(
     suspend fun startNextRound(
         sessionId: String,
         playerId: String,
+        commandId: String?,
     ): CommandResult {
         val parsedSessionId = parseUuidOrNull(sessionId)
         val parsedPlayerId = parseUuidOrNull(playerId)
@@ -115,7 +116,17 @@ internal class GameController @Inject constructor(
             return CommandResult.Failure(errorCode = "invalid_request", message = "sessionId or playerId is invalid")
         }
 
-        return when (val result = sessionManager.startNextRound(parsedSessionId, parsedPlayerId)) {
+        val parsedCommandId = if (commandId.isNullOrBlank()) {
+            Uuid.random()
+        } else {
+            parseUuidOrNull(commandId) ?: return CommandResult.Failure(
+                sessionId = parsedSessionId,
+                errorCode = "invalid_command_id",
+                message = "commandId is invalid",
+            )
+        }
+
+        return when (val result = sessionManager.startNextRound(parsedSessionId, parsedPlayerId, parsedCommandId)) {
             is SessionManager.CommandResult.Success -> CommandResult.Success(result.sessionId)
             is SessionManager.CommandResult.Failure -> CommandResult.Failure(
                 sessionId = result.sessionId,
@@ -129,6 +140,7 @@ internal class GameController @Inject constructor(
         sessionId: String,
         playerId: String,
         roundId: String,
+        commandId: String?,
         nonceToken: String,
         clientSentAtEpochMs: Long?,
         answer: io.github.ceracharlescc.lmversusu.internal.domain.vo.Answer,
@@ -151,12 +163,22 @@ internal class GameController @Inject constructor(
         }
 
         val clientSentAt = clientSentAtEpochMs?.let { Instant.ofEpochMilli(it) }
+        val parsedCommandId = if (commandId.isNullOrBlank()) {
+            Uuid.random()
+        } else {
+            parseUuidOrNull(commandId) ?: return CommandResult.Failure(
+                sessionId = parsedSessionId,
+                errorCode = "invalid_command_id",
+                message = "commandId is invalid",
+            )
+        }
 
         return when (
             val result = sessionManager.submitAnswer(
                 sessionId = parsedSessionId,
                 playerId = parsedPlayerId,
                 roundId = parsedRoundId,
+                commandId = parsedCommandId,
                 nonceToken = nonceToken,
                 answer = answer,
                 clientSentAt = clientSentAt,

@@ -593,7 +593,7 @@ internal class SessionManager @Inject constructor(
         }
     }
 
-    suspend fun startNextRound(sessionId: Uuid, playerId: Uuid): CommandResult {
+    suspend fun startNextRound(sessionId: Uuid, playerId: Uuid, commandId: Uuid): CommandResult {
         val actor = (actors[sessionId] as? SessionEntry.Active)?.actor
             ?: return CommandResult.Failure(
                 sessionId = sessionId,
@@ -602,7 +602,7 @@ internal class SessionManager @Inject constructor(
             )
 
         scheduleIdleTimeout(sessionId)
-        if (!actor.submit(SessionCommand.StartNextRound(sessionId = sessionId, playerId = playerId))) {
+        if (!actor.submit(SessionCommand.StartNextRound(sessionId = sessionId, playerId = playerId, commandId = commandId))) {
             return CommandResult.Failure(
                 sessionId = sessionId,
                 errorCode = "session_busy",
@@ -616,6 +616,7 @@ internal class SessionManager @Inject constructor(
         sessionId: Uuid,
         playerId: Uuid,
         roundId: Uuid,
+        commandId: Uuid,
         nonceToken: String,
         answer: io.github.ceracharlescc.lmversusu.internal.domain.vo.Answer,
         clientSentAt: Instant?,
@@ -634,6 +635,7 @@ internal class SessionManager @Inject constructor(
                     sessionId = sessionId,
                     playerId = playerId,
                     roundId = roundId,
+                    commandId = commandId,
                     nonceToken = nonceToken,
                     answer = answer,
                     clientSentAt = clientSentAt,
@@ -735,7 +737,9 @@ internal class SessionManager @Inject constructor(
         idleTimeoutJobs[sessionId]?.cancel()
         idleTimeoutJobs[sessionId] = supervisorScope.launch {
             delay(IDLE_TIMEOUT_MS)
-            (actors[sessionId] as? SessionEntry.Active)?.actor?.submit(SessionCommand.Timeout(reason = "timeout"))
+            (actors[sessionId] as? SessionEntry.Active)?.actor?.submitCritical(
+                SessionCommand.Timeout(reason = "timeout")
+            )
         }
     }
 
@@ -744,7 +748,9 @@ internal class SessionManager @Inject constructor(
         maxLifespanJobs[sessionId] = supervisorScope.launch {
             delay(MAX_LIFESPAN_MS)
             // Route through actor to ensure SessionResolved is emitted
-            (actors[sessionId] as? SessionEntry.Active)?.actor?.submitCritical(SessionCommand.Timeout(reason = "max_lifespan"))
+            (actors[sessionId] as? SessionEntry.Active)?.actor?.submitCritical(
+                SessionCommand.Timeout(reason = "max_lifespan")
+            )
         }
     }
 

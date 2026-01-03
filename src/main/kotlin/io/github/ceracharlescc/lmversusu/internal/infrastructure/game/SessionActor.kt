@@ -17,6 +17,7 @@ import io.github.ceracharlescc.lmversusu.internal.domain.vo.streaming.LlmStreamE
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.streaming.StreamSeq
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.selects.select
 import org.slf4j.Logger
 import java.time.Clock
 import java.time.Duration
@@ -42,6 +43,9 @@ internal class SessionActor(
 ) {
     companion object {
         private const val CLEANUP_GRACE_PERIOD_MS = 60_000L
+        private const val EVENT_QUEUE_CAPACITY_MULTIPLIER = 4
+        private const val START_ROUND_DEDUP_CAPACITY = 64
+        private const val SUBMIT_ANSWER_DEDUP_CAPACITY = 256
     }
 
     val opponentSpecId: String = opponentSpec.id
@@ -49,6 +53,11 @@ internal class SessionActor(
 
     private val scope = CoroutineScope(SupervisorJob() + dispatcher)
     private val mailbox = Channel<SessionCommand>(mailboxCapacity)
+    private val internalQueue = Channel<SessionCommand>(mailboxCapacity)
+    private val criticalQueue = Channel<SessionCommand>(mailboxCapacity)
+    private val eventQueue = Channel<GameEvent>(
+        (mailboxCapacity * EVENT_QUEUE_CAPACITY_MULTIPLIER).coerceAtLeast(1)
+    )
     private val llmJobs = ConcurrentHashMap<Uuid, Job>()
     private val roundDeadlineJobs = ConcurrentHashMap<Uuid, Job>()
     private var session: GameSession? = null
@@ -67,8 +76,17 @@ internal class SessionActor(
     private val roundStreamStates = ConcurrentHashMap<Uuid, RoundStreamState>()
 
     private var sessionResolvedEmitted: Boolean = false
+    private var droppedReasoningDeltaCount: Int = 0
+    private val startRoundCommandIds = LruSet<Uuid>(START_ROUND_DEDUP_CAPACITY)
+    private val submitAnswerCommandIdsByRound = HashMap<Uuid, LruSet<Uuid>>()
 
     init {
+        scope.launch {
+            drainInternalQueues()
+        }
+        scope.launch {
+            drainEvents()
+        }
         scope.launch {
             for (command in mailbox) {
                 runCatching { handle(command) }
@@ -83,18 +101,12 @@ internal class SessionActor(
         return mailbox.trySend(command).isSuccess
     }
 
-    fun submitCritical(command: SessionCommand) {
-        submitInternal(command)
+    suspend fun submitCritical(command: SessionCommand) {
+        submitToInternalQueue(criticalQueue, command)
     }
 
-    private fun submitInternal(command: SessionCommand) {
-        if (mailbox.trySend(command).isSuccess) return
-        scope.launch {
-            runCatching { mailbox.send(command) }
-                .onFailure { throwable ->
-                    logger.warn("Failed to enqueue internal command for session {}", sessionId, throwable)
-                }
-        }
+    private suspend fun submitInternal(command: SessionCommand) {
+        submitToInternalQueue(internalQueue, command)
     }
 
     /**
@@ -102,8 +114,67 @@ internal class SessionActor(
      * After calling this, the actor should be removed from the SessionManager.
      */
     fun shutdown() {
+        criticalQueue.close()
+        internalQueue.close()
+        eventQueue.close()
         mailbox.close()
         scope.cancel()
+    }
+
+    private suspend fun submitToInternalQueue(queue: Channel<SessionCommand>, command: SessionCommand) {
+        runCatching { queue.send(command) }
+            .onFailure { throwable ->
+                logger.warn("Failed to enqueue internal command for session {}", sessionId, throwable)
+            }
+    }
+
+    private suspend fun drainInternalQueues() {
+        while (currentCoroutineContext().isActive) {
+            val command = criticalQueue.tryReceive().getOrNull()
+                ?: select {
+                    criticalQueue.onReceive { it }
+                    internalQueue.onReceive { it }
+                }
+
+            val sent = runCatching { mailbox.send(command) }
+            if (sent.isFailure) {
+                logger.warn("Failed to forward internal command for session {}", sessionId, sent.exceptionOrNull())
+                return
+            }
+        }
+    }
+
+    private suspend fun drainEvents() {
+        for (event in eventQueue) {
+            runCatching { gameEventBus.publish(event) }
+                .onFailure { throwable ->
+                    logger.warn("Failed to publish event for session {}", sessionId, throwable)
+                }
+        }
+    }
+
+    private fun enqueueEvent(event: GameEvent, droppable: Boolean = false) {
+        if (eventQueue.trySend(event).isSuccess) return
+
+        // Drop reasoning deltas if listeners are slow to keep the actor responsive.
+        if (droppable) {
+            droppedReasoningDeltaCount += 1
+            if (droppedReasoningDeltaCount % 100 == 1) {
+                logger.debug(
+                    "Dropped {} LLM reasoning delta events for session {}",
+                    droppedReasoningDeltaCount,
+                    sessionId
+                )
+            }
+            return
+        }
+
+        scope.launch {
+            runCatching { eventQueue.send(event) }
+                .onFailure { throwable ->
+                    logger.warn("Failed to enqueue event for session {}", sessionId, throwable)
+                }
+        }
     }
 
     private suspend fun handle(command: SessionCommand) {
@@ -149,15 +220,15 @@ internal class SessionActor(
 
             gameEventBus.authorizePlayer(sessionId, human.playerId)
 
-            gameEventBus.publish(GameEvent.SessionCreated(sessionId = sessionId, joinCode = joinCode))
-            gameEventBus.publish(
+            enqueueEvent(GameEvent.SessionCreated(sessionId = sessionId, joinCode = joinCode))
+            enqueueEvent(
                 GameEvent.PlayerJoined(
                     sessionId = sessionId,
                     playerId = human.playerId,
                     nickname = human.nickname,
                 )
             )
-            gameEventBus.publish(
+            enqueueEvent(
                 GameEvent.PlayerJoined(
                     sessionId = sessionId,
                     playerId = llm.playerId,
@@ -189,12 +260,15 @@ internal class SessionActor(
         val currentSession = session
             ?: return publishError("session_not_ready", "session not initialized")
 
+        if (startRoundCommandIds.contains(command.commandId)) return
+
         if (currentSession.players.human.playerId != command.playerId) {
             return publishError("forbidden", "player cannot start round")
         }
 
         when (val result = startRoundUseCase.execute(currentSession, opponentSpec)) {
             is StartRoundUseCase.Result.Success -> {
+                startRoundCommandIds.add(command.commandId)
                 session = result.session
                 val round = result.round
                 val expectedAnswerType = when {
@@ -202,7 +276,7 @@ internal class SessionActor(
                     round.question.verifierSpec is VerifierSpec.IntegerRange -> "integer"
                     else -> "free_text"
                 }
-                gameEventBus.publish(
+                enqueueEvent(
                     GameEvent.RoundStarted(
                         sessionId = sessionId,
                         questionId = round.question.questionId,
@@ -231,6 +305,8 @@ internal class SessionActor(
         val currentSession = session
             ?: return publishError("session_not_ready", "session not initialized")
 
+        if (isDuplicateSubmitAnswer(command.roundId, command.commandId)) return
+
         when (
             val result = submitAnswerUseCase.execute(
                 session = currentSession,
@@ -242,8 +318,9 @@ internal class SessionActor(
             )
         ) {
             is SubmitAnswerUseCase.Result.Success -> {
+                recordSubmitAnswerCommand(command.roundId, command.commandId)
                 session = result.session
-                gameEventBus.publish(
+                enqueueEvent(
                     GameEvent.SubmissionReceived(
                         sessionId = sessionId,
                         roundId = command.roundId,
@@ -264,6 +341,20 @@ internal class SessionActor(
 
     }
 
+    private fun isDuplicateSubmitAnswer(roundId: Uuid, commandId: Uuid): Boolean {
+        val seenCommands = submitAnswerCommandIdsByRound.getOrPut(roundId) {
+            LruSet(SUBMIT_ANSWER_DEDUP_CAPACITY)
+        }
+        return seenCommands.contains(commandId)
+    }
+
+    private fun recordSubmitAnswerCommand(roundId: Uuid, commandId: Uuid) {
+        val seenCommands = submitAnswerCommandIdsByRound.getOrPut(roundId) {
+            LruSet(SUBMIT_ANSWER_DEDUP_CAPACITY)
+        }
+        seenCommands.add(commandId)
+    }
+
     private suspend fun handleStartLlm(command: SessionCommand.StartLlmForRound) {
         val currentSession = session ?: return
         val round = currentSession.rounds.firstOrNull { it.roundId == command.roundId } ?: return
@@ -271,7 +362,7 @@ internal class SessionActor(
 
         if (llmJobs.containsKey(command.roundId)) return
         logger.debug("Starting LLM for session {}, round {}", sessionId, command.roundId)
-        gameEventBus.publish(
+        enqueueEvent(
             GameEvent.LlmThinking(
                 sessionId = sessionId,
                 roundId = command.roundId,
@@ -387,13 +478,14 @@ internal class SessionActor(
         val seq = streamState.nextReasoningSeq
         streamState.nextReasoningSeq = seq.next()
 
-        gameEventBus.publish(
+        enqueueEvent(
             GameEvent.LlmReasoningDelta(
                 sessionId = sessionId,
                 roundId = command.roundId,
                 deltaText = command.deltaText,
                 seq = seq,
-            )
+            ),
+            droppable = true
         )
     }
 
@@ -402,7 +494,7 @@ internal class SessionActor(
         val round = currentSession.rounds.firstOrNull { it.roundId == command.roundId } ?: return
         if (!round.isInProgress) return
 
-        gameEventBus.publish(
+        enqueueEvent(
             GameEvent.LlmReasoningTruncated(
                 sessionId = sessionId,
                 roundId = command.roundId,
@@ -416,7 +508,7 @@ internal class SessionActor(
         val round = currentSession.rounds.firstOrNull { it.roundId == command.roundId } ?: return
         if (!round.isInProgress) return
 
-        gameEventBus.publish(
+        enqueueEvent(
             GameEvent.LlmReasoningEnded(
                 sessionId = sessionId,
                 roundId = command.roundId,
@@ -436,7 +528,7 @@ internal class SessionActor(
             command.message,
             command.cause
         )
-        gameEventBus.publish(
+        enqueueEvent(
             GameEvent.LlmStreamError(
                 sessionId = sessionId,
                 roundId = command.roundId,
@@ -473,7 +565,7 @@ internal class SessionActor(
             publishFinalAnswerIfNeeded(command.roundId)
         } else if (!streamState.lockInEmitted) {
             streamState.lockInEmitted = true
-            gameEventBus.publish(GameEvent.LlmAnswerLockIn(sessionId = sessionId, roundId = command.roundId))
+            enqueueEvent(GameEvent.LlmAnswerLockIn(sessionId = sessionId, roundId = command.roundId))
         }
 
         resolveRoundIfReady(command.roundId)
@@ -489,7 +581,7 @@ internal class SessionActor(
         if (round.humanSubmission == null) return // hard gate
 
         streamState.finalAnswerPublished = true
-        gameEventBus.publish(
+        enqueueEvent(
             GameEvent.LlmFinalAnswer(
                 sessionId = sessionId,
                 roundId = roundId,
@@ -539,7 +631,7 @@ internal class SessionActor(
         // Emit LLM artifacts before RoundResolved
         emitArtifactsAtRoundEnd(roundId, updatedRound)
 
-        gameEventBus.publish(
+        enqueueEvent(
             GameEvent.RoundResolved(
                 sessionId = sessionId,
                 roundId = roundId,
@@ -567,7 +659,7 @@ internal class SessionActor(
                 resolvedAt = now,
             )
 
-            gameEventBus.publish(
+            enqueueEvent(
                 GameEvent.SessionCompleted(
                     sessionId = sessionId,
                     humanTotalScore = humanScore.points,
@@ -579,7 +671,7 @@ internal class SessionActor(
             // Schedule self-removal after grace period
             scope.launch {
                 delay(CLEANUP_GRACE_PERIOD_MS)
-                gameEventBus.publish(
+                enqueueEvent(
                     GameEvent.SessionTerminated(
                         sessionId = sessionId,
                         reason = "completed",
@@ -620,7 +712,7 @@ internal class SessionActor(
     }
 
     private suspend fun publishError(errorCode: String, message: String) {
-        gameEventBus.publish(
+        enqueueEvent(
             GameEvent.SessionError(
                 sessionId = sessionId,
                 errorCode = errorCode,
@@ -654,7 +746,7 @@ internal class SessionActor(
 
         val durationMs = Duration.between(currentSession.createdAt, resolvedAt).toMillis()
 
-        gameEventBus.publish(
+        enqueueEvent(
             GameEvent.SessionResolved(
                 sessionId = sessionId,
                 state = state,
@@ -693,7 +785,7 @@ internal class SessionActor(
 
         roundDeadlineJobs[round.roundId] = scope.launch {
             delay(delayMs)
-            submitInternal(SessionCommand.RoundDeadlineReached(roundId = round.roundId))
+            submitCritical(SessionCommand.RoundDeadlineReached(roundId = round.roundId))
         }
     }
 
@@ -781,7 +873,7 @@ internal class SessionActor(
         // Emit LLM artifacts before RoundResolved
         emitArtifactsAtRoundEnd(roundId, finalizedRound)
 
-        gameEventBus.publish(
+        enqueueEvent(
             GameEvent.RoundResolved(
                 sessionId = sessionId,
                 roundId = roundId,
@@ -808,7 +900,7 @@ internal class SessionActor(
                 resolvedAt = now,
             )
 
-            gameEventBus.publish(
+            enqueueEvent(
                 GameEvent.SessionCompleted(
                     sessionId = sessionId,
                     humanTotalScore = humanScoreTotal.points,
@@ -819,7 +911,7 @@ internal class SessionActor(
             saveSessionResult(updatedSession, finalizedRound, humanScoreTotal.points, llmScoreTotal.points)
             scope.launch {
                 delay(CLEANUP_GRACE_PERIOD_MS)
-                gameEventBus.publish(
+                enqueueEvent(
                     GameEvent.SessionTerminated(
                         sessionId = sessionId,
                         reason = "completed",
@@ -851,7 +943,7 @@ internal class SessionActor(
 
             if (answer != null) {
                 streamState?.let { it.finalAnswerPublished = true }
-                gameEventBus.publish(
+                enqueueEvent(
                     GameEvent.LlmFinalAnswer(
                         sessionId = sessionId,
                         roundId = roundId,
@@ -886,7 +978,7 @@ internal class SessionActor(
             if (revealText.isNotEmpty()) {
                 streamState?.let { it.reasoningRevealPublished = true }
                 logger.debug("Reasoning reveal for session {}, round {}: {}", sessionId, roundId, revealText)
-                gameEventBus.publish(
+                enqueueEvent(
                     GameEvent.LlmReasoningReveal(
                         sessionId = sessionId,
                         roundId = roundId,
@@ -949,6 +1041,7 @@ internal class SessionActor(
         roundDeadlineJobs.values.forEach { it.cancel() }
         roundDeadlineJobs.clear()
         roundStreamStates.clear()
+        submitAnswerCommandIdsByRound.clear()
 
         // Emit SessionResolved immediately with current scores before termination
         emitSessionResolved(
@@ -957,7 +1050,7 @@ internal class SessionActor(
             resolvedAt = now,
         )
 
-        gameEventBus.publish(
+        enqueueEvent(
             GameEvent.SessionTerminated(
                 sessionId = sessionId,
                 reason = command.reason,
@@ -983,6 +1076,7 @@ internal sealed interface SessionCommand {
     data class StartNextRound(
         val sessionId: Uuid,
         val playerId: Uuid,
+        val commandId: Uuid,
     ) : SessionCommand
 
     data class SubmitAnswer(
@@ -992,6 +1086,7 @@ internal sealed interface SessionCommand {
         val nonceToken: String,
         val answer: Answer,
         val clientSentAt: Instant?,
+        val commandId: Uuid,
     ) : SessionCommand
 
     data class StartLlmForRound(
@@ -1033,4 +1128,23 @@ internal sealed interface SessionCommand {
     data class RoundDeadlineReached(
         val roundId: Uuid,
     ) : SessionCommand
+}
+
+private class LruSet<T>(private val capacity: Int) {
+    private val entries = LinkedHashMap<T, Unit>(capacity, 0.75f, true)
+
+    fun add(value: T): Boolean {
+        val existed = entries.containsKey(value)
+        entries[value] = Unit
+        if (entries.size > capacity) {
+            val iterator = entries.entries.iterator()
+            if (iterator.hasNext()) {
+                iterator.next()
+                iterator.remove()
+            }
+        }
+        return !existed
+    }
+
+    fun contains(value: T): Boolean = entries.containsKey(value)
 }

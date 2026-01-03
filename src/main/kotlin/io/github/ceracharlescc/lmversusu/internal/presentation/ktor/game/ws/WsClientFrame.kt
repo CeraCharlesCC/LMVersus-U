@@ -21,6 +21,7 @@ internal data class WsJoinSession(
 internal data class WsStartRoundRequest(
     val sessionId: String,
     val playerId: String,
+    val commandId: String? = null,
 ) : WsClientFrame
 
 @Serializable
@@ -29,6 +30,7 @@ internal data class WsSubmitAnswer(
     val sessionId: String,
     val playerId: String,
     val roundId: String,
+    val commandId: String? = null,
     val nonceToken: String,
     val answer: Answer,
     val clientSentAtEpochMs: Long? = null,

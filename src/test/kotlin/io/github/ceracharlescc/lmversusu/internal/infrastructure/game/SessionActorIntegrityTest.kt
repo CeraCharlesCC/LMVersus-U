@@ -140,7 +140,7 @@ class SessionActorIntegrityTest {
                 roundId = roundEvent.roundId,
                 nonceToken = roundEvent.nonceToken,
                 answer = Answer.MultipleChoice(0),
-                clientSentAt = null
+                clientSentAt = null,
             )
         )
         testScheduler.runCurrent()

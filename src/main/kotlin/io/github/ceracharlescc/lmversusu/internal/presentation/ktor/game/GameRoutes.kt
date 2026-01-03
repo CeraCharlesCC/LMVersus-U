@@ -196,6 +196,7 @@ internal fun Route.gameWebSocket(
                             val result = gameController.startNextRound(
                                 sessionId = clientFrame.sessionId,
                                 playerId = cookiePlayerId, // Use cookie playerId
+                                commandId = clientFrame.commandId,
                             )
                             if (result is GameController.CommandResult.Failure) {
                                 sendError(result.sessionId, result.errorCode, result.message)
@@ -215,6 +216,7 @@ internal fun Route.gameWebSocket(
                                 sessionId = clientFrame.sessionId,
                                 playerId = cookiePlayerId, // Use cookie playerId
                                 roundId = clientFrame.roundId,
+                                commandId = clientFrame.commandId,
                                 nonceToken = clientFrame.nonceToken,
                                 clientSentAtEpochMs = clientFrame.clientSentAtEpochMs,
                                 answer = clientFrame.answer,
