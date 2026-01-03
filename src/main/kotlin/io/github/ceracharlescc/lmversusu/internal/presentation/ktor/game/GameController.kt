@@ -3,6 +3,9 @@ package io.github.ceracharlescc.lmversusu.internal.presentation.ktor.game
 import io.github.ceracharlescc.lmversusu.internal.domain.entity.GameEvent
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.ClientIdentity
 import io.github.ceracharlescc.lmversusu.internal.infrastructure.game.SessionManager
+import io.github.ceracharlescc.lmversusu.internal.infrastructure.game.JoinResult as SessionJoinResult
+import io.github.ceracharlescc.lmversusu.internal.infrastructure.game.CommandResult as SessionCommandResult
+import io.github.ceracharlescc.lmversusu.internal.infrastructure.game.TouchResult
 import io.github.ceracharlescc.lmversusu.internal.utils.NicknameValidator
 import java.time.Instant
 import javax.inject.Inject
@@ -89,7 +92,7 @@ internal class GameController @Inject constructor(
                 opponentSpecId
             )
         ) {
-            is SessionManager.JoinResult.Success -> JoinResult.Success(
+            is SessionJoinResult.Success -> JoinResult.Success(
                 sessionId = result.sessionId,
                 playerId = result.playerId,
                 opponentSpecId = result.opponentSpecId,
@@ -97,7 +100,7 @@ internal class GameController @Inject constructor(
                 roundSnapshot = result.roundSnapshot,
             )
 
-            is SessionManager.JoinResult.Failure -> JoinResult.Failure(
+            is SessionJoinResult.Failure -> JoinResult.Failure(
                 sessionId = result.sessionId,
                 errorCode = result.errorCode,
                 message = result.message,
@@ -108,6 +111,7 @@ internal class GameController @Inject constructor(
     suspend fun startNextRound(
         sessionId: String,
         playerId: String,
+        commandId: String?,
     ): CommandResult {
         val parsedSessionId = parseUuidOrNull(sessionId)
         val parsedPlayerId = parseUuidOrNull(playerId)
@@ -115,9 +119,19 @@ internal class GameController @Inject constructor(
             return CommandResult.Failure(errorCode = "invalid_request", message = "sessionId or playerId is invalid")
         }
 
-        return when (val result = sessionManager.startNextRound(parsedSessionId, parsedPlayerId)) {
-            is SessionManager.CommandResult.Success -> CommandResult.Success(result.sessionId)
-            is SessionManager.CommandResult.Failure -> CommandResult.Failure(
+        val parsedCommandId = if (commandId.isNullOrBlank()) {
+            Uuid.random()
+        } else {
+            parseUuidOrNull(commandId) ?: return CommandResult.Failure(
+                sessionId = parsedSessionId,
+                errorCode = "invalid_command_id",
+                message = "commandId is invalid",
+            )
+        }
+
+        return when (val result = sessionManager.startNextRound(parsedSessionId, parsedPlayerId, parsedCommandId)) {
+            is SessionCommandResult.Success -> CommandResult.Success(result.sessionId)
+            is SessionCommandResult.Failure -> CommandResult.Failure(
                 sessionId = result.sessionId,
                 errorCode = result.errorCode,
                 message = result.message,
@@ -129,6 +143,7 @@ internal class GameController @Inject constructor(
         sessionId: String,
         playerId: String,
         roundId: String,
+        commandId: String?,
         nonceToken: String,
         clientSentAtEpochMs: Long?,
         answer: io.github.ceracharlescc.lmversusu.internal.domain.vo.Answer,
@@ -151,19 +166,29 @@ internal class GameController @Inject constructor(
         }
 
         val clientSentAt = clientSentAtEpochMs?.let { Instant.ofEpochMilli(it) }
+        val parsedCommandId = if (commandId.isNullOrBlank()) {
+            Uuid.random()
+        } else {
+            parseUuidOrNull(commandId) ?: return CommandResult.Failure(
+                sessionId = parsedSessionId,
+                errorCode = "invalid_command_id",
+                message = "commandId is invalid",
+            )
+        }
 
         return when (
             val result = sessionManager.submitAnswer(
                 sessionId = parsedSessionId,
                 playerId = parsedPlayerId,
                 roundId = parsedRoundId,
+                commandId = parsedCommandId,
                 nonceToken = nonceToken,
                 answer = answer,
                 clientSentAt = clientSentAt,
             )
         ) {
-            is SessionManager.CommandResult.Success -> CommandResult.Success(result.sessionId)
-            is SessionManager.CommandResult.Failure -> CommandResult.Failure(
+            is SessionCommandResult.Success -> CommandResult.Success(result.sessionId)
+            is SessionCommandResult.Failure -> CommandResult.Failure(
                 sessionId = result.sessionId,
                 errorCode = result.errorCode,
                 message = result.message,
@@ -173,7 +198,7 @@ internal class GameController @Inject constructor(
 
     suspend fun touchSession(sessionId: String): Boolean {
         val parsedSessionId = parseUuidOrNull(sessionId) ?: return false
-        return sessionManager.touchSession(parsedSessionId) is SessionManager.TouchResult.Success
+        return sessionManager.touchSession(parsedSessionId) is TouchResult.Success
     }
 
     private fun parseUuidOrNull(raw: String): Uuid? = runCatching { Uuid.parse(raw) }.getOrNull()

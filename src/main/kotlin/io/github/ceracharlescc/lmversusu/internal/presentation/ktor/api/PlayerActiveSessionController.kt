@@ -1,5 +1,6 @@
 package io.github.ceracharlescc.lmversusu.internal.presentation.ktor.api
 
+import io.github.ceracharlescc.lmversusu.internal.infrastructure.game.ActiveSessionSnapshot
 import io.github.ceracharlescc.lmversusu.internal.infrastructure.game.SessionManager
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -12,7 +13,7 @@ internal class PlayerActiveSessionController @Inject constructor(
     fun getActiveSession(
         playerId: Uuid,
         activeSessionIdHint: Uuid?,
-    ): SessionManager.ActiveSessionSnapshot? {
+    ): ActiveSessionSnapshot? {
         return sessionManager.getActiveSession(playerId, activeSessionIdHint)
     }
 
