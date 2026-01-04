@@ -1,3 +1,18 @@
+## [v0.3.1] - 2026-01-04
+### Added
+- Add LICENSE modal to the frontend UI with keyboard accessibility and dynamic loading.
+
+### Changed
+- Refactor LLM answer submission logic in SessionActor into a reusable method.
+- Update HandicapPolicy.kt.
+
+### Fixed
+- Add fallback to submit a default answer when OpenAI streaming fails, based on question type.
+- Introduce OpenAIApiStreamException to distinguish OpenAI-specific errors in OpenAIApiDao.
+
+### Internal
+- Bump version.
+
 ## [v0.3.0] - 2026-01-03
 ### Added
 - Add session recovery allowing players to rejoin and receive a round snapshot
