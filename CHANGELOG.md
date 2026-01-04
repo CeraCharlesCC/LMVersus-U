@@ -1,3 +1,19 @@
+## [v0.4.0] - 2026-01-04
+### Added
+- Add license reporting for dataset and frontend dependencies, with dedicated UI pages (#12)
+
+### Changed
+- Redesign UI with a new warm neutral color palette, gold/amber accents, and Inter font
+- Improve component styling, spacing, gradients, and border radii for a modern look
+- Update index.html with new meta tags and Google Fonts for better accessibility
+
+### Documentation
+- Update README.md
+
+### Internal
+- Bump version to v0.4.0
+- Integrate dependency-license-report Gradle plugin and include reports in JARs
+
 ## [v0.3.1] - 2026-01-04
 ### Added
 - Add LICENSE modal to the frontend UI with keyboard accessibility and dynamic loading.
