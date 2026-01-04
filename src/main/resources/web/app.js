@@ -1764,11 +1764,22 @@ async function loadLicenseHtml() {
     if (!host) return;
 
     try {
-        const res = await fetch('./license.html', { cache: 'no-cache' });
-        if (!res.ok) throw new Error(`license.html load failed: ${res.status}`);
-        host.innerHTML = await res.text();
+        const [resDs, resFe] = await Promise.all([
+            fetch('./license-dataset.html', { cache: 'no-cache' }),
+            fetch('./license-frontend.html', { cache: 'no-cache' })
+        ]);
+
+        const parts = [];
+        if (resDs.ok) parts.push(await resDs.text());
+        if (resFe.ok) parts.push(await resFe.text());
+
+        if (parts.length === 0) {
+            throw new Error("Failed to load any license files.");
+        }
+
+        host.innerHTML = parts.join("<hr />");
     } catch (e) {
-        host.innerHTML = `<div class="license-body"><p class="muted small">Failed to load license.</p></div>`;
+        host.innerHTML = `<p class="muted small">Failed to load license.</p>`;
         console.error(e);
     }
 }
