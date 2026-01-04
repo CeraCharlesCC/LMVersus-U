@@ -8,8 +8,8 @@ A small Kotlin/Ktor web app where **you** race an LLM on benchmarks.
 
 <div align="center">
 
-![OpenJDK](https://img.shields.io/badge/OpenJDK-21+-%2332C955.svg?style=flat&labelColor=%23E5531A&logo=openjdk&logoColor=white)
-![Kotlin](https://img.shields.io/badge/Kotlin-2.2.21-%2332C955.svg?style=flat&logo=kotlin&logoColor=white&labelColor=%237F52FF)
+![OpenJDK](https://img.shields.io/badge/OpenJDK-21+-%2324292f.svg?style=flat&labelColor=%23E5531A&logo=openjdk&logoColor=white)
+![Kotlin](https://img.shields.io/badge/Kotlin-2.2.21-%2324292f.svg?style=flat&logo=kotlin&logoColor=white&labelColor=%237F52FF)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/CeraCharlesCC/LMVersus-U)
 ![Build](https://github.com/CeraCharlesCC/LMVersus-U/actions/workflows/release.yml/badge.svg)
 
@@ -18,8 +18,6 @@ A small Kotlin/Ktor web app where **you** race an LLM on benchmarks.
 
 - **LIGHTWEIGHT** mode plays against a *pre-recorded replay* (no API calls).
 - **PREMIUM** mode plays against a *live* LLM via an *OpenAI-compatible* API.
-
-The twist: the LLM's reasoning is streamed in a game-like way, but the **final portion is held back** and only revealed after the round ends.
 
 ---
 
@@ -74,6 +72,7 @@ LLM-Configs/
   lightweight-modelspec.json
   premium-modelspec.json
   Datasets/
+    i18n/...
     questions/...
     models/...
 ```
