@@ -28,6 +28,6 @@ jobs:
           cache: gradle
 
       - name: Build
-        run: bash ./gradlew --no-daemon build
+        run: bash ./gradlew --no-daemon --max-workers=2 assemble -x test
 
       - uses: github/codeql-action/analyze@v3
