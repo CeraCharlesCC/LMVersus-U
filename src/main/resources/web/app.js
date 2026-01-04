@@ -1636,6 +1636,21 @@ function bindUi() {
         if (e.key === "Enter") submitAnswer();
     });
 
+    $("#btnLicense")?.addEventListener("click", showLicenseModal);
+    $("#btnCloseLicense")?.addEventListener("click", hideLicenseModal);
+    $("#btnLicenseOk")?.addEventListener("click", hideLicenseModal);
+
+    $("#licenseOverlay")?.addEventListener("click", (e) => {
+        if (e.target && e.target.id === "licenseOverlay") hideLicenseModal();
+    });
+
+    window.addEventListener("keydown", (e) => {
+        const overlay = $("#licenseOverlay");
+        const open = overlay && !overlay.classList.contains("hidden");
+        if (open && e.key === "Escape") hideLicenseModal();
+    });
+
+
     const llmScroll = getLlmScrollEl();
     if (llmScroll) {
         llmScroll.addEventListener("scroll", () => {
@@ -1654,6 +1669,36 @@ function bindUi() {
             renderResultDetails(note, details);
         });
     }, { passive: true });
+}
+
+/** ---- LICENSE modal ---- */
+let lastFocusEl = null;
+
+function showLicenseModal() {
+    const overlay = $("#licenseOverlay");
+    if (!overlay) return;
+
+    lastFocusEl = document.activeElement;
+
+    overlay.classList.remove("hidden");
+    overlay.setAttribute("aria-hidden", "false");
+
+    requestAnimationFrame(() => {
+        $("#btnCloseLicense")?.focus();
+    });
+}
+
+function hideLicenseModal() {
+    const overlay = $("#licenseOverlay");
+    if (!overlay) return;
+
+    overlay.classList.add("hidden");
+    overlay.setAttribute("aria-hidden", "true");
+
+    if (lastFocusEl && typeof lastFocusEl.focus === "function") {
+        lastFocusEl.focus();
+    }
+    lastFocusEl = null;
 }
 
 function normalizeChoiceForHeuristic(s) {
@@ -1714,6 +1759,20 @@ function scrollLlmPanelToBottom() {
     });
 }
 
+async function loadLicenseHtml() {
+    const host = document.getElementById('licenseContent');
+    if (!host) return;
+
+    try {
+        const res = await fetch('./license.html', { cache: 'no-cache' });
+        if (!res.ok) throw new Error(`license.html load failed: ${res.status}`);
+        host.innerHTML = await res.text();
+    } catch (e) {
+        host.innerHTML = `<div class="license-body"><p class="muted small">Failed to load license.</p></div>`;
+        console.error(e);
+    }
+}
+
 async function main() {
     initStaticText();
 
@@ -1732,6 +1791,7 @@ async function main() {
     resetRoundUi();
 
     setLobbyTab("LIGHTWEIGHT");
+    await loadLicenseHtml()
 
     try {
         await ensurePlayerSession();

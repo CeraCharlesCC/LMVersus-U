@@ -57,6 +57,52 @@ a {
     z-index: 60;
 }
 
+.modal-footer .license-btn {
+    margin-left: auto;
+    opacity: 0.9;
+}
+
+.license-modal {
+    width: min(720px, calc(100vw - 32px));
+    max-height: min(80vh, 720px);
+    overflow: hidden;
+}
+
+.license-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 16px 10px;
+}
+
+.license-title {
+    font-weight: 700;
+    letter-spacing: 0.04em;
+}
+
+.license-body {
+    padding: 0 16px 16px;
+    overflow: auto;
+    max-height: calc(min(80vh, 720px) - 110px);
+}
+
+.license-text {
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-size: 12px;
+    line-height: 1.45;
+    margin: 12px 0 0;
+}
+
+.license-actions {
+    padding: 12px 16px 16px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+
 .end-modal {
     width: min(640px, calc(100vw - 28px));
     border: 1px solid var(--border);

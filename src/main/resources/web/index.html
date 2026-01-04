@@ -108,7 +108,9 @@
                 </div>
             </div>
 
-            <div class="modal-footer"></div>
+            <div class="modal-footer">
+                <button id="btnLicense" class="btn ghost small license-btn" type="button">LICENSE</button>
+            </div>
         </section>
     </main>
 
@@ -299,6 +301,21 @@
             </div>
         </section>
     </div>
+    <!-- License popup -->
+    <div id="licenseOverlay" class="overlay hidden" aria-hidden="true">
+        <section class="license-modal" role="dialog" aria-modal="true" aria-labelledby="licenseTitle">
+            <div class="license-head">
+                <div class="license-title" id="licenseTitle">LICENSE</div>
+                <button id="btnCloseLicense" class="btn ghost small" type="button" aria-label="Close">✕</button>
+            </div>
+
+            <div id="licenseContent"></div>
+            <div class="license-actions">
+                <button id="btnLicenseOk" class="btn primary" type="button">OK</button>
+            </div>
+        </section>
+    </div>
+
 </div>
 
 <!-- markdown-it -->
