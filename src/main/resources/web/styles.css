@@ -996,7 +996,7 @@ a:hover {
     left: 0;
     right: 0;
     bottom: 0;
-    height: 50%;
+    height: 66%;
     background: linear-gradient(to bottom, transparent, rgba(18, 18, 18, .95));
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
@@ -1349,18 +1349,12 @@ a:hover {
         padding: 10px 12px;
     }
 
-    .chip-title {
-        font-size: 13px;
-    }
-
     .chip-sub {
-        font-size: 11px;
         margin-top: 2px;
     }
 
     .status-pill {
         padding: 4px 6px;
-        font-size: 10px;
     }
 
     .tab-btn2 {
@@ -1374,8 +1368,8 @@ a:hover {
         grid-template-columns: 1fr auto;
         grid-template-rows: auto;
         grid-template-areas:
-            "label value"
-            "bar bar";
+      "label value"
+      "bar bar";
         column-gap: 10px;
         row-gap: 6px;
         align-items: baseline;
@@ -1383,7 +1377,6 @@ a:hover {
 
     .timer-label {
         grid-area: label;
-        font-size: 10px;
     }
 
     .bar {
@@ -1403,55 +1396,15 @@ a:hover {
         height: auto;
         min-height: 52px;
         border-radius: 8px;
-        font-size: 16px;
     }
-
-    .tab-btn,
-    .btn,
-    .table,
-    .panel-title {
-        font-size: 13px;
-    }
-
     .input,
     .select,
     .textarea {
         font-size: 16px;
     }
 
-    .timer-value {
-        font-size: 18px;
-    }
-
-    .end-title {
-        font-size: 18px;
-    }
-
     .score-points {
         font-size: 24px;
-    }
-
-    .brand {
-        font-size: 16px;
-    }
-
-    .score-name,
-    .kv-k,
-    .label,
-    .chip-sub,
-    .panel-hint,
-    .panel-meta,
-    .choice-hint {
-        font-size: 12px;
-    }
-
-    .kv-v,
-    .toast .t-body,
-    .peek-btn,
-    .answer-box-title,
-    .error-box,
-    .result-details {
-        font-size: 13px;
     }
 
     /* Mobile: show hint above choices */
@@ -1475,6 +1428,54 @@ a:hover {
 
     .result-details .result-inline {
         line-height: 1.55;
+    }
+
+    /* -----------------------------
+       Shared font-size declarations
+       ----------------------------- */
+
+    /* 13px group (deduped) */
+    .tab-btn,
+    .btn,
+    .table,
+    .panel-title,
+    .chip-title,
+    .kv-v,
+    .toast .t-body,
+    .peek-btn,
+    .answer-box-title,
+    .error-box,
+    .result-details {
+        font-size: 13px;
+    }
+
+    /* 12px group (deduped) */
+    .score-name,
+    .kv-k,
+    .label,
+    .chip-sub,
+    .panel-hint,
+    .panel-meta,
+    .choice-hint {
+        font-size: 12px;
+    }
+
+    /* 18px group (deduped) */
+    .timer-value,
+    .end-title {
+        font-size: 18px;
+    }
+
+    /* 10px group (deduped) */
+    .timer-label,
+    .status-pill {
+        font-size: 10px;
+    }
+
+    /* 16px group (deduped) */
+    .brand,
+    .action-btn {
+        font-size: 16px;
     }
 }
 
