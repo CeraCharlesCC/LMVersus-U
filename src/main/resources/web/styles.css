@@ -85,6 +85,27 @@ a {
     padding: 0 16px 16px;
     overflow: auto;
     max-height: calc(min(80vh, 720px) - 110px);
+    /* Custom scrollbar to blend in */
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, .15) transparent;
+}
+
+.license-body::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.license-body::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.license-body::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, .15);
+    border-radius: 999px;
+}
+
+.license-body::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, .25);
 }
 
 .license-text {

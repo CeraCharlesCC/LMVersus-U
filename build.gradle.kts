@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.ksp)
     alias(libs.plugins.ktor)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.dependency.license.report)
     application
 }
 
@@ -83,3 +84,19 @@ tasks.register<JavaExec>("testRun") {
     workingDir = projectDir
     jvmArgs("-Dlmversusu.configDir=${projectDir}")
 }
+
+licenseReport {
+    renderers = arrayOf<com.github.jk1.license.render.ReportRenderer>(
+        com.github.jk1.license.render.TextReportRenderer("THIRD-PARTY-LICENSES")
+    )
+}
+
+tasks.withType<Jar>().configureEach {
+    if (name == "buildFatJar" || name == "shadowJar") {
+        dependsOn("generateLicenseReport")
+        from(layout.buildDirectory.dir("reports/dependency-license")) {
+            into("META-INF")
+        }
+    }
+}
+
