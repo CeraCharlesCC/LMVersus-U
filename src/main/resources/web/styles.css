@@ -1486,6 +1486,7 @@ a:hover {
 
 /* PC/tablet: keep the bottom panel stable */
 @media (min-width: 761px) {
+
     .panel-hint,
     .choice-hint {
         font-size: 14px;
@@ -1504,6 +1505,11 @@ a:hover {
 
     .panel.bottom {
         height: clamp(200px, 20vh, 300px);
+    }
+
+    #questionBody {
+        font-size: 20px;
+        line-height: 1.65;
     }
 
     .choices.dense .choice-btn {
