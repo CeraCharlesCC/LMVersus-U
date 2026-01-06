@@ -58,10 +58,11 @@ internal class SessionManager @Inject constructor(
     private val idleTimeoutJobs = ConcurrentHashMap<Uuid, Job>()
 
     private val maxLifespanJobs = ConcurrentHashMap<Uuid, Job>()
-    private val sessionLimitRegistry = SessionLimitRegistry(clock)
-    private val activeSessionLimiter = ActiveSessionLimiter { mode ->
-        limitContextFor(mode).limitConfig.maxActiveSessions
-    }
+    private val sessionCreationGate = SessionCreationGate(
+        clock = clock,
+        sessionLimitConfig = appConfig.sessionLimitConfig,
+        modeContextFor = ::limitContextFor,
+    )
 
     suspend fun joinSession(
         sessionId: Uuid?,
@@ -262,7 +263,6 @@ internal class SessionManager @Inject constructor(
         }
 
         val mode = opponentSpec.mode
-        val limitContext = limitContextFor(mode)
 
         val creatingEntry = SessionEntry.Creating(CompletableDeferred())
         val racedEntry = actors.putIfAbsent(chosenSessionId, creatingEntry)
@@ -276,7 +276,7 @@ internal class SessionManager @Inject constructor(
         }
 
         var transferred = false
-        var permit: ActiveSessionLimiter.Permit? = null
+        var permit: SessionCreationGate.Permit? = null
         var newActor: SessionActor? = null
 
         fun creationFailure(errorCode: String, message: String): JoinResult.Failure {
@@ -295,17 +295,11 @@ internal class SessionManager @Inject constructor(
         }
 
         try {
-            permit = activeSessionLimiter.tryAcquire(mode)
-                ?: return creationFailure(
-                    errorCode = "session_limit_exceeded",
-                    message = "too many active ${limitContext.modeLabel} sessions",
-                )
-
-            val limitFailure = checkSessionCreationLimits(clientIdentity, mode)
-            if (limitFailure != null) {
-                return creationFailure(
-                    errorCode = limitFailure.errorCode,
-                    message = limitFailure.message,
+            when (val decision = sessionCreationGate.tryAdmitCreation(clientIdentity, mode)) {
+                is SessionCreationGate.Decision.Admitted -> permit = decision.permit
+                is SessionCreationGate.Decision.Denied -> return creationFailure(
+                    errorCode = decision.errorCode,
+                    message = decision.message,
                 )
             }
 
@@ -710,23 +704,13 @@ internal class SessionManager @Inject constructor(
         maxLifespanJobs.clear()
     }
 
-    private data class LimitContext(
-        val limitConfig: AppConfig.ModeLimitConfig,
-        val modeLabel: String,
-    )
-
-    private data class LimitFailure(
-        val errorCode: String,
-        val message: String,
-    )
-
     private sealed interface SessionEntry {
         data class Creating(val deferred: CompletableDeferred<CreationOutcome>) : SessionEntry
         data class Active(
             val sessionId: Uuid,
             val actor: SessionActor,
             val mode: GameMode,
-            val permit: ActiveSessionLimiter.Permit,
+            val permit: SessionCreationGate.Permit,
             val ownerPlayerId: Uuid,
         ) : SessionEntry
     }
@@ -777,121 +761,16 @@ internal class SessionManager @Inject constructor(
         playerActiveSessionRepository.getOrReserve(playerId, binding)
     }
 
-    private fun limitContextFor(mode: GameMode): LimitContext =
+    private fun limitContextFor(mode: GameMode): SessionCreationGate.ModeLimitContext =
         when (mode) {
-            GameMode.PREMIUM -> LimitContext(
+            GameMode.PREMIUM -> SessionCreationGate.ModeLimitContext(
                 limitConfig = appConfig.sessionLimitConfig.premium,
                 modeLabel = "premium",
             )
 
-            GameMode.LIGHTWEIGHT -> LimitContext(
+            GameMode.LIGHTWEIGHT -> SessionCreationGate.ModeLimitContext(
                 limitConfig = appConfig.sessionLimitConfig.lightweight,
                 modeLabel = "lightweight",
             )
         }
-
-    private fun checkSessionCreationLimits(
-        clientIdentity: ClientIdentity,
-        mode: GameMode,
-    ): LimitFailure? {
-        val limitContext = limitContextFor(mode)
-
-        val ipAddress = clientIdentity.ipAddress.ifBlank { "unknown" }
-        val playerKey = clientIdentity.playerId.toString()
-        val modePrefix = "mode:${limitContext.modeLabel}"
-        val dailyWindowMillis = appConfig.sessionLimitConfig.dailyWindowMillis
-
-        val entries = buildList {
-            val perPersonDailyLimit = limitContext.limitConfig.perPersonDailyLimit
-            if (perPersonDailyLimit > 0) {
-                add(
-                    SessionLimitRegistry.LimitEntry(
-                        key = "$modePrefix:person:ip:$ipAddress:daily",
-                        windowMillis = dailyWindowMillis,
-                        limit = perPersonDailyLimit,
-                        failure = SessionLimitRegistry.LimitFailure(
-                            errorCode = "session_limit_exceeded",
-                            message = "daily ${limitContext.modeLabel} session limit reached",
-                        ),
-                    )
-                )
-                add(
-                    SessionLimitRegistry.LimitEntry(
-                        key = "$modePrefix:person:player:$playerKey:daily",
-                        windowMillis = dailyWindowMillis,
-                        limit = perPersonDailyLimit,
-                        failure = SessionLimitRegistry.LimitFailure(
-                            errorCode = "session_limit_exceeded",
-                            message = "daily ${limitContext.modeLabel} session limit reached",
-                        ),
-                    )
-                )
-            }
-
-            val perPersonWindowLimit = limitContext.limitConfig.perPersonWindowLimit
-            val perPersonWindowMillis = limitContext.limitConfig.perPersonWindowMillis
-            if (perPersonWindowLimit > 0 && perPersonWindowMillis > 0) {
-                add(
-                    SessionLimitRegistry.LimitEntry(
-                        key = "$modePrefix:person:ip:$ipAddress:window",
-                        windowMillis = perPersonWindowMillis,
-                        limit = perPersonWindowLimit,
-                        failure = SessionLimitRegistry.LimitFailure(
-                            errorCode = "rate_limited",
-                            message = "session creation rate limited",
-                        ),
-                    )
-                )
-                add(
-                    SessionLimitRegistry.LimitEntry(
-                        key = "$modePrefix:person:player:$playerKey:window",
-                        windowMillis = perPersonWindowMillis,
-                        limit = perPersonWindowLimit,
-                        failure = SessionLimitRegistry.LimitFailure(
-                            errorCode = "rate_limited",
-                            message = "session creation rate limited",
-                        ),
-                    )
-                )
-            }
-
-            val globalWindowLimit = limitContext.limitConfig.globalWindowLimit
-            val globalWindowMillis = limitContext.limitConfig.globalWindowMillis
-            if (globalWindowLimit > 0 && globalWindowMillis > 0) {
-                add(
-                    SessionLimitRegistry.LimitEntry(
-                        key = "$modePrefix:global:window",
-                        windowMillis = globalWindowMillis,
-                        limit = globalWindowLimit,
-                        failure = SessionLimitRegistry.LimitFailure(
-                            errorCode = "rate_limited",
-                            message = "global ${limitContext.modeLabel} session rate limit reached",
-                        ),
-                    )
-                )
-            }
-
-            val globalDailyLimit = limitContext.limitConfig.globalDailyLimit
-            if (globalDailyLimit > 0) {
-                add(
-                    SessionLimitRegistry.LimitEntry(
-                        key = "$modePrefix:global:daily",
-                        windowMillis = dailyWindowMillis,
-                        limit = globalDailyLimit,
-                        failure = SessionLimitRegistry.LimitFailure(
-                            errorCode = "session_limit_exceeded",
-                            message = "global daily ${limitContext.modeLabel} session limit reached",
-                        ),
-                    )
-                )
-            }
-        }
-
-        val failure = sessionLimitRegistry.tryAcquire(entries)
-        if (failure != null) {
-            return LimitFailure(errorCode = failure.errorCode, message = failure.message)
-        }
-
-        return null
-    }
 }
