@@ -3,14 +3,18 @@ package io.github.ceracharlescc.lmversusu.internal.presentation.ktor.api
 import io.github.ceracharlescc.lmversusu.internal.application.usecase.GetAvailableModelsUseCase
 import io.github.ceracharlescc.lmversusu.internal.application.usecase.GetLeaderboardUseCase
 import io.github.ceracharlescc.lmversusu.internal.domain.entity.GameMode
+import io.github.ceracharlescc.lmversusu.internal.infrastructure.game.ActiveSessionSnapshot
+import io.github.ceracharlescc.lmversusu.internal.infrastructure.game.SessionManager
 import io.github.ceracharlescc.lmversusu.internal.presentation.ktor.api.response.ApiResponse
 import io.github.ceracharlescc.lmversusu.internal.presentation.ktor.api.response.LeaderboardResponse
 import io.github.ceracharlescc.lmversusu.internal.presentation.ktor.api.response.ModelsResponse
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.uuid.Uuid
 
 @Singleton
 internal class ApiController @Inject constructor(
+    private val sessionManager: SessionManager,
     private val getLeaderboardUseCase: GetLeaderboardUseCase,
     private val getAvailableModelsUseCase: GetAvailableModelsUseCase
 ) {
@@ -52,5 +56,16 @@ internal class ApiController @Inject constructor(
                 ApiResponse.ServiceUnavailable("Models unavailable")
             }
         }
+    }
+
+    fun getActiveSession(
+        playerId: Uuid,
+        activeSessionIdHint: Uuid?,
+    ): ActiveSessionSnapshot? {
+        return sessionManager.getActiveSession(playerId, activeSessionIdHint)
+    }
+
+    fun terminateActiveSession(playerId: Uuid): Uuid? {
+        return sessionManager.terminateActiveSessionByOwner(playerId)
     }
 }
