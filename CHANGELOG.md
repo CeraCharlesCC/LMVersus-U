@@ -1,3 +1,17 @@
+## [v0.5.0] - 2026-01-06
+### Changed
+- Refactor player active session handling into ApiController and remove PlayerActiveSessionController (#14)
+- Refactor session limit logic into unified SessionCreationGate component (#14)
+- Refactor PlayerActiveSessionIndex to repository pattern with PlayerActiveSessionRepository (#14)
+- Refactor round handling and add Question utilities to reduce duplication (#14)
+- Nest JoinResponse sealed interface inside SessionActor for better encapsulation (#14)
+
+### Internal
+- Add GitHub Actions CI and CodeQL workflows (#13)
+- Bump CodeQL init action to v4 for improved support (#13)
+- Reorder import statements in game modules for consistency (#14)
+- Delete unused license-dataset.html resource (#14)
+
 ## [v0.4.0] - 2026-01-04
 ### Added
 - Add license reporting for dataset and frontend dependencies, with dedicated UI pages (#12)
