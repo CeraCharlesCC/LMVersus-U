@@ -48,5 +48,5 @@ internal interface InfrastructureModule {
 
     @Binds
     @Singleton
-    fun bindPlayerActiveSessionIndex(impl: InMemoryPlayerActiveSessionRepository): PlayerActiveSessionRepository
+    fun bindPlayerActiveSessionRepository(impl: InMemoryPlayerActiveSessionRepository): PlayerActiveSessionRepository
 }
