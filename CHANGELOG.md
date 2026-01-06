@@ -1,18 +1,3 @@
-## [v0.5.0] - 2026-01-06
-### Changed
-- Refactor player active session handling into ApiController and remove PlayerActiveSessionController.
-- Move JoinResponse sealed interface into SessionActor to improve encapsulation.
-- Refactor round handling in SessionActor and extract Question utilities.
-- Replace ActiveSessionLimiter and SessionLimitRegistry with unified SessionCreationGate.
-- Refactor PlayerActiveSessionIndex to repository pattern with PlayerActiveSessionRepository.
-
-### Internal
-- Add GitHub Actions CI and CodeQL workflows.
-- Bump CodeQL init action to v4.
-- Remove unused license-dataset.html resource.
-- Reorder imports in game modules for consistency.
-- Bump version and update build configuration.
-
 ## [v0.4.0] - 2026-01-04
 ### Added
 - Add license reporting for dataset and frontend dependencies, with dedicated UI pages (#12)
