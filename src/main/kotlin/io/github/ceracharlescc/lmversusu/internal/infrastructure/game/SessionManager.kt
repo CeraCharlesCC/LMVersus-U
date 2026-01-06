@@ -435,7 +435,7 @@ internal class SessionManager @Inject constructor(
             )
         }
 
-        val response = CompletableDeferred<JoinResponse>()
+        val response = CompletableDeferred<SessionActor.JoinResponse>()
         val accepted = actor.submit(
             SessionCommand.JoinSession(
                 sessionId = sessionId,
@@ -456,7 +456,7 @@ internal class SessionManager @Inject constructor(
         }
 
         return when (val joinResponse = withTimeoutOrNull(JOIN_SESSION_TIMEOUT_MS) { response.await() }) {
-            is JoinResponse.Accepted -> {
+            is SessionActor.JoinResponse.Accepted -> {
                 if (isNewSession) {
                     scheduleMaxLifespan(sessionId)
                 }
@@ -472,7 +472,7 @@ internal class SessionManager @Inject constructor(
                 )
             }
 
-            is JoinResponse.Rejected -> {
+            is SessionActor.JoinResponse.Rejected -> {
                 if (isNewSession) {
                     removeSession(sessionId)
                 }

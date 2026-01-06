@@ -1079,11 +1079,11 @@ internal class SessionActor(
             terminateAfterEvents()
         }
     }
-}
 
-internal sealed interface JoinResponse {
-    data class Accepted(val roundSnapshot: GameEvent.RoundStarted?) : JoinResponse
-    data class Rejected(val errorCode: String, val message: String) : JoinResponse
+    internal sealed interface JoinResponse {
+        data class Accepted(val roundSnapshot: GameEvent.RoundStarted?) : JoinResponse
+        data class Rejected(val errorCode: String, val message: String) : JoinResponse
+    }
 }
 
 /**
