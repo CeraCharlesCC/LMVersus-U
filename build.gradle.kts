@@ -13,6 +13,10 @@ val projectVersion: String by project
 group = projectGroup
 version = projectVersion
 
+repositories {
+    mavenCentral()
+}
+
 application {
     mainClass = "io.ktor.server.netty.EngineMain"
 }
