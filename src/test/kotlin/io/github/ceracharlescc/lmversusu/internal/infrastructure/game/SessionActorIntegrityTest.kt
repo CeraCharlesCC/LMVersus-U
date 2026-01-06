@@ -263,7 +263,7 @@ class SessionActorIntegrityTest {
 
 
     private suspend fun TestScope.joinSession() {
-        val deferred = CompletableDeferred<JoinResponse>()
+        val deferred = CompletableDeferred<SessionActor.JoinResponse>()
         actor.submit(SessionCommand.JoinSession(sessionId, humanId, "Tester", deferred))
         testScheduler.runCurrent()
         deferred.await()
@@ -294,13 +294,13 @@ class SessionActorIntegrityTest {
         val roundEvent = roundStartedSlot.captured
 
         // Now rejoin - simulate browser refresh
-        val rejoinDeferred = CompletableDeferred<JoinResponse>()
+        val rejoinDeferred = CompletableDeferred<SessionActor.JoinResponse>()
         actor.submit(SessionCommand.JoinSession(sessionId, humanId, "Tester", rejoinDeferred))
         testScheduler.runCurrent()
         val rejoinResponse = rejoinDeferred.await()
 
         // Verify the response contains the round snapshot
-        assertIs<JoinResponse.Accepted>(rejoinResponse)
+        assertIs<SessionActor.JoinResponse.Accepted>(rejoinResponse)
         val snapshot = rejoinResponse.roundSnapshot
         assertIs<GameEvent.RoundStarted>(snapshot!!)
         assertEquals(roundEvent.roundId, snapshot.roundId)

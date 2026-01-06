@@ -11,7 +11,7 @@ internal sealed interface SessionCommand {
         val sessionId: Uuid,
         val playerId: Uuid,
         val nickname: String,
-        val response: CompletableDeferred<JoinResponse>,
+        val response: CompletableDeferred<SessionActor.JoinResponse>,
     ) : SessionCommand
 
     data class StartNextRound(

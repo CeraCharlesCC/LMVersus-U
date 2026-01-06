@@ -26,7 +26,7 @@ internal data class TerminateActiveSessionResponse(
 
 @OptIn(ExperimentalUuidApi::class)
 internal fun Route.playerActiveSessionRoutes(
-    controller: PlayerActiveSessionController,
+    controller: ApiController,
 ) {
     get("/player/active-session") {
         val existingSession = call.sessions.get<ServiceSession>()

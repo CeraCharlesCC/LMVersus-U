@@ -38,7 +38,6 @@ internal fun Application.module(
     routing {
         apiV1Routes(
             apiController = appComponent.apiController(),
-            playerActiveSessionController = appComponent.playerActiveSessionController(),
         )
         gameRoutes(
             gameController = appComponent.gameController(),

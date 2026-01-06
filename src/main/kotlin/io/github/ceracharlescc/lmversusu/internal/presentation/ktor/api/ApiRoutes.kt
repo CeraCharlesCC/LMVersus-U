@@ -4,14 +4,13 @@ import io.ktor.server.routing.Route
 import io.ktor.server.routing.route
 
 internal fun Route.apiV1Routes(
-    apiController: ApiController,
-    playerActiveSessionController: PlayerActiveSessionController,
+    apiController: ApiController
 ) {
     route("/api/v1") {
         heartbeatRoutes()
         leaderboardRoutes(apiController)
         modelsRoutes(apiController)
         playerSessionRoutes()
-        playerActiveSessionRoutes(playerActiveSessionController)
+        playerActiveSessionRoutes(apiController)
     }
 }

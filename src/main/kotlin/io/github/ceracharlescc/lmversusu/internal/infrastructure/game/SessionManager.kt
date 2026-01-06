@@ -9,9 +9,9 @@ import io.github.ceracharlescc.lmversusu.internal.application.port.LlmPlayerGate
 import io.github.ceracharlescc.lmversusu.internal.application.service.LlmStreamOrchestrator
 import io.github.ceracharlescc.lmversusu.internal.application.usecase.StartRoundUseCase
 import io.github.ceracharlescc.lmversusu.internal.application.usecase.SubmitAnswerUseCase
-import io.github.ceracharlescc.lmversusu.internal.domain.entity.GameEvent
 import io.github.ceracharlescc.lmversusu.internal.domain.entity.GameMode
 import io.github.ceracharlescc.lmversusu.internal.domain.repository.OpponentSpecRepository
+import io.github.ceracharlescc.lmversusu.internal.domain.repository.PlayerActiveSessionRepository
 import io.github.ceracharlescc.lmversusu.internal.domain.repository.ResultsRepository
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.ClientIdentity
 import kotlinx.coroutines.*
@@ -36,7 +36,7 @@ internal class SessionManager @Inject constructor(
     private val llmStreamOrchestrator: LlmStreamOrchestrator,
     private val resultsRepository: ResultsRepository,
     private val clock: Clock,
-    private val playerActiveSessionIndex: PlayerActiveSessionIndex,
+    private val playerActiveSessionRepository: PlayerActiveSessionRepository,
 ) {
     companion object {
         /** Session idle timeout - terminate abandoned sessions after no activity (10 minutes) */
@@ -58,10 +58,11 @@ internal class SessionManager @Inject constructor(
     private val idleTimeoutJobs = ConcurrentHashMap<Uuid, Job>()
 
     private val maxLifespanJobs = ConcurrentHashMap<Uuid, Job>()
-    private val sessionLimitRegistry = SessionLimitRegistry(clock)
-    private val activeSessionLimiter = ActiveSessionLimiter { mode ->
-        limitContextFor(mode).limitConfig.maxActiveSessions
-    }
+    private val sessionCreationGate = SessionCreationGate(
+        clock = clock,
+        sessionLimitConfig = appConfig.sessionLimitConfig,
+        modeContextFor = ::limitContextFor,
+    )
 
     suspend fun joinSession(
         sessionId: Uuid?,
@@ -71,48 +72,65 @@ internal class SessionManager @Inject constructor(
     ): JoinResult {
         val playerId = clientIdentity.playerId
 
-        var binding = playerActiveSessionIndex.get(playerId)
-        val bindingEntry = binding?.let { entryForBinding(it, playerId) }
-        if (binding != null && bindingEntry != null) {
-            if (sessionId == null || sessionId == binding.sessionId) {
-                logger.debug("Resuming active session {} for player {}", binding.sessionId, playerId)
-                return when (bindingEntry) {
-                    is SessionEntry.Active -> joinExistingSession(
-                        entry = bindingEntry,
-                        sessionId = binding.sessionId,
-                        clientIdentity = clientIdentity,
-                        nickname = nickname,
-                        opponentSpecId = binding.opponentSpecId,
-                        isNewSession = false,
-                    )
-
-                    is SessionEntry.Creating -> awaitCreationAndJoin(
-                        entry = bindingEntry,
-                        sessionId = binding.sessionId,
-                        clientIdentity = clientIdentity,
-                        nickname = nickname,
-                        opponentSpecId = binding.opponentSpecId,
-                    )
-                }
-            }
-
+        suspend fun rejectActiveSessionExists(existingSessionId: Uuid, requestedSessionId: Uuid?): JoinResult.Failure {
             logger.debug(
                 "Rejecting join for player {} session {} because active session {} exists",
                 playerId,
-                sessionId,
-                binding.sessionId
+                requestedSessionId,
+                existingSessionId
             )
             return JoinResult.Failure(
-                sessionId = binding.sessionId,
+                sessionId = existingSessionId,
                 errorCode = "active_session_exists",
                 message = "player already has an active session",
             )
         }
 
-        if (binding != null && bindingEntry == null) {
+        suspend fun joinFromEntry(
+            entry: SessionEntry,
+            sid: Uuid,
+            oppSpecId: String,
+            isNewSession: Boolean,
+        ): JoinResult = when (entry) {
+            is SessionEntry.Active -> joinExistingSession(
+                entry = entry,
+                sessionId = sid,
+                clientIdentity = clientIdentity,
+                nickname = nickname,
+                opponentSpecId = oppSpecId,
+                isNewSession = isNewSession,
+            )
+
+            is SessionEntry.Creating -> awaitCreationAndJoin(
+                entry = entry,
+                sessionId = sid,
+                clientIdentity = clientIdentity,
+                nickname = nickname,
+                opponentSpecId = oppSpecId,
+            )
+        }
+
+        var binding = playerActiveSessionRepository.get(playerId)
+        if (binding != null) {
+            val entry = entryForBinding(binding, playerId)
+
+            if (entry != null) {
+                if (sessionId == null || sessionId == binding.sessionId) {
+                    logger.debug("Resuming active session {} for player {}", binding.sessionId, playerId)
+                    return joinFromEntry(
+                        entry = entry,
+                        sid = binding.sessionId,
+                        oppSpecId = binding.opponentSpecId,
+                        isNewSession = false,
+                    )
+                }
+                return rejectActiveSessionExists(binding.sessionId, sessionId)
+            }
+
+            // Binding exists but we can't resolve its entry; reconcile stale/mismatched bindings.
             val activeEntry = actors[binding.sessionId] as? SessionEntry.Active
             if (activeEntry != null && activeEntry.ownerPlayerId != playerId) {
-                playerActiveSessionIndex.clear(playerId, binding.sessionId)
+                playerActiveSessionRepository.clear(playerId, binding.sessionId)
                 logger.debug(
                     "Cleared active session binding for player {} due to owner mismatch on session {}",
                     playerId,
@@ -120,30 +138,18 @@ internal class SessionManager @Inject constructor(
                 )
                 binding = null
             } else if (sessionId != null && sessionId != binding.sessionId) {
-                logger.debug(
-                    "Rejecting join for player {} session {} because active session {} exists",
-                    playerId,
-                    sessionId,
-                    binding.sessionId
-                )
-                return JoinResult.Failure(
-                    sessionId = binding.sessionId,
-                    errorCode = "active_session_exists",
-                    message = "player already has an active session",
-                )
+                return rejectActiveSessionExists(binding.sessionId, sessionId)
             }
         }
 
+
         val failureSessionId = when {
             sessionId != null -> sessionId
-            binding != null && bindingEntry == null -> binding.sessionId
+            binding != null -> binding.sessionId
             else -> null
         }
 
         // SECURITY: Pre-reservation ownership check
-        // Reject joins for sessions owned by other players BEFORE any binding is created
-        // This prevents the bind→terminate DoS attack where an attacker creates a binding
-        // for a victim's session and then terminates it via terminateActiveSessionByOwner()
         if (sessionId != null) {
             when (val existingEntry = actors[sessionId]) {
                 is SessionEntry.Active -> {
@@ -163,7 +169,7 @@ internal class SessionManager @Inject constructor(
 
                 is SessionEntry.Creating -> {
                     // Don't allow joining a Creating session by explicit ID unless it matches player's existing binding
-                    val existingBinding = playerActiveSessionIndex.get(playerId)
+                    val existingBinding = playerActiveSessionRepository.get(playerId)
                     if (existingBinding?.sessionId != sessionId) {
                         logger.debug(
                             "Rejecting join for player {} - session {} is being created by another player",
@@ -178,7 +184,7 @@ internal class SessionManager @Inject constructor(
                     }
                 }
 
-                null -> Unit // OK to proceed with new session creation
+                null -> Unit
             }
         }
 
@@ -202,12 +208,13 @@ internal class SessionManager @Inject constructor(
             )
 
         if (shouldReserve) {
-            val newBinding = PlayerActiveSessionIndex.Binding(
+            val newBinding = PlayerActiveSessionRepository.Binding(
                 sessionId = chosenSessionId,
                 opponentSpecId = chosenOpponentSpecId,
                 createdAt = clock.instant(),
             )
-            val reserved = playerActiveSessionIndex.getOrReserve(playerId, newBinding)
+            val reserved = playerActiveSessionRepository.getOrReserve(playerId, newBinding)
+
             if (reserved.sessionId == chosenSessionId) {
                 logger.debug("Reserved session {} for player {}", chosenSessionId, playerId)
             } else {
@@ -220,21 +227,11 @@ internal class SessionManager @Inject constructor(
             }
 
             if (reserved.sessionId != chosenSessionId) {
-                val existingEntry = entryForBinding(reserved, playerId)
                 if (sessionId != null && sessionId != reserved.sessionId) {
-                    logger.debug(
-                        "Rejecting join for player {} session {} because active session {} exists",
-                        playerId,
-                        sessionId,
-                        reserved.sessionId
-                    )
-                    return JoinResult.Failure(
-                        sessionId = reserved.sessionId,
-                        errorCode = "active_session_exists",
-                        message = "player already has an active session",
-                    )
+                    return rejectActiveSessionExists(reserved.sessionId, sessionId)
                 }
 
+                val existingEntry = entryForBinding(reserved, playerId)
                 if (existingEntry != null) {
                     logger.debug(
                         "Player {} already reserved session {}, joining instead of {}",
@@ -242,25 +239,12 @@ internal class SessionManager @Inject constructor(
                         reserved.sessionId,
                         chosenSessionId
                     )
-
-                    return when (existingEntry) {
-                        is SessionEntry.Active -> joinExistingSession(
-                            entry = existingEntry,
-                            sessionId = reserved.sessionId,
-                            clientIdentity = clientIdentity,
-                            nickname = nickname,
-                            opponentSpecId = reserved.opponentSpecId,
-                            isNewSession = false,
-                        )
-
-                        is SessionEntry.Creating -> awaitCreationAndJoin(
-                            entry = existingEntry,
-                            sessionId = reserved.sessionId,
-                            clientIdentity = clientIdentity,
-                            nickname = nickname,
-                            opponentSpecId = reserved.opponentSpecId,
-                        )
-                    }
+                    return joinFromEntry(
+                        entry = existingEntry,
+                        sid = reserved.sessionId,
+                        oppSpecId = reserved.opponentSpecId,
+                        isNewSession = false,
+                    )
                 }
 
                 chosenSessionId = reserved.sessionId
@@ -269,91 +253,53 @@ internal class SessionManager @Inject constructor(
         }
 
         // Fast-path: session already exists.
-        when (val existing = actors[chosenSessionId]) {
-            is SessionEntry.Active -> {
-                return joinExistingSession(
-                    entry = existing,
-                    sessionId = chosenSessionId,
-                    clientIdentity = clientIdentity,
-                    nickname = nickname,
-                    opponentSpecId = chosenOpponentSpecId,
-                    isNewSession = false,
-                )
-            }
-
-            is SessionEntry.Creating -> {
-                return awaitCreationAndJoin(
-                    entry = existing,
-                    sessionId = chosenSessionId,
-                    clientIdentity = clientIdentity,
-                    nickname = nickname,
-                    opponentSpecId = chosenOpponentSpecId,
-                )
-            }
-
-            null -> Unit
+        actors[chosenSessionId]?.let { existing ->
+            return joinFromEntry(
+                entry = existing,
+                sid = chosenSessionId,
+                oppSpecId = chosenOpponentSpecId,
+                isNewSession = false,
+            )
         }
 
         val mode = opponentSpec.mode
-        val limitContext = limitContextFor(mode)
 
         val creatingEntry = SessionEntry.Creating(CompletableDeferred())
         val racedEntry = actors.putIfAbsent(chosenSessionId, creatingEntry)
         if (racedEntry != null) {
-            return when (racedEntry) {
-                is SessionEntry.Active -> joinExistingSession(
-                    entry = racedEntry,
-                    sessionId = chosenSessionId,
-                    clientIdentity = clientIdentity,
-                    nickname = nickname,
-                    opponentSpecId = chosenOpponentSpecId,
-                    isNewSession = false,
-                )
-
-                is SessionEntry.Creating -> awaitCreationAndJoin(
-                    entry = racedEntry,
-                    sessionId = chosenSessionId,
-                    clientIdentity = clientIdentity,
-                    nickname = nickname,
-                    opponentSpecId = chosenOpponentSpecId,
-                )
-            }
+            return joinFromEntry(
+                entry = racedEntry,
+                sid = chosenSessionId,
+                oppSpecId = chosenOpponentSpecId,
+                isNewSession = false,
+            )
         }
 
         var transferred = false
-        var permit: ActiveSessionLimiter.Permit? = null
+        var permit: SessionCreationGate.Permit? = null
         var newActor: SessionActor? = null
 
-        try {
-            permit = activeSessionLimiter.tryAcquire(mode)
-            if (permit == null) {
-                completeCreationFailure(
-                    entry = creatingEntry,
-                    sessionId = chosenSessionId,
-                    errorCode = "session_limit_exceeded",
-                    message = "too many active ${limitContext.modeLabel} sessions",
-                )
-                playerActiveSessionIndex.clear(playerId, chosenSessionId)
-                return JoinResult.Failure(
-                    sessionId = chosenSessionId,
-                    errorCode = "session_limit_exceeded",
-                    message = "too many active ${limitContext.modeLabel} sessions",
-                )
-            }
+        fun creationFailure(errorCode: String, message: String): JoinResult.Failure {
+            completeCreationFailure(
+                entry = creatingEntry,
+                sessionId = chosenSessionId,
+                errorCode = errorCode,
+                message = message,
+            )
+            playerActiveSessionRepository.clear(playerId, chosenSessionId)
+            return JoinResult.Failure(
+                sessionId = chosenSessionId,
+                errorCode = errorCode,
+                message = message,
+            )
+        }
 
-            val limitFailure = checkSessionCreationLimits(clientIdentity, mode)
-            if (limitFailure != null) {
-                completeCreationFailure(
-                    entry = creatingEntry,
-                    sessionId = chosenSessionId,
-                    errorCode = limitFailure.errorCode,
-                    message = limitFailure.message,
-                )
-                playerActiveSessionIndex.clear(playerId, chosenSessionId)
-                return JoinResult.Failure(
-                    sessionId = chosenSessionId,
-                    errorCode = limitFailure.errorCode,
-                    message = limitFailure.message,
+        try {
+            when (val decision = sessionCreationGate.tryAdmitCreation(clientIdentity, mode)) {
+                is SessionCreationGate.Decision.Admitted -> permit = decision.permit
+                is SessionCreationGate.Decision.Denied -> return creationFailure(
+                    errorCode = decision.errorCode,
+                    message = decision.message,
                 )
             }
 
@@ -374,8 +320,7 @@ internal class SessionManager @Inject constructor(
                 onTerminate = { id -> removeSession(id) },
             )
 
-            // IMPORTANT: do the very first join while the session is still "Creating"
-            // so nobody can fast-path into Active mid-startup.
+            // First join while still "Creating"
             val newEntry = SessionEntry.Active(
                 sessionId = chosenSessionId,
                 actor = newActor,
@@ -399,22 +344,20 @@ internal class SessionManager @Inject constructor(
                     errorCode = firstJoinResult.errorCode,
                     message = firstJoinResult.message,
                 )
-                // best-effort cleanup of any scheduled jobs/bus state
-                playerActiveSessionIndex.clear(playerId, chosenSessionId)
+                playerActiveSessionRepository.clear(playerId, chosenSessionId)
                 removeSession(chosenSessionId)
                 return firstJoinResult
             }
 
-            // Now that the first join succeeded, publish the session as Active.
+            // Publish as Active
             if (!actors.replace(chosenSessionId, creatingEntry, newEntry)) {
-                // Session got cancelled/removed while we were creating/joining.
                 completeCreationFailure(
                     entry = creatingEntry,
                     sessionId = chosenSessionId,
                     errorCode = "session_creation_cancelled",
                     message = "session creation cancelled",
                 )
-                playerActiveSessionIndex.clear(playerId, chosenSessionId)
+                playerActiveSessionRepository.clear(playerId, chosenSessionId)
                 removeSession(chosenSessionId)
                 return JoinResult.Failure(
                     sessionId = chosenSessionId,
@@ -423,7 +366,6 @@ internal class SessionManager @Inject constructor(
                 )
             }
 
-            // Permit is now owned by the entry and will be released by removeSession().
             transferred = true
             creatingEntry.deferred.complete(CreationOutcome.Created(newEntry))
             return firstJoinResult
@@ -434,7 +376,7 @@ internal class SessionManager @Inject constructor(
                 errorCode = "session_creation_failed",
                 message = "session creation failed",
             )
-            playerActiveSessionIndex.clear(playerId, chosenSessionId)
+            playerActiveSessionRepository.clear(playerId, chosenSessionId)
             removeSession(chosenSessionId)
             throw t
         } finally {
@@ -493,7 +435,7 @@ internal class SessionManager @Inject constructor(
             )
         }
 
-        val response = CompletableDeferred<JoinResponse>()
+        val response = CompletableDeferred<SessionActor.JoinResponse>()
         val accepted = actor.submit(
             SessionCommand.JoinSession(
                 sessionId = sessionId,
@@ -514,7 +456,7 @@ internal class SessionManager @Inject constructor(
         }
 
         return when (val joinResponse = withTimeoutOrNull(JOIN_SESSION_TIMEOUT_MS) { response.await() }) {
-            is JoinResponse.Accepted -> {
+            is SessionActor.JoinResponse.Accepted -> {
                 if (isNewSession) {
                     scheduleMaxLifespan(sessionId)
                 }
@@ -530,12 +472,12 @@ internal class SessionManager @Inject constructor(
                 )
             }
 
-            is JoinResponse.Rejected -> {
+            is SessionActor.JoinResponse.Rejected -> {
                 if (isNewSession) {
                     removeSession(sessionId)
                 }
                 // Best-effort cleanup of any poisonous binding on rejection
-                playerActiveSessionIndex.clear(clientIdentity.playerId, sessionId)
+                playerActiveSessionRepository.clear(clientIdentity.playerId, sessionId)
                 JoinResult.Failure(
                     sessionId = sessionId,
                     errorCode = joinResponse.errorCode,
@@ -548,7 +490,7 @@ internal class SessionManager @Inject constructor(
                     removeSession(sessionId)
                 }
                 // Best-effort cleanup of any poisonous binding on timeout
-                playerActiveSessionIndex.clear(clientIdentity.playerId, sessionId)
+                playerActiveSessionRepository.clear(clientIdentity.playerId, sessionId)
                 JoinResult.Failure(
                     sessionId = sessionId,
                     errorCode = "join_timeout",
@@ -640,7 +582,7 @@ internal class SessionManager @Inject constructor(
             if (hintEntry != null) {
                 // Heal binding if missing so terminateActiveSessionByOwner() works correctly
                 ensureActiveBinding(hintEntry, playerId)
-                val hintBinding = playerActiveSessionIndex.get(playerId)
+                val hintBinding = playerActiveSessionRepository.get(playerId)
                 val opponentSpecId = hintBinding?.opponentSpecId ?: hintEntry.actor.opponentSpecId
                 val createdAt = hintBinding?.createdAt ?: clock.instant()
                 return ActiveSessionSnapshot(
@@ -650,9 +592,9 @@ internal class SessionManager @Inject constructor(
                 )
             }
 
-            val binding = playerActiveSessionIndex.get(playerId)
+            val binding = playerActiveSessionRepository.get(playerId)
             if (binding?.sessionId == activeSessionIdHint) {
-                playerActiveSessionIndex.clear(playerId, activeSessionIdHint)
+                playerActiveSessionRepository.clear(playerId, activeSessionIdHint)
                 logger.debug(
                     "Cleared stale active session hint {} for player {}",
                     activeSessionIdHint,
@@ -661,10 +603,10 @@ internal class SessionManager @Inject constructor(
             }
         }
 
-        val binding = playerActiveSessionIndex.get(playerId) ?: return null
+        val binding = playerActiveSessionRepository.get(playerId) ?: return null
         val entry = getOwnedActiveEntry(playerId, binding.sessionId)
         if (entry == null) {
-            playerActiveSessionIndex.clear(playerId, binding.sessionId)
+            playerActiveSessionRepository.clear(playerId, binding.sessionId)
             logger.debug(
                 "Cleared stale active session binding {} for player {}",
                 binding.sessionId,
@@ -681,7 +623,7 @@ internal class SessionManager @Inject constructor(
     }
 
     fun terminateActiveSessionByOwner(playerId: Uuid): Uuid? {
-        val binding = playerActiveSessionIndex.takeByOwner(playerId)
+        val binding = playerActiveSessionRepository.takeByOwner(playerId)
         if (binding == null) {
             logger.debug("No active session to terminate for player {}", playerId)
             return null
@@ -731,7 +673,7 @@ internal class SessionManager @Inject constructor(
         maxLifespanJobs.remove(sessionId)?.cancel()
         when (val entry = actors.remove(sessionId)) {
             is SessionEntry.Active -> {
-                playerActiveSessionIndex.clear(entry.ownerPlayerId, sessionId)
+                playerActiveSessionRepository.clear(entry.ownerPlayerId, sessionId)
                 logger.debug("Cleared active session binding for player {} session {}", entry.ownerPlayerId, sessionId)
                 entry.actor.shutdown()
                 entry.permit.close()
@@ -762,23 +704,13 @@ internal class SessionManager @Inject constructor(
         maxLifespanJobs.clear()
     }
 
-    private data class LimitContext(
-        val limitConfig: AppConfig.ModeLimitConfig,
-        val modeLabel: String,
-    )
-
-    private data class LimitFailure(
-        val errorCode: String,
-        val message: String,
-    )
-
     private sealed interface SessionEntry {
         data class Creating(val deferred: CompletableDeferred<CreationOutcome>) : SessionEntry
         data class Active(
             val sessionId: Uuid,
             val actor: SessionActor,
             val mode: GameMode,
-            val permit: ActiveSessionLimiter.Permit,
+            val permit: SessionCreationGate.Permit,
             val ownerPlayerId: Uuid,
         ) : SessionEntry
     }
@@ -799,7 +731,7 @@ internal class SessionManager @Inject constructor(
     }
 
     private fun entryForBinding(
-        binding: PlayerActiveSessionIndex.Binding,
+        binding: PlayerActiveSessionRepository.Binding,
         playerId: Uuid,
     ): SessionEntry? {
         return when (val entry = actors[binding.sessionId]) {
@@ -819,131 +751,26 @@ internal class SessionManager @Inject constructor(
 
     private fun ensureActiveBinding(entry: SessionEntry.Active, playerId: Uuid) {
         if (entry.ownerPlayerId != playerId) return
-        val existing = playerActiveSessionIndex.get(playerId)
+        val existing = playerActiveSessionRepository.get(playerId)
         if (existing?.sessionId == entry.sessionId) return
-        val binding = PlayerActiveSessionIndex.Binding(
+        val binding = PlayerActiveSessionRepository.Binding(
             sessionId = entry.sessionId,
             opponentSpecId = entry.actor.opponentSpecId,
             createdAt = clock.instant(),
         )
-        playerActiveSessionIndex.getOrReserve(playerId, binding)
+        playerActiveSessionRepository.getOrReserve(playerId, binding)
     }
 
-    private fun limitContextFor(mode: GameMode): LimitContext =
+    private fun limitContextFor(mode: GameMode): SessionCreationGate.ModeLimitContext =
         when (mode) {
-            GameMode.PREMIUM -> LimitContext(
+            GameMode.PREMIUM -> SessionCreationGate.ModeLimitContext(
                 limitConfig = appConfig.sessionLimitConfig.premium,
                 modeLabel = "premium",
             )
 
-            GameMode.LIGHTWEIGHT -> LimitContext(
+            GameMode.LIGHTWEIGHT -> SessionCreationGate.ModeLimitContext(
                 limitConfig = appConfig.sessionLimitConfig.lightweight,
                 modeLabel = "lightweight",
             )
         }
-
-    private fun checkSessionCreationLimits(
-        clientIdentity: ClientIdentity,
-        mode: GameMode,
-    ): LimitFailure? {
-        val limitContext = limitContextFor(mode)
-
-        val ipAddress = clientIdentity.ipAddress.ifBlank { "unknown" }
-        val playerKey = clientIdentity.playerId.toString()
-        val modePrefix = "mode:${limitContext.modeLabel}"
-        val dailyWindowMillis = appConfig.sessionLimitConfig.dailyWindowMillis
-
-        val entries = buildList {
-            val perPersonDailyLimit = limitContext.limitConfig.perPersonDailyLimit
-            if (perPersonDailyLimit > 0) {
-                add(
-                    SessionLimitRegistry.LimitEntry(
-                        key = "$modePrefix:person:ip:$ipAddress:daily",
-                        windowMillis = dailyWindowMillis,
-                        limit = perPersonDailyLimit,
-                        failure = SessionLimitRegistry.LimitFailure(
-                            errorCode = "session_limit_exceeded",
-                            message = "daily ${limitContext.modeLabel} session limit reached",
-                        ),
-                    )
-                )
-                add(
-                    SessionLimitRegistry.LimitEntry(
-                        key = "$modePrefix:person:player:$playerKey:daily",
-                        windowMillis = dailyWindowMillis,
-                        limit = perPersonDailyLimit,
-                        failure = SessionLimitRegistry.LimitFailure(
-                            errorCode = "session_limit_exceeded",
-                            message = "daily ${limitContext.modeLabel} session limit reached",
-                        ),
-                    )
-                )
-            }
-
-            val perPersonWindowLimit = limitContext.limitConfig.perPersonWindowLimit
-            val perPersonWindowMillis = limitContext.limitConfig.perPersonWindowMillis
-            if (perPersonWindowLimit > 0 && perPersonWindowMillis > 0) {
-                add(
-                    SessionLimitRegistry.LimitEntry(
-                        key = "$modePrefix:person:ip:$ipAddress:window",
-                        windowMillis = perPersonWindowMillis,
-                        limit = perPersonWindowLimit,
-                        failure = SessionLimitRegistry.LimitFailure(
-                            errorCode = "rate_limited",
-                            message = "session creation rate limited",
-                        ),
-                    )
-                )
-                add(
-                    SessionLimitRegistry.LimitEntry(
-                        key = "$modePrefix:person:player:$playerKey:window",
-                        windowMillis = perPersonWindowMillis,
-                        limit = perPersonWindowLimit,
-                        failure = SessionLimitRegistry.LimitFailure(
-                            errorCode = "rate_limited",
-                            message = "session creation rate limited",
-                        ),
-                    )
-                )
-            }
-
-            val globalWindowLimit = limitContext.limitConfig.globalWindowLimit
-            val globalWindowMillis = limitContext.limitConfig.globalWindowMillis
-            if (globalWindowLimit > 0 && globalWindowMillis > 0) {
-                add(
-                    SessionLimitRegistry.LimitEntry(
-                        key = "$modePrefix:global:window",
-                        windowMillis = globalWindowMillis,
-                        limit = globalWindowLimit,
-                        failure = SessionLimitRegistry.LimitFailure(
-                            errorCode = "rate_limited",
-                            message = "global ${limitContext.modeLabel} session rate limit reached",
-                        ),
-                    )
-                )
-            }
-
-            val globalDailyLimit = limitContext.limitConfig.globalDailyLimit
-            if (globalDailyLimit > 0) {
-                add(
-                    SessionLimitRegistry.LimitEntry(
-                        key = "$modePrefix:global:daily",
-                        windowMillis = dailyWindowMillis,
-                        limit = globalDailyLimit,
-                        failure = SessionLimitRegistry.LimitFailure(
-                            errorCode = "session_limit_exceeded",
-                            message = "global daily ${limitContext.modeLabel} session limit reached",
-                        ),
-                    )
-                )
-            }
-        }
-
-        val failure = sessionLimitRegistry.tryAcquire(entries)
-        if (failure != null) {
-            return LimitFailure(errorCode = failure.errorCode, message = failure.message)
-        }
-
-        return null
-    }
 }

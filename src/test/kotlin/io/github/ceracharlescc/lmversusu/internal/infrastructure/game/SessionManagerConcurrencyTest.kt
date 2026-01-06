@@ -7,6 +7,7 @@ import io.github.ceracharlescc.lmversusu.internal.domain.entity.GameMode
 import io.github.ceracharlescc.lmversusu.internal.domain.entity.OpponentSpec
 import io.github.ceracharlescc.lmversusu.internal.domain.repository.OpponentSpecRepository
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.ClientIdentity
+import io.github.ceracharlescc.lmversusu.internal.infrastructure.repository.InMemoryPlayerActiveSessionRepository
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
@@ -59,7 +60,7 @@ class SessionManagerConcurrencyTest {
             llmStreamOrchestrator = mockk(relaxed = true),
             resultsRepository = mockk(relaxed = true),
             clock = Clock.systemUTC(),
-            playerActiveSessionIndex = InMemoryPlayerActiveSessionIndex(),
+            playerActiveSessionRepository = InMemoryPlayerActiveSessionRepository(),
         )
 
         val attackerIp = "192.168.1.66"
@@ -118,7 +119,7 @@ class SessionManagerConcurrencyTest {
             llmStreamOrchestrator = mockk(relaxed = true),
             resultsRepository = mockk(relaxed = true),
             clock = Clock.systemUTC(),
-            playerActiveSessionIndex = InMemoryPlayerActiveSessionIndex(),
+            playerActiveSessionRepository = InMemoryPlayerActiveSessionRepository(),
         )
 
         val targetSessionId = Uuid.random()
@@ -166,7 +167,7 @@ class SessionManagerConcurrencyTest {
         // Setup: Player A creates and owns a session
         // Attack: Player B tries to join with Player A's sessionId
         // Expected: Player B's join is rejected with "session_not_owned", Player A's session remains active
-        val playerActiveSessionIndex = InMemoryPlayerActiveSessionIndex()
+        val playerActiveSessionIndex = InMemoryPlayerActiveSessionRepository()
 
         val specRepo = mockk<OpponentSpecRepository>()
         every { specRepo.findById(any()) } returns mockk<OpponentSpec.Lightweight>(relaxed = true) {
@@ -185,7 +186,7 @@ class SessionManagerConcurrencyTest {
             llmStreamOrchestrator = mockk(relaxed = true),
             resultsRepository = mockk(relaxed = true),
             clock = Clock.systemUTC(),
-            playerActiveSessionIndex = playerActiveSessionIndex,
+            playerActiveSessionRepository = playerActiveSessionIndex,
         )
 
         val playerA = Uuid.random()
@@ -238,7 +239,7 @@ class SessionManagerConcurrencyTest {
     @Test
     fun `Adversarial - Cannot hijack Creating session`() {
         // Two players race to create the same session ID - one should be rejected
-        val playerActiveSessionIndex = InMemoryPlayerActiveSessionIndex()
+        val playerActiveSessionIndex = InMemoryPlayerActiveSessionRepository()
 
         val specRepo = mockk<OpponentSpecRepository>()
         every { specRepo.findById(any()) } returns mockk<OpponentSpec.Lightweight>(relaxed = true) {
@@ -257,7 +258,7 @@ class SessionManagerConcurrencyTest {
             llmStreamOrchestrator = mockk(relaxed = true),
             resultsRepository = mockk(relaxed = true),
             clock = Clock.systemUTC(),
-            playerActiveSessionIndex = playerActiveSessionIndex,
+            playerActiveSessionRepository = playerActiveSessionIndex,
         )
 
         val playerA = Uuid.random()
@@ -305,7 +306,7 @@ class SessionManagerConcurrencyTest {
     @Test
     fun `Binding not poisoned on opponent_spec_not_found`() {
         // Verify that no binding is created when opponent spec is invalid
-        val playerActiveSessionIndex = InMemoryPlayerActiveSessionIndex()
+        val playerActiveSessionIndex = InMemoryPlayerActiveSessionRepository()
         val playerId = Uuid.random()
 
         val specRepo = mockk<OpponentSpecRepository>()
@@ -326,7 +327,7 @@ class SessionManagerConcurrencyTest {
             llmStreamOrchestrator = mockk(relaxed = true),
             resultsRepository = mockk(relaxed = true),
             clock = Clock.systemUTC(),
-            playerActiveSessionIndex = playerActiveSessionIndex,
+            playerActiveSessionRepository = playerActiveSessionIndex,
         )
 
         runBlocking {
@@ -351,7 +352,7 @@ class SessionManagerConcurrencyTest {
     @Test
     fun `getActiveSession heals missing binding`() {
         // Create session, clear binding, verify getActiveSession restores it
-        val playerActiveSessionIndex = InMemoryPlayerActiveSessionIndex()
+        val playerActiveSessionIndex = InMemoryPlayerActiveSessionRepository()
         val playerId = Uuid.random()
 
         val specRepo = mockk<OpponentSpecRepository>()
@@ -371,7 +372,7 @@ class SessionManagerConcurrencyTest {
             llmStreamOrchestrator = mockk(relaxed = true),
             resultsRepository = mockk(relaxed = true),
             clock = Clock.systemUTC(),
-            playerActiveSessionIndex = playerActiveSessionIndex,
+            playerActiveSessionRepository = playerActiveSessionIndex,
         )
 
         runBlocking {
@@ -414,7 +415,7 @@ class SessionManagerConcurrencyTest {
     fun `Idempotency - StartNextRound while round in progress is no-op`() {
         // Verify that calling StartNextRound while a round is already in progress
         // does not produce an error and does not start a duplicate round
-        val playerActiveSessionIndex = InMemoryPlayerActiveSessionIndex()
+        val playerActiveSessionIndex = InMemoryPlayerActiveSessionRepository()
         val playerId = Uuid.random()
 
         val specRepo = mockk<OpponentSpecRepository>()
@@ -467,7 +468,7 @@ class SessionManagerConcurrencyTest {
             llmStreamOrchestrator = mockk(relaxed = true),
             resultsRepository = mockk(relaxed = true),
             clock = Clock.systemUTC(),
-            playerActiveSessionIndex = playerActiveSessionIndex,
+            playerActiveSessionRepository = playerActiveSessionIndex,
         )
 
         runBlocking {
@@ -511,7 +512,7 @@ class SessionManagerConcurrencyTest {
         // does not produce an error (returns success as no-op)
         // Note: Due to the complexity of properly mocking session state transitions,
         // this test focuses on the observable behavior: both submits succeed without error.
-        val playerActiveSessionIndex = InMemoryPlayerActiveSessionIndex()
+        val playerActiveSessionIndex = InMemoryPlayerActiveSessionRepository()
         val playerId = Uuid.random()
         val roundId = Uuid.random()
 
@@ -615,7 +616,7 @@ class SessionManagerConcurrencyTest {
             llmStreamOrchestrator = mockk(relaxed = true),
             resultsRepository = mockk(relaxed = true),
             clock = Clock.systemUTC(),
-            playerActiveSessionIndex = playerActiveSessionIndex,
+            playerActiveSessionRepository = playerActiveSessionIndex,
         )
 
         runBlocking {
