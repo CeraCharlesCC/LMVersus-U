@@ -4,10 +4,10 @@ import dagger.Binds
 import dagger.Module
 import io.github.ceracharlescc.lmversusu.internal.application.port.*
 import io.github.ceracharlescc.lmversusu.internal.domain.repository.OpponentSpecRepository
+import io.github.ceracharlescc.lmversusu.internal.domain.repository.PlayerActiveSessionRepository
 import io.github.ceracharlescc.lmversusu.internal.domain.repository.ResultsRepository
 import io.github.ceracharlescc.lmversusu.internal.infrastructure.game.InMemoryGameEventBusImpl
-import io.github.ceracharlescc.lmversusu.internal.infrastructure.game.InMemoryPlayerActiveSessionIndex
-import io.github.ceracharlescc.lmversusu.internal.infrastructure.game.PlayerActiveSessionIndex
+import io.github.ceracharlescc.lmversusu.internal.infrastructure.repository.InMemoryPlayerActiveSessionRepository
 import io.github.ceracharlescc.lmversusu.internal.infrastructure.i18n.FileQuestionLocalizerImpl
 import io.github.ceracharlescc.lmversusu.internal.infrastructure.llm.gateway.LlmPlayerGatewayImpl
 import io.github.ceracharlescc.lmversusu.internal.infrastructure.repository.FileQuestionBankImpl
@@ -48,5 +48,5 @@ internal interface InfrastructureModule {
 
     @Binds
     @Singleton
-    fun bindPlayerActiveSessionIndex(impl: InMemoryPlayerActiveSessionIndex): PlayerActiveSessionIndex
+    fun bindPlayerActiveSessionIndex(impl: InMemoryPlayerActiveSessionRepository): PlayerActiveSessionRepository
 }

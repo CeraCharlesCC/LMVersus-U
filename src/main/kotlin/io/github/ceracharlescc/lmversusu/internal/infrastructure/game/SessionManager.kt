@@ -11,6 +11,7 @@ import io.github.ceracharlescc.lmversusu.internal.application.usecase.StartRound
 import io.github.ceracharlescc.lmversusu.internal.application.usecase.SubmitAnswerUseCase
 import io.github.ceracharlescc.lmversusu.internal.domain.entity.GameMode
 import io.github.ceracharlescc.lmversusu.internal.domain.repository.OpponentSpecRepository
+import io.github.ceracharlescc.lmversusu.internal.domain.repository.PlayerActiveSessionRepository
 import io.github.ceracharlescc.lmversusu.internal.domain.repository.ResultsRepository
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.ClientIdentity
 import kotlinx.coroutines.*
@@ -35,7 +36,7 @@ internal class SessionManager @Inject constructor(
     private val llmStreamOrchestrator: LlmStreamOrchestrator,
     private val resultsRepository: ResultsRepository,
     private val clock: Clock,
-    private val playerActiveSessionIndex: PlayerActiveSessionIndex,
+    private val playerActiveSessionRepository: PlayerActiveSessionRepository,
 ) {
     companion object {
         /** Session idle timeout - terminate abandoned sessions after no activity (10 minutes) */
@@ -108,7 +109,7 @@ internal class SessionManager @Inject constructor(
             )
         }
 
-        var binding = playerActiveSessionIndex.get(playerId)
+        var binding = playerActiveSessionRepository.get(playerId)
         if (binding != null) {
             val entry = entryForBinding(binding, playerId)
 
@@ -128,7 +129,7 @@ internal class SessionManager @Inject constructor(
             // Binding exists but we can't resolve its entry; reconcile stale/mismatched bindings.
             val activeEntry = actors[binding.sessionId] as? SessionEntry.Active
             if (activeEntry != null && activeEntry.ownerPlayerId != playerId) {
-                playerActiveSessionIndex.clear(playerId, binding.sessionId)
+                playerActiveSessionRepository.clear(playerId, binding.sessionId)
                 logger.debug(
                     "Cleared active session binding for player {} due to owner mismatch on session {}",
                     playerId,
@@ -167,7 +168,7 @@ internal class SessionManager @Inject constructor(
 
                 is SessionEntry.Creating -> {
                     // Don't allow joining a Creating session by explicit ID unless it matches player's existing binding
-                    val existingBinding = playerActiveSessionIndex.get(playerId)
+                    val existingBinding = playerActiveSessionRepository.get(playerId)
                     if (existingBinding?.sessionId != sessionId) {
                         logger.debug(
                             "Rejecting join for player {} - session {} is being created by another player",
@@ -206,12 +207,12 @@ internal class SessionManager @Inject constructor(
             )
 
         if (shouldReserve) {
-            val newBinding = PlayerActiveSessionIndex.Binding(
+            val newBinding = PlayerActiveSessionRepository.Binding(
                 sessionId = chosenSessionId,
                 opponentSpecId = chosenOpponentSpecId,
                 createdAt = clock.instant(),
             )
-            val reserved = playerActiveSessionIndex.getOrReserve(playerId, newBinding)
+            val reserved = playerActiveSessionRepository.getOrReserve(playerId, newBinding)
 
             if (reserved.sessionId == chosenSessionId) {
                 logger.debug("Reserved session {} for player {}", chosenSessionId, playerId)
@@ -285,7 +286,7 @@ internal class SessionManager @Inject constructor(
                 errorCode = errorCode,
                 message = message,
             )
-            playerActiveSessionIndex.clear(playerId, chosenSessionId)
+            playerActiveSessionRepository.clear(playerId, chosenSessionId)
             return JoinResult.Failure(
                 sessionId = chosenSessionId,
                 errorCode = errorCode,
@@ -349,7 +350,7 @@ internal class SessionManager @Inject constructor(
                     errorCode = firstJoinResult.errorCode,
                     message = firstJoinResult.message,
                 )
-                playerActiveSessionIndex.clear(playerId, chosenSessionId)
+                playerActiveSessionRepository.clear(playerId, chosenSessionId)
                 removeSession(chosenSessionId)
                 return firstJoinResult
             }
@@ -362,7 +363,7 @@ internal class SessionManager @Inject constructor(
                     errorCode = "session_creation_cancelled",
                     message = "session creation cancelled",
                 )
-                playerActiveSessionIndex.clear(playerId, chosenSessionId)
+                playerActiveSessionRepository.clear(playerId, chosenSessionId)
                 removeSession(chosenSessionId)
                 return JoinResult.Failure(
                     sessionId = chosenSessionId,
@@ -381,7 +382,7 @@ internal class SessionManager @Inject constructor(
                 errorCode = "session_creation_failed",
                 message = "session creation failed",
             )
-            playerActiveSessionIndex.clear(playerId, chosenSessionId)
+            playerActiveSessionRepository.clear(playerId, chosenSessionId)
             removeSession(chosenSessionId)
             throw t
         } finally {
@@ -482,7 +483,7 @@ internal class SessionManager @Inject constructor(
                     removeSession(sessionId)
                 }
                 // Best-effort cleanup of any poisonous binding on rejection
-                playerActiveSessionIndex.clear(clientIdentity.playerId, sessionId)
+                playerActiveSessionRepository.clear(clientIdentity.playerId, sessionId)
                 JoinResult.Failure(
                     sessionId = sessionId,
                     errorCode = joinResponse.errorCode,
@@ -495,7 +496,7 @@ internal class SessionManager @Inject constructor(
                     removeSession(sessionId)
                 }
                 // Best-effort cleanup of any poisonous binding on timeout
-                playerActiveSessionIndex.clear(clientIdentity.playerId, sessionId)
+                playerActiveSessionRepository.clear(clientIdentity.playerId, sessionId)
                 JoinResult.Failure(
                     sessionId = sessionId,
                     errorCode = "join_timeout",
@@ -587,7 +588,7 @@ internal class SessionManager @Inject constructor(
             if (hintEntry != null) {
                 // Heal binding if missing so terminateActiveSessionByOwner() works correctly
                 ensureActiveBinding(hintEntry, playerId)
-                val hintBinding = playerActiveSessionIndex.get(playerId)
+                val hintBinding = playerActiveSessionRepository.get(playerId)
                 val opponentSpecId = hintBinding?.opponentSpecId ?: hintEntry.actor.opponentSpecId
                 val createdAt = hintBinding?.createdAt ?: clock.instant()
                 return ActiveSessionSnapshot(
@@ -597,9 +598,9 @@ internal class SessionManager @Inject constructor(
                 )
             }
 
-            val binding = playerActiveSessionIndex.get(playerId)
+            val binding = playerActiveSessionRepository.get(playerId)
             if (binding?.sessionId == activeSessionIdHint) {
-                playerActiveSessionIndex.clear(playerId, activeSessionIdHint)
+                playerActiveSessionRepository.clear(playerId, activeSessionIdHint)
                 logger.debug(
                     "Cleared stale active session hint {} for player {}",
                     activeSessionIdHint,
@@ -608,10 +609,10 @@ internal class SessionManager @Inject constructor(
             }
         }
 
-        val binding = playerActiveSessionIndex.get(playerId) ?: return null
+        val binding = playerActiveSessionRepository.get(playerId) ?: return null
         val entry = getOwnedActiveEntry(playerId, binding.sessionId)
         if (entry == null) {
-            playerActiveSessionIndex.clear(playerId, binding.sessionId)
+            playerActiveSessionRepository.clear(playerId, binding.sessionId)
             logger.debug(
                 "Cleared stale active session binding {} for player {}",
                 binding.sessionId,
@@ -628,7 +629,7 @@ internal class SessionManager @Inject constructor(
     }
 
     fun terminateActiveSessionByOwner(playerId: Uuid): Uuid? {
-        val binding = playerActiveSessionIndex.takeByOwner(playerId)
+        val binding = playerActiveSessionRepository.takeByOwner(playerId)
         if (binding == null) {
             logger.debug("No active session to terminate for player {}", playerId)
             return null
@@ -678,7 +679,7 @@ internal class SessionManager @Inject constructor(
         maxLifespanJobs.remove(sessionId)?.cancel()
         when (val entry = actors.remove(sessionId)) {
             is SessionEntry.Active -> {
-                playerActiveSessionIndex.clear(entry.ownerPlayerId, sessionId)
+                playerActiveSessionRepository.clear(entry.ownerPlayerId, sessionId)
                 logger.debug("Cleared active session binding for player {} session {}", entry.ownerPlayerId, sessionId)
                 entry.actor.shutdown()
                 entry.permit.close()
@@ -746,7 +747,7 @@ internal class SessionManager @Inject constructor(
     }
 
     private fun entryForBinding(
-        binding: PlayerActiveSessionIndex.Binding,
+        binding: PlayerActiveSessionRepository.Binding,
         playerId: Uuid,
     ): SessionEntry? {
         return when (val entry = actors[binding.sessionId]) {
@@ -766,14 +767,14 @@ internal class SessionManager @Inject constructor(
 
     private fun ensureActiveBinding(entry: SessionEntry.Active, playerId: Uuid) {
         if (entry.ownerPlayerId != playerId) return
-        val existing = playerActiveSessionIndex.get(playerId)
+        val existing = playerActiveSessionRepository.get(playerId)
         if (existing?.sessionId == entry.sessionId) return
-        val binding = PlayerActiveSessionIndex.Binding(
+        val binding = PlayerActiveSessionRepository.Binding(
             sessionId = entry.sessionId,
             opponentSpecId = entry.actor.opponentSpecId,
             createdAt = clock.instant(),
         )
-        playerActiveSessionIndex.getOrReserve(playerId, binding)
+        playerActiveSessionRepository.getOrReserve(playerId, binding)
     }
 
     private fun limitContextFor(mode: GameMode): LimitContext =
