@@ -18,8 +18,8 @@ import java.util.concurrent.atomic.AtomicBoolean
  * This component enforces:
  * - **Max active sessions** per [GameMode] (concurrency control).
  * - **Rate limits / quotas** for session creation using fixed windows:
- *   - Per-person limits (keyed by IP and by player id) for daily quotas and short rolling windows.
- *   - Global limits per mode for daily quotas and short rolling windows.
+ *   - Per-person limits (keyed by IP and by player id) for daily quotas and short fixed windows.
+ *   - Global limits per mode for daily quotas and short fixed windows.
  *
  * The main entrypoint is [tryAdmitCreation]. When creation is admitted it returns a [Permit].
  * **Call [Permit.close] exactly once when the session is terminated** (or when creation fails after admission)
