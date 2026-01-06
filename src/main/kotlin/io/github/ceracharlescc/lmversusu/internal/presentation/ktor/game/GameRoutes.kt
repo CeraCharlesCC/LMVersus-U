@@ -5,6 +5,7 @@ import io.github.ceracharlescc.lmversusu.internal.application.port.GameEventBus
 import io.github.ceracharlescc.lmversusu.internal.application.port.GameEventListener
 import io.github.ceracharlescc.lmversusu.internal.domain.entity.ServiceSession
 import io.github.ceracharlescc.lmversusu.internal.presentation.ktor.game.ws.*
+import io.github.ceracharlescc.lmversusu.internal.utils.ConnectionRateLimiter
 import io.ktor.http.HttpHeaders
 import io.ktor.server.plugins.origin
 import io.ktor.server.routing.Route
@@ -22,7 +23,6 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import java.net.URI
-import io.github.ceracharlescc.lmversusu.internal.utils.ConnectionRateLimiter
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
