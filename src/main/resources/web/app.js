@@ -1708,7 +1708,7 @@ async function main() {
     resetRoundUi();
 
     setLobbyTab("LIGHTWEIGHT");
-    await loadLicenseHtml()
+    await loadLicenseHtml();
     checkLandingPopup();
 
     try {
