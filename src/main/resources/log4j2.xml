@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="WARN">
+    <Properties>
+        <!-- Match your old defaults; read from -D... system properties -->
+        <Property name="LOG_LEVEL_ROOT">${sys:lmversusu.root.log.level:-INFO}</Property>
+        <Property name="LOG_LEVEL_LMV">${sys:lmversusu.app.log.level:-INFO}</Property>
+        <Property name="LOG_PATTERN">
+            ${sys:lmversusu.log.format:-%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n}
+        </Property>
+    </Properties>
+
+    <Appenders>
+        <Console name="STDOUT" target="SYSTEM_OUT">
+            <PatternLayout pattern="${LOG_PATTERN}"/>
+        </Console>
+    </Appenders>
+
+    <Loggers>
+        <Root level="${LOG_LEVEL_ROOT}">
+            <AppenderRef ref="STDOUT"/>
+        </Root>
+
+        <Logger name="LMVersus-U" level="${LOG_LEVEL_LMV}"/>
+
+        <Logger name="org.eclipse.jetty" level="INFO"/>
+        <Logger name="io.netty" level="INFO"/>
+    </Loggers>
+</Configuration>

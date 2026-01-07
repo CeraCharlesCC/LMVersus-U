@@ -1,30 +1,25 @@
 package io.github.ceracharlescc.lmversusu.internal.infrastructure.ktor
 
-import io.github.flaxoos.ktor.server.plugins.ratelimiter.CallVolumeUnit
-import io.github.flaxoos.ktor.server.plugins.ratelimiter.RateLimiting
-import io.github.flaxoos.ktor.server.plugins.ratelimiter.implementations.TokenBucket
-import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
-import io.ktor.server.response.respond
+import io.ktor.server.plugins.ratelimit.RateLimit
+import io.ktor.server.plugins.ratelimit.RateLimiter
+import kotlin.math.max
 import kotlin.time.Duration.Companion.seconds
 
 internal fun Application.configureAdministration() {
-    install(RateLimiting) {
+    install(RateLimit) {
+        global {
+            rateLimiter(limit = 200, refillPeriod = 10.seconds)
 
-        rateLimiter {
-            type = TokenBucket::class
-            capacity = 200
-            rate = 10.seconds
-            callVolumeUnit = CallVolumeUnit.Calls()
-        }
+            modifyResponse { call, state ->
+                call.response.headers.append("X-RateLimit-Measured-by", "Calls")
 
-        rateLimitExceededHandler = { limitedBy ->
-            response.headers.append("X-RateLimit-Limit", "${limitedBy.rateLimiter.capacity}")
-            response.headers.append("X-RateLimit-Measured-by", limitedBy.rateLimiter.callVolumeUnit.name)
-            response.headers.append("X-RateLimit-Reset", "${limitedBy.resetIn.inWholeMilliseconds}")
-            response.headers.append("Retry-After", "${limitedBy.resetIn.inWholeSeconds}")
-            respond(HttpStatusCode.TooManyRequests, "Rate limit exceeded: ${limitedBy.message}")
+                if (state is RateLimiter.State.Available) {
+                    val resetInMillis = max(0L, state.refillAtTimeMillis - System.currentTimeMillis())
+                    call.response.headers.append("X-RateLimit-Reset-Millis", resetInMillis.toString())
+                }
+            }
         }
     }
 }

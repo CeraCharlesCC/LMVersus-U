@@ -1,0 +1,15 @@
+PSL_NOTICE
+
+This distribution includes Public Suffix List (PSL) data used by OkHttp
+(e.g., the bundled file “publicsuffixes.gz”).
+
+The PSL data is compiled from:
+  https://publicsuffix.org/list/public_suffix_list.dat
+
+The Public Suffix List is made available under the Mozilla Public License, v. 2.0 (MPL 2.0).
+A copy of the MPL 2.0 license is included with this distribution at:
+  META-INF/LICENSES/MPL-2.0.txt
+
+Corresponding source for the PSL data is available at the URL above.
+If this distribution includes a transformed form of the PSL data (such as a compressed file),
+the corresponding Source Code Form is the PSL list at the URL above.

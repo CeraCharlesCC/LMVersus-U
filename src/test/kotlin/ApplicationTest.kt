@@ -1,16 +1,15 @@
-import io.github.ceracharlescc.lmversusu.internal.module
 import io.github.ceracharlescc.lmversusu.internal.TestConfigFactory
+import io.github.ceracharlescc.lmversusu.internal.module
 import io.github.ceracharlescc.lmversusu.internal.presentation.ktor.api.HeartbeatResponse
 import io.ktor.client.call.body
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.client.request.get
-import io.ktor.http.ContentType
-import io.ktor.http.HttpStatusCode
 import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.request.accept
+import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
+import io.ktor.http.ContentType
+import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
-
 import io.ktor.server.testing.testApplication
 import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.AfterAll
