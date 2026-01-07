@@ -10,6 +10,7 @@ const md = window.markdownit({
 
 const MAX_NICKNAME_LEN = 16;
 const STORAGE_KEY_NICKNAME = "lmvu_nickname";
+const STORAGE_KEY_LANDING = "lmvu_landing_acked";
 
 function detectLang() {
     const raw = (navigator.language || "en").toLowerCase();
@@ -38,20 +39,35 @@ function t(key, vars) {
 }
 
 async function loadI18n(lang) {
-    const enMod = await import("./i18n/en.js");
-    I18N_EN = enMod.default || enMod;
+    async function loadLangSet(code) {
+        try {
+            const [ui, models] = await Promise.all([
+                import(`./i18n/${code}/ui.js`).catch(() => ({ default: {} })),
+                import(`./i18n/${code}/models.js`).catch(() => ({ default: {} })),
+            ]);
+            return {
+                ...(ui.default || ui),
+                ...(models.default || models),
+            };
+        } catch (e) {
+            console.warn(`Failed to load i18n for '${code}'`, e);
+            return {};
+        }
+    }
+
+    I18N_EN = await loadLangSet("en");
 
     if (lang === "en") {
         I18N_CUR = I18N_EN;
         return;
     }
 
-    try {
-        const mod = await import(`./i18n/${lang}.js`);
-        I18N_CUR = mod.default || mod;
-    } catch (e) {
-        console.warn(`Missing i18n for '${lang}', falling back to English`, e);
+    const cur = await loadLangSet(lang);
+    // If the language set is empty (e.g. load failed completely), fallback to EN
+    if (Object.keys(cur).length === 0) {
         I18N_CUR = I18N_EN;
+    } else {
+        I18N_CUR = cur;
     }
 }
 
@@ -388,6 +404,10 @@ function initStaticText() {
     $("#lblEndDuration").textContent = t("matchEndDuration");
     $("#btnEndLobby").textContent = t("backToLobby");
     $("#btnEndLb").textContent = t("openLeaderboard");
+
+    $("#landingTitle").textContent = t("landingTitle");
+    $("#landingDesc").textContent = t("landingDesc");
+    $("#btnLandingDismiss").textContent = t("landingButton");
 }
 
 /** ---- Lobby tabs ---- */
@@ -503,6 +523,30 @@ async function giveUp() {
 }
 
 /** ---- Models / leaderboard ---- */
+function resolveModelDescription(model) {
+    if (!model) return "";
+    // Try i18n key first
+    if (model.descriptionI18nKey) {
+        const localized = t(model.descriptionI18nKey);
+        // t() returns the key itself if not found, so check if it's different
+        if (localized && localized !== model.descriptionI18nKey) {
+            return localized;
+        }
+    }
+    // Fallback to static description
+    return model.description || "";
+}
+
+function updateOpponentHint() {
+    const models = state.models[state.mode] || [];
+    const sel = state.mode === "LIGHTWEIGHT" ? $("#opponentLight") : $("#opponentPremium");
+    const hint = state.mode === "LIGHTWEIGHT" ? $("#hintOpponentLight") : $("#hintOpponentPremium");
+
+    const selectedId = sel?.value;
+    const model = models.find((m) => m.id === selectedId);
+    hint.textContent = resolveModelDescription(model);
+}
+
 function populateOpponentSelects() {
     const models = state.models[state.mode] || [];
     const sel = state.mode === "LIGHTWEIGHT" ? $("#opponentLight") : $("#opponentPremium");
@@ -525,7 +569,7 @@ function populateOpponentSelects() {
         opt.dataset.displayName = opt.textContent;
         sel.appendChild(opt);
     }
-    hint.textContent = "";
+    updateOpponentHint();
 }
 
 async function loadModels() {
@@ -1402,6 +1446,12 @@ function bindUi() {
         btn.addEventListener("click", () => setLobbyTab(btn.dataset.tab));
     });
 
+    $("#btnLandingDismiss").addEventListener("click", () => {
+        $("#landingOverlay").classList.add("hidden");
+        $("#landingOverlay").setAttribute("aria-hidden", "true");
+        localStorage.setItem(STORAGE_KEY_LANDING, "true");
+    });
+
     $("#btnStartLight").addEventListener("click", () => startMatch("LIGHTWEIGHT"));
     $("#btnStartPremium").addEventListener("click", () => startMatch("PREMIUM"));
 
@@ -1457,12 +1507,12 @@ function bindUi() {
     });
 
     $("#opponentLight").addEventListener("change", () => {
-        const opt = $("#opponentLight").selectedOptions?.[0];
-        $("#hintOpponentLight").textContent = opt ? opt.textContent : "";
+        state.mode = "LIGHTWEIGHT";
+        updateOpponentHint();
     });
     $("#opponentPremium").addEventListener("change", () => {
-        const opt = $("#opponentPremium").selectedOptions?.[0];
-        $("#hintOpponentPremium").textContent = opt ? opt.textContent : "";
+        state.mode = "PREMIUM";
+        updateOpponentHint();
     });
 
     $("#freeText").addEventListener("keydown", (e) => {
@@ -1620,6 +1670,18 @@ async function loadLicenseHtml() {
     }
 }
 
+function checkLandingPopup() {
+    const ack = localStorage.getItem(STORAGE_KEY_LANDING);
+    if (!ack) {
+        const overlay = $("#landingOverlay");
+        if (overlay) {
+            overlay.classList.remove("hidden");
+            overlay.setAttribute("aria-hidden", "false");
+            setTimeout(() => $("#btnLandingDismiss")?.focus(), 100);
+        }
+    }
+}
+
 async function main() {
     await loadI18n(LANG);
     initStaticText();
@@ -1640,6 +1702,7 @@ async function main() {
 
     setLobbyTab("LIGHTWEIGHT");
     await loadLicenseHtml()
+    checkLandingPopup();
 
     try {
         await ensurePlayerSession();

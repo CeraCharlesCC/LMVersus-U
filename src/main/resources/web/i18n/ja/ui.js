@@ -94,4 +94,8 @@ export default {
     recovering: "再接続中…",
     recovered: "セッションを復活しました",
     giveUpFailed: "降参できませんでした。",
+
+    landingTitle: "LM Versus Uへようこそ！",
+    landingDesc: "最先端のLLMとリアルタイムでクイズ対決！AIよりも早く正確に答えて、あなたの知識とスピードを証明しましょう。",
+    landingButton: "やってみる",
 };

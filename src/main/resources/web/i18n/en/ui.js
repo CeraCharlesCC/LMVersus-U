@@ -94,4 +94,8 @@ export default {
     recovering: "Reconnecting…",
     recovered: "Session restored",
     giveUpFailed: "Could not forfeit match.",
+
+    landingTitle: "Welcome to LM Versus U!",
+    landingDesc: "Race against top LLMs in a real-time trivia battle. Beat the AI's speed and accuracy to claim victory!",
+    landingButton: "Ready!",
 };

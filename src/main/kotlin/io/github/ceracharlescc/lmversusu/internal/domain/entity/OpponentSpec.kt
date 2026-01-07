@@ -18,6 +18,8 @@ internal sealed interface OpponentSpec {
     val displayName: String
     val llmProfile: LlmProfile
     val streaming: StreamingPolicy
+    val description: String?
+    val descriptionI18nKey: String?
 
     @Serializable
     data class Lightweight(
@@ -29,6 +31,8 @@ internal sealed interface OpponentSpec {
         val questionSetPath: String,
         val questionSetDisplayName: String,
         val datasetPath: String,
+        override val description: String? = null,
+        override val descriptionI18nKey: String? = null,
     ) : OpponentSpec
 
     @Serializable
@@ -41,6 +45,8 @@ internal sealed interface OpponentSpec {
         val questionSetPath: String,
         val questionSetDisplayName: String,
         val provider: ProviderConfig,
+        override val description: String? = null,
+        override val descriptionI18nKey: String? = null,
     ) : OpponentSpec
 }
 
