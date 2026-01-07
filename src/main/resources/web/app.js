@@ -16,218 +16,42 @@ function detectLang() {
     if (raw.startsWith("ja")) return "ja";
     return "en";
 }
-
 const LANG = detectLang();
 
-const I18N = {
-    en: {
-        exit: "Exit",
-        lightweight: "LIGHTWEIGHT",
-        premium: "PREMIUM",
-        leaderboard: "Leaderboard",
-        descLight:
-            "Lightweight is a match against a pre-prepared replay. After the question appears, the LLM has a small handicap delay before it starts answering. ",
-        descPremium:
-            "Premium is a real-time match against an LLM via API.",
-        nickname: "Nickname",
-        opponent: "Opponent",
-        startMatch: "Start match",
-        health: "Heartbeat",
-        lbTitle: "Top players",
-        lbNote: "In-memory leaderboard (resets on server restart).",
-        refresh: "Refresh",
-        thRank: "#",
-        thName: "Name",
-        thScore: "Best score",
-        thSet: "Question set",
-        thOpponent: "Opponent",
-        thMode: "Mode",
-        startRound: "Start round",
-        preRoundHint: "You can start the next round when ready.",
-        question: "Question",
-        reasoning: "LLM",
-        answer: "Your answer",
-        bottomPanel: "Controls",
-        submit: "Submit",
-        next: "Next",
-        deadline: "Deadline",
-        handicap: "Handicap",
-        peek: "Peek 👀",
-        omitted: "Earlier reasoning omitted",
-        oppAnswer: "Opponent answer",
-        confidence: "confidence",
-        selectionHint: "Make your selection by clicking/tapping a choice, then press the confirmation button below to finalize.",
-        statusIdle: "IDLE",
-        statusThinking: "THINKING",
-        statusAnswering: "ANSWERING",
-        statusLockin: "LOCKIN!",
-        answerTypeText: "Text",
-        answerTypeInt: "Integer",
-        toastNetOk: "Connected",
-        toastNetBad: "Disconnected",
-        toastSession: "Session",
-        toastError: "Error",
-        timeUp: "Time is up. Submission closed.",
-        submitted: "Submitted!",
+let I18N_EN = null;
+let I18N_CUR = null;
 
-        // round resolution (game-like, not enum-y)
-        resolveTimeUpYou: "Time’s up — you didn’t answer in time.",
-        resolveTimeUpOpp: "Time’s up — your opponent missed the timer.",
-        resolveTimeUpBoth: "Time’s up — no one answered.",
+function formatTemplate(str, vars) {
+    if (!vars) return String(str ?? "");
+    return String(str ?? "").replace(/\{(\w+)\}/g, (_, k) =>
+        Object.prototype.hasOwnProperty.call(vars, k) ? String(vars[k]) : `{${k}}`
+    );
+}
 
-        // result lines
-        roundScore: "Round score",
-        correctAnswerLabel: "Correct",
-        yourAnswerLabel: "You",
-        oppAnswerLabel: "Opponent",
-        oppPending: "…revealing…",
-        noAnswer: "—",
+function t(key, vars) {
+    const raw =
+        (I18N_CUR && I18N_CUR[key]) ??
+        (I18N_EN && I18N_EN[key]) ??
+        key;
+    return formatTemplate(raw, vars);
+}
 
-        // session end reasons
-        sessionEndIdle: "Session ended (idle).",
-        sessionEndMax: "Session ended (time limit).",
-        sessionEndCompleted: "Match complete.",
-        sessionEndGeneric: "Session ended.",
-        winnerHuman: "You win!",
-        winnerLLM: "You lose.",
-        winnerTie: "Tie.",
-        winnerNone: "No winner.",
-        yourId: "You",
+async function loadI18n(lang) {
+    const enMod = await import("./i18n/en.js");
+    I18N_EN = enMod.default || enMod;
 
-        // match end popup
-        matchEndWin: "Victory!",
-        matchEndLose: "Defeat",
-        matchEndTie: "Draw",
-        matchEndNone: "Match ended",
-        matchEndSubCompleted: "All rounds are in. Final results!",
-        matchEndSubTimeout: "The match timed out.",
-        matchEndSubMax: "Time limit reached.",
-        matchEndSubCancelled: "Match cancelled.",
-        matchEndRounds: "Rounds",
-        matchEndDuration: "Duration",
-        backToLobby: "Back to lobby",
-        openLeaderboard: "Leaderboard",
-
-        // validation / rate limit
-        nicknameTooLong: `Nickname must be at most ${MAX_NICKNAME_LEN} characters.`,
-        nicknameInvalidChars: "Nickname contains invalid characters.",
-        rateLimitedTitle: "Rate limit",
-        rateLimitedMsg: "Too many requests. Try again in {s}s.",
-        rateLimitedMsgNoTime: "Too many requests. Please try again shortly.",
-
-        // give up / recover
-        giveUp: "Give Up",
-        giveUpConfirm: "Are you sure you want to forfeit this match?",
-        recovering: "Reconnecting…",
-        recovered: "Session restored",
-        giveUpFailed: "Could not forfeit match.",
-    },
-    ja: {
-        exit: "戻る",
-        lightweight: "LIGHTWEIGHT",
-        premium: "PREMIUM",
-        leaderboard: "Leaderboard",
-        descLight:
-            "Lightweightは事前に準備されたリプレイファイルとの対戦です。\n 問題が表示されてからLLMが回答するまでには少しハンディキャップ時間があります。",
-        descPremium:
-            "PremiumはAPI経由で実際にLLMとリアルタイムで対戦します。 \n 問題が表示されてからLLMが回答するまでには少しハンディキャップ時間があります。",
-        nickname: "ニックネーム",
-        opponent: "対戦相手",
-        startMatch: "対戦開始",
-        health: "Heartbeat",
-        lbTitle: "Top players",
-        lbNote: "インメモリのためサーバ再起動でリセットされます。",
-        refresh: "更新",
-        thRank: "#",
-        thName: "Name",
-        thScore: "Best score",
-        thSet: "問題セット",
-        thOpponent: "Opponent",
-        thMode: "Mode",
-        startRound: "次のラウンドを開始",
-        preRoundHint: "準備ができたら開始ボタンを押してください!",
-        question: "問題",
-        reasoning: "LLM",
-        answer: "あなたの回答",
-        bottomPanel: "操作パネル",
-        submit: "確定",
-        next: "次へ",
-        deadline: "締切",
-        handicap: "ハンディキャップ",
-        peek: "覗き見しちゃう 👀",
-        omitted: "序盤のReasoningが省略されています",
-        oppAnswer: "相手の回答",
-        confidence: "自信度",
-        selectionHint: "選択肢をクリック/タップして選び、下の確定ボタンを押して決定してください。",
-        statusIdle: "IDLE",
-        statusThinking: "THINKING",
-        statusAnswering: "ANSWERING",
-        statusLockin: "LOCKIN!",
-        answerTypeText: "テキスト",
-        answerTypeInt: "整数",
-        toastNetOk: "接続中",
-        toastNetBad: "切断",
-        toastSession: "セッション",
-        toastError: "エラー",
-        timeUp: "締切を過ぎました。送信できません。",
-        submitted: "選択を確定しました！",
-
-        // round resolution (game-like, not enum-y)
-        resolveTimeUpYou: "時間切れ…あなたの回答が間に合いませんでした。",
-        resolveTimeUpOpp: "相手の回答は間に合いませんでした。",
-        resolveTimeUpBoth: "時間切れ…誰も回答できませんでした。",
-
-        // result lines
-        roundScore: "このラウンドのスコア",
-        correctAnswerLabel: "正解",
-        yourAnswerLabel: "あなた",
-        oppAnswerLabel: "相手",
-        oppPending: "…表示中…",
-        noAnswer: "—",
-
-        // session end reasons
-        sessionEndIdle: "セッション終了（放置）。",
-        sessionEndMax: "セッション終了（時間上限）。",
-        sessionEndCompleted: "対戦終了！",
-        sessionEndGeneric: "セッション終了。",
-        winnerHuman: "あなたの勝ち！",
-        winnerLLM: "負け。",
-        winnerTie: "引き分け。",
-        winnerNone: "勝者なし。",
-        yourId: "あなた",
-
-        // match end popup
-        matchEndWin: "勝利！",
-        matchEndLose: "敗北",
-        matchEndTie: "引き分け",
-        matchEndNone: "対戦終了",
-        matchEndSubCompleted: "全ラウンド終了！最終結果です。",
-        matchEndSubTimeout: "時間切れで終了しました。",
-        matchEndSubMax: "時間上限に達しました。",
-        matchEndSubCancelled: "対戦をキャンセルしました。",
-        matchEndRounds: "ラウンド",
-        matchEndDuration: "所要時間",
-        backToLobby: "ロビーへ戻る",
-        openLeaderboard: "ランキング",
-
-        // validation / rate limit
-        nicknameTooLong: `ニックネームは${MAX_NICKNAME_LEN}文字以内にしてください。`,
-        nicknameInvalidChars: "ニックネームに使用できない文字が含まれています。",
-        rateLimitedTitle: "レート制限",
-        rateLimitedMsg: "リクエストが多すぎます。{s}秒後に試してください。",
-        rateLimitedMsgNoTime: "リクエストが多すぎます。少し待ってから試してください。",
-
-        // give up / recover
-        giveUp: "降参",
-        giveUpConfirm: "本当にこの対戦を放棄しますか？",
-        recovering: "再接続中…",
-        recovered: "セッションを復活しました",
-        giveUpFailed: "降参できませんでした。",
+    if (lang === "en") {
+        I18N_CUR = I18N_EN;
+        return;
     }
-};
 
-function t(key) {
-    return (I18N[LANG] && I18N[LANG][key]) || I18N.en[key] || key;
+    try {
+        const mod = await import(`./i18n/${lang}.js`);
+        I18N_CUR = mod.default || mod;
+    } catch (e) {
+        console.warn(`Missing i18n for '${lang}', falling back to English`, e);
+        I18N_CUR = I18N_EN;
+    }
 }
 
 function fmtMs(ms) {
@@ -293,9 +117,11 @@ class RateLimitError extends Error {
         const secs = Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0
             ? Math.ceil(retryAfterSeconds)
             : null;
+
         const msg = secs
-            ? t("rateLimitedMsg").replace("{s}", String(secs))
+            ? t("rateLimitedMsg", { s: secs })
             : t("rateLimitedMsgNoTime");
+
         super(msg);
         this.name = "RateLimitError";
         this.retryAfterSeconds = secs;
@@ -1455,7 +1281,7 @@ function startMatch(mode) {
         return;
     }
     if (nickname.length > MAX_NICKNAME_LEN) {
-        toast(t("toastError"), t("nicknameTooLong"), "error");
+        toast(t("toastError"), t("nicknameTooLong", { n: MAX_NICKNAME_LEN }), "error");
         return;
     }
     for (const ch of nickname) {
@@ -1785,6 +1611,7 @@ async function loadLicenseHtml() {
 }
 
 async function main() {
+    await loadI18n(LANG);
     initStaticText();
 
     // Load saved nickname
