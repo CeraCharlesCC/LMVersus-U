@@ -40,19 +40,18 @@ function t(key, vars) {
 
 async function loadI18n(lang) {
     async function loadLangSet(code) {
-        try {
-            const [ui, models] = await Promise.all([
-                import(`./i18n/${code}/ui.js`).catch(() => ({ default: {} })),
-                import(`./i18n/${code}/models.js`).catch(() => ({ default: {} })),
-            ]);
-            return {
-                ...(ui.default || ui),
-                ...(models.default || models),
-            };
-        } catch (e) {
-            console.warn(`Failed to load i18n for '${code}'`, e);
-            return {};
-        }
+        const [uiRes, modelsRes] = await Promise.allSettled([
+            import(`./i18n/${code}/ui.js`),
+            import(`./i18n/${code}/models.js`),
+        ]);
+
+        const ui = uiRes.status === "fulfilled" ? uiRes.value : (console.warn(`Missing ui i18n '${code}'`, uiRes.reason), { default: {} });
+        const models = modelsRes.status === "fulfilled" ? modelsRes.value : (console.warn(`Missing models i18n '${code}'`, modelsRes.reason), { default: {} });
+
+        return {
+            ...(ui.default ?? ui),
+            ...(models.default ?? models),
+        };
     }
 
     I18N_EN = await loadLangSet("en");
@@ -1356,7 +1355,7 @@ function startMatch(mode) {
     state.opponentSpecId = opponentSpecId;
     state.opponentDisplayName = displayName;
 
-    localStorage.setItem(STORAGE_KEY_NICKNAME, nickname);
+    safeLsSet(STORAGE_KEY_NICKNAME, nickname);
 
     updateMatchupUi();
 
@@ -1671,7 +1670,8 @@ async function loadLicenseHtml() {
 }
 
 function checkLandingPopup() {
-    const ack = localStorage.getItem(STORAGE_KEY_LANDING);
+    safeLsSet(STORAGE_KEY_LANDING, "true");
+    const ack = safeLsGet(STORAGE_KEY_LANDING);
     if (!ack) {
         const overlay = $("#landingOverlay");
         if (overlay) {
@@ -1680,6 +1680,13 @@ function checkLandingPopup() {
             setTimeout(() => $("#btnLandingDismiss")?.focus(), 100);
         }
     }
+}
+
+function safeLsGet(key) {
+    try { return localStorage.getItem(key); } catch { return null; }
+}
+function safeLsSet(key, val) {
+    try { localStorage.setItem(key, val); return true; } catch { return false; }
 }
 
 async function main() {
