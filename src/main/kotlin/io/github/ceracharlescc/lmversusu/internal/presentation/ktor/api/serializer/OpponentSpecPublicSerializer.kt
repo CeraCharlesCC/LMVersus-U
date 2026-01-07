@@ -18,7 +18,6 @@ internal object OpponentSpecPublicSerializer : KSerializer<OpponentSpec> {
             element<String>("id")
             element<String>("mode")
             element<String>("displayName")
-            element("llmProfile", LlmProfile.serializer().descriptor)
         }
 
     override fun serialize(encoder: Encoder, value: OpponentSpec) {
@@ -26,7 +25,6 @@ internal object OpponentSpecPublicSerializer : KSerializer<OpponentSpec> {
             encodeStringElement(descriptor, 0, value.id)
             encodeStringElement(descriptor, 1, value.mode.name)
             encodeStringElement(descriptor, 2, value.displayName)
-            encodeSerializableElement(descriptor, 3, LlmProfile.serializer(), value.llmProfile)
         }
     }
 

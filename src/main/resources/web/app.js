@@ -444,7 +444,7 @@ async function tryRecoverActiveSession() {
         // Try to recover display name from opponent specs
         const models = [...(state.models.LIGHTWEIGHT || []), ...(state.models.PREMIUM || [])];
         const matchingModel = models.find(m => m.id === data.opponentSpecId);
-        const displayName = matchingModel?.displayName || matchingModel?.llmProfile?.displayName || data.opponentSpecId;
+        const displayName = matchingModel?.displayName || data.opponentSpecId;
 
         // We have an active session, attempt to rejoin via WebSocket
         toast(t("toastSession"), t("recovering"));
@@ -516,7 +516,7 @@ function populateOpponentSelects() {
     for (const m of models) {
         const opt = document.createElement("option");
         opt.value = m.id;
-        opt.textContent = m.displayName || m.llmProfile?.displayName || m.id;
+        opt.textContent = m.displayName || m.id;
         opt.dataset.displayName = opt.textContent;
         sel.appendChild(opt);
     }
