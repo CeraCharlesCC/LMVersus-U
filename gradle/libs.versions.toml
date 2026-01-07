@@ -1,8 +1,7 @@
 [versions]
 kotlin = "2.2.21"
 ktor = "3.3.3"
-logback = "1.4.14"
-flaxoosRateLimiting = "2.2.1"
+log4j2 = "2.25.3"
 ksp = "2.2.21-2.0.4"
 dagger = "2.57"
 
@@ -52,6 +51,8 @@ ktor-server-websockets = { module = "io.ktor:ktor-server-websockets" }
 ktor-server-content-negotiation = { module = "io.ktor:ktor-server-content-negotiation" }
 ktor-serialization-kotlinx-json = { module = "io.ktor:ktor-serialization-kotlinx-json" }
 ktor-serialization-gson = { module = "io.ktor:ktor-serialization-gson" }
+
+ktor-server-rate-limit = { module = "io.ktor:ktor-server-rate-limit" }
 ktor-server-host-common = { module = "io.ktor:ktor-server-host-common" }
 ktor-server-status-pages = { module = "io.ktor:ktor-server-status-pages" }
 ktor-server-call-logging = { module = "io.ktor:ktor-server-call-logging" }
@@ -61,14 +62,16 @@ ktor-server-cors = { module = "io.ktor:ktor-server-cors" }
 ktor-server-netty = { module = "io.ktor:ktor-server-netty" }
 ktor-server-config-yaml = { module = "io.ktor:ktor-server-config-yaml" }
 ktor-server-test-host = { module = "io.ktor:ktor-server-test-host" }
+
 ktor-client-content-negotiation = { module = "io.ktor:ktor-client-content-negotiation" }
 ktor-client-websockets = { module = "io.ktor:ktor-client-websockets" }
+
 mockk = { group = "io.mockk", name = "mockk", version.ref = "mockk" }
 turbine = { group = "app.cash.turbine", name = "turbine", version.ref = "turbine" }
 
-logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
-
-flaxoos-ktor-server-rate-limiting = { module = "io.github.flaxoos:ktor-server-rate-limiting", version.ref = "flaxoosRateLimiting" }
+log4j-bom = { module = "org.apache.logging.log4j:log4j-bom", version.ref = "log4j2" }
+log4j-core = { module = "org.apache.logging.log4j:log4j-core" }
+log4j-slf4j2-impl = { module = "org.apache.logging.log4j:log4j-slf4j2-impl" }
 
 kotlin-test-junit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.ref = "kotlin" }
 kotlin-test-junit5 = { module = "org.jetbrains.kotlin:kotlin-test-junit5", version.ref = "kotlin" }

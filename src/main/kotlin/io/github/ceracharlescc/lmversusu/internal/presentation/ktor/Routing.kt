@@ -75,6 +75,15 @@ internal fun Application.configureRouting(logger: Logger) {
             )
         }
 
+        // 429: rate limit exceeded
+        status(HttpStatusCode.TooManyRequests) { call, status ->
+            val retryAfterSeconds = call.response.headers["Retry-After"]
+            call.respondText(
+                text = "Rate limit exceeded. Retry after ${retryAfterSeconds ?: "?"} seconds.",
+                status = status
+            )
+        }
+
         // 400: explicit bad request
         exception<BadRequestException> { call, cause ->
             logger.debug(
