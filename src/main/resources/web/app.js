@@ -70,11 +70,15 @@ function toast(title, body, kind = "info", ttlMs = 3200) {
     const el = document.createElement("div");
     el.className = `toast ${kind}`;
     el.innerHTML = `
+    <button class="t-close" type="button" aria-label="Close">✕</button>
     <div class="t-title">${escapeHtml(title)}</div>
     <div class="t-body">${escapeHtml(body)}</div>
   `;
+    el.querySelector(".t-close").addEventListener("click", () => el.remove());
     host.appendChild(el);
-    setTimeout(() => el.remove(), ttlMs);
+    setTimeout(() => {
+        if (el.isConnected) el.remove();
+    }, ttlMs);
 }
 
 function escapeHtml(s) {
@@ -96,10 +100,10 @@ function renderMarkdownMath(text, targetEl) {
     try {
         window.renderMathInElement(targetEl, {
             delimiters: [
-                {left: "$$", right: "$$", display: true},
-                {left: "\\[", right: "\\]", display: true},
-                {left: "$", right: "$", display: false},
-                {left: "\\(", right: "\\)", display: false},
+                { left: "$$", right: "$$", display: true },
+                { left: "\\[", right: "\\]", display: true },
+                { left: "$", right: "$", display: false },
+                { left: "\\(", right: "\\)", display: false },
             ],
             throwOnError: false,
         });
@@ -120,7 +124,7 @@ class RateLimitError extends Error {
             : null;
 
         const msg = secs
-            ? t("rateLimitedMsg", {s: secs})
+            ? t("rateLimitedMsg", { s: secs })
             : t("rateLimitedMsgNoTime");
 
         super(msg);
@@ -162,7 +166,7 @@ function retryAfterSecondsFromHeaders(res) {
 }
 
 async function httpGetJson(path) {
-    const res = await fetch(path, {credentials: "include"});
+    const res = await fetch(path, { credentials: "include" });
     if (!res.ok) {
         if (res.status === 429) {
             throw new RateLimitError(retryAfterSecondsFromHeaders(res));
@@ -188,7 +192,7 @@ function renderResultDetails(note, detailLines) {
     const details = Array.isArray(detailLines) ? detailLines.map((x) => String(x || "")) : [];
 
     // cache so we can re-render on resize/orientation change
-    state.ui.lastResultDetails = {note: safeNote, details};
+    state.ui.lastResultDetails = { note: safeNote, details };
 
     if (isMobileLayout()) {
         const parts = [];
@@ -216,7 +220,7 @@ const state = {
     issuedAt: null,
 
     mode: "LIGHTWEIGHT",
-    models: {LIGHTWEIGHT: [], PREMIUM: []},
+    models: { LIGHTWEIGHT: [], PREMIUM: [] },
 
     ws: null,
     wsOpen: false,
@@ -226,7 +230,7 @@ const state = {
     opponentSpecId: null,
     opponentDisplayName: null,
 
-    players: {human: null, llm: null},
+    players: { human: null, llm: null },
 
     // round
     inRound: false,
@@ -428,7 +432,7 @@ function setGiveUpVisible(visible) {
 /** ---- Session Recovery (F5) ---- */
 async function tryRecoverActiveSession() {
     try {
-        const res = await fetch("/api/v1/player/active-session", {credentials: "include"});
+        const res = await fetch("/api/v1/player/active-session", { credentials: "include" });
         if (res.status === 204) {
             // No active session, stay on lobby
             return false;
@@ -609,19 +613,19 @@ function matchEndTitleAndBadge(winner, reason) {
     const r = String(reason || "");
 
     if (r !== "completed") {
-        return {title: t("matchEndNone"), badge: "🏁", klass: "none"};
+        return { title: t("matchEndNone"), badge: "🏁", klass: "none" };
     }
-    if (w === "HUMAN") return {title: t("matchEndWin"), badge: "🏆", klass: "win"};
-    if (w === "LLM") return {title: t("matchEndLose"), badge: "😵", klass: "lose"};
-    if (w === "TIE") return {title: t("matchEndTie"), badge: "🤝", klass: "tie"};
-    return {title: t("matchEndNone"), badge: "🏁", klass: "none"};
+    if (w === "HUMAN") return { title: t("matchEndWin"), badge: "🏆", klass: "win" };
+    if (w === "LLM") return { title: t("matchEndLose"), badge: "😵", klass: "lose" };
+    if (w === "TIE") return { title: t("matchEndTie"), badge: "🤝", klass: "tie" };
+    return { title: t("matchEndNone"), badge: "🏁", klass: "none" };
 }
 
 function showMatchEndModal(payload) {
     const overlay = $("#matchEndOverlay");
     const modal = overlay.querySelector(".end-modal");
 
-    const {title, badge, klass} = matchEndTitleAndBadge(payload.winner, payload.reason);
+    const { title, badge, klass } = matchEndTitleAndBadge(payload.winner, payload.reason);
 
     modal.classList.remove("win", "lose", "tie", "none");
     modal.classList.add(klass);
@@ -654,7 +658,7 @@ function hideMatchEndModal() {
     state.ui.matchEndVisible = false;
 }
 
-function openWsAndJoin({sessionId = null, opponentSpecId, nickname, locale}) {
+function openWsAndJoin({ sessionId = null, opponentSpecId, nickname, locale }) {
     closeWs();
 
     const ws = new WebSocket(wsUrl());
@@ -1052,9 +1056,9 @@ function handleServerEvent(msg) {
 
     if (type === "player_joined") {
         if (msg.playerId === state.playerId) {
-            state.players.human = {playerId: msg.playerId, nickname: msg.nickname};
+            state.players.human = { playerId: msg.playerId, nickname: msg.nickname };
         } else {
-            state.players.llm = {playerId: msg.playerId, nickname: msg.nickname};
+            state.players.llm = { playerId: msg.playerId, nickname: msg.nickname };
         }
         updateMatchupUi();
         return;
@@ -1287,7 +1291,7 @@ function startMatch(mode) {
         return;
     }
     if (nickname.length > MAX_NICKNAME_LEN) {
-        toast(t("toastError"), t("nicknameTooLong", {n: MAX_NICKNAME_LEN}), "error");
+        toast(t("toastError"), t("nicknameTooLong", { n: MAX_NICKNAME_LEN }), "error");
         return;
     }
     for (const ch of nickname) {
@@ -1350,7 +1354,7 @@ function submitAnswer() {
             toast(t("toastError"), "choose one option");
             return;
         }
-        answer = {type: "multiple_choice", choiceIndex: state.selectedChoiceIndex};
+        answer = { type: "multiple_choice", choiceIndex: state.selectedChoiceIndex };
     } else {
         if (state.freeAnswerMode === "int") {
             const raw = $("#intValue").value.trim();
@@ -1358,14 +1362,14 @@ function submitAnswer() {
                 toast(t("toastError"), "enter an integer");
                 return;
             }
-            answer = {type: "integer", value: parseInt(raw, 10)};
+            answer = { type: "integer", value: parseInt(raw, 10) };
         } else {
             const text = $("#freeText").value.trim();
             if (!text) {
                 toast(t("toastError"), "enter text");
                 return;
             }
-            answer = {type: "free_text", text};
+            answer = { type: "free_text", text };
         }
     }
 
@@ -1488,7 +1492,7 @@ function bindUi() {
         llmScroll.addEventListener("scroll", () => {
             if (state.ui.programmaticScroll) return;
             state.ui.reasoningPinnedToTop = llmScroll.scrollTop <= 2;
-        }, {passive: true});
+        }, { passive: true });
     }
 
     // Re-render result details when crossing the responsive breakpoint (e.g., rotation)
@@ -1497,10 +1501,10 @@ function bindUi() {
         if (!state.ui.lastResultDetails) return;
         if (resizeRaf) cancelAnimationFrame(resizeRaf);
         resizeRaf = requestAnimationFrame(() => {
-            const {note, details} = state.ui.lastResultDetails || {};
+            const { note, details } = state.ui.lastResultDetails || {};
             renderResultDetails(note, details);
         });
-    }, {passive: true});
+    }, { passive: true });
 }
 
 /** ---- LICENSE modal ---- */
@@ -1597,8 +1601,8 @@ async function loadLicenseHtml() {
 
     try {
         const [resDs, resFe] = await Promise.all([
-            fetch('./license-dataset.html', {cache: 'no-cache'}),
-            fetch('./license-frontend.html', {cache: 'no-cache'})
+            fetch('./license-dataset.html', { cache: 'no-cache' }),
+            fetch('./license-frontend.html', { cache: 'no-cache' })
         ]);
 
         const parts = [];
