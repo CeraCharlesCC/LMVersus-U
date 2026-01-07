@@ -1,3 +1,26 @@
+## [v0.6.0] - 2026-01-07
+### Added
+- Add model descriptions and i18n support for UI and model metadata (#16)
+- Add landing popup for first-time visitors with localized text (#16)
+- Add close button to toast notifications for manual dismissal (#16)
+- Add AGPL-3.0 license and third-party license handling (#15)
+
+### Changed
+- Refactor i18n to use external language files (en/ja) for better maintainability (#16)
+- Switch logging from Logback to Log4j2 and update rate limiting to Ktor's built-in plugin (#15)
+- Remove llmProfile from OpponentSpec serialization to simplify data model (#16)
+- Improve 429 error handling in routing (#15)
+
+### Fixed
+- Fix casing of descriptionI18nKey in model configs (#16)
+
+### Documentation
+- Add license-dataset.html page (#15)
+
+### Internal
+- Refactor imports and formatting across Kotlin, JS, and HTML files (#15)
+- Consolidate and clean up test imports and formatting (#15)
+
 ## [v0.5.0] - 2026-01-06
 ### Changed
 - Refactor player active session handling into ApiController and remove PlayerActiveSessionController (#14)
