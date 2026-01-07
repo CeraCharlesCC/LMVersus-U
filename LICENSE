@@ -1,0 +1,19 @@
+LMVersus-U
+Copyright (c) 2026 ceracharlescc
+
+This project is licensed under the GNU Affero General Public License, Version 3
+(AGPL-3.0). See the file:
+
+  AGPL-3.0.txt
+
+SPDX-License-Identifier: AGPL-3.0-only
+
+Third-Party Components:
+This repository and/or its distributions may include third-party components that
+are licensed under their own terms. Those components are not re-licensed under
+the AGPL by this file. Please retain and review all third-party notices and
+license texts included with the project, for example:
+
+  - META-INF/THIRD-PARTY-LICENSES
+  - META-INF/LICENSES/
+  - META-INF/
