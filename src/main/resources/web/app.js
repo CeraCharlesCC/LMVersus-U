@@ -10,6 +10,7 @@ const md = window.markdownit({
 
 const MAX_NICKNAME_LEN = 16;
 const STORAGE_KEY_NICKNAME = "lmvu_nickname";
+const STORAGE_KEY_LANDING = "lmvu_landing_acked";
 
 function detectLang() {
     const raw = (navigator.language || "en").toLowerCase();
@@ -38,20 +39,34 @@ function t(key, vars) {
 }
 
 async function loadI18n(lang) {
-    const enMod = await import("./i18n/en.js");
-    I18N_EN = enMod.default || enMod;
+    async function loadLangSet(code) {
+        const [uiRes, modelsRes] = await Promise.allSettled([
+            import(`./i18n/${code}/ui.js`),
+            import(`./i18n/${code}/models.js`),
+        ]);
+
+        const ui = uiRes.status === "fulfilled" ? uiRes.value : (console.warn(`Missing ui i18n '${code}'`, uiRes.reason), { default: {} });
+        const models = modelsRes.status === "fulfilled" ? modelsRes.value : (console.warn(`Missing models i18n '${code}'`, modelsRes.reason), { default: {} });
+
+        return {
+            ...(ui.default ?? ui),
+            ...(models.default ?? models),
+        };
+    }
+
+    I18N_EN = await loadLangSet("en");
 
     if (lang === "en") {
         I18N_CUR = I18N_EN;
         return;
     }
 
-    try {
-        const mod = await import(`./i18n/${lang}.js`);
-        I18N_CUR = mod.default || mod;
-    } catch (e) {
-        console.warn(`Missing i18n for '${lang}', falling back to English`, e);
+    const cur = await loadLangSet(lang);
+    // If the language set is empty (e.g. load failed completely), fallback to EN
+    if (Object.keys(cur).length === 0) {
         I18N_CUR = I18N_EN;
+    } else {
+        I18N_CUR = cur;
     }
 }
 
@@ -70,11 +85,15 @@ function toast(title, body, kind = "info", ttlMs = 3200) {
     const el = document.createElement("div");
     el.className = `toast ${kind}`;
     el.innerHTML = `
+    <button class="t-close" type="button" aria-label="Close">✕</button>
     <div class="t-title">${escapeHtml(title)}</div>
     <div class="t-body">${escapeHtml(body)}</div>
   `;
+    el.querySelector(".t-close").addEventListener("click", () => el.remove());
     host.appendChild(el);
-    setTimeout(() => el.remove(), ttlMs);
+    setTimeout(() => {
+        if (el.isConnected) el.remove();
+    }, ttlMs);
 }
 
 function escapeHtml(s) {
@@ -96,10 +115,10 @@ function renderMarkdownMath(text, targetEl) {
     try {
         window.renderMathInElement(targetEl, {
             delimiters: [
-                {left: "$$", right: "$$", display: true},
-                {left: "\\[", right: "\\]", display: true},
-                {left: "$", right: "$", display: false},
-                {left: "\\(", right: "\\)", display: false},
+                { left: "$$", right: "$$", display: true },
+                { left: "\\[", right: "\\]", display: true },
+                { left: "$", right: "$", display: false },
+                { left: "\\(", right: "\\)", display: false },
             ],
             throwOnError: false,
         });
@@ -120,7 +139,7 @@ class RateLimitError extends Error {
             : null;
 
         const msg = secs
-            ? t("rateLimitedMsg", {s: secs})
+            ? t("rateLimitedMsg", { s: secs })
             : t("rateLimitedMsgNoTime");
 
         super(msg);
@@ -162,7 +181,7 @@ function retryAfterSecondsFromHeaders(res) {
 }
 
 async function httpGetJson(path) {
-    const res = await fetch(path, {credentials: "include"});
+    const res = await fetch(path, { credentials: "include" });
     if (!res.ok) {
         if (res.status === 429) {
             throw new RateLimitError(retryAfterSecondsFromHeaders(res));
@@ -188,7 +207,7 @@ function renderResultDetails(note, detailLines) {
     const details = Array.isArray(detailLines) ? detailLines.map((x) => String(x || "")) : [];
 
     // cache so we can re-render on resize/orientation change
-    state.ui.lastResultDetails = {note: safeNote, details};
+    state.ui.lastResultDetails = { note: safeNote, details };
 
     if (isMobileLayout()) {
         const parts = [];
@@ -216,7 +235,7 @@ const state = {
     issuedAt: null,
 
     mode: "LIGHTWEIGHT",
-    models: {LIGHTWEIGHT: [], PREMIUM: []},
+    models: { LIGHTWEIGHT: [], PREMIUM: [] },
 
     ws: null,
     wsOpen: false,
@@ -226,7 +245,7 @@ const state = {
     opponentSpecId: null,
     opponentDisplayName: null,
 
-    players: {human: null, llm: null},
+    players: { human: null, llm: null },
 
     // round
     inRound: false,
@@ -384,6 +403,10 @@ function initStaticText() {
     $("#lblEndDuration").textContent = t("matchEndDuration");
     $("#btnEndLobby").textContent = t("backToLobby");
     $("#btnEndLb").textContent = t("openLeaderboard");
+
+    $("#landingTitle").textContent = t("landingTitle");
+    $("#landingDesc").textContent = t("landingDesc");
+    $("#btnLandingDismiss").textContent = t("landingButton");
 }
 
 /** ---- Lobby tabs ---- */
@@ -428,7 +451,7 @@ function setGiveUpVisible(visible) {
 /** ---- Session Recovery (F5) ---- */
 async function tryRecoverActiveSession() {
     try {
-        const res = await fetch("/api/v1/player/active-session", {credentials: "include"});
+        const res = await fetch("/api/v1/player/active-session", { credentials: "include" });
         if (res.status === 204) {
             // No active session, stay on lobby
             return false;
@@ -499,6 +522,30 @@ async function giveUp() {
 }
 
 /** ---- Models / leaderboard ---- */
+function resolveModelDescription(model) {
+    if (!model) return "";
+    // Try i18n key first
+    if (model.descriptionI18nKey) {
+        const localized = t(model.descriptionI18nKey);
+        // t() returns the key itself if not found, so check if it's different
+        if (localized && localized !== model.descriptionI18nKey) {
+            return localized;
+        }
+    }
+    // Fallback to static description
+    return model.description || "";
+}
+
+function updateOpponentHint() {
+    const models = state.models[state.mode] || [];
+    const sel = state.mode === "LIGHTWEIGHT" ? $("#opponentLight") : $("#opponentPremium");
+    const hint = state.mode === "LIGHTWEIGHT" ? $("#hintOpponentLight") : $("#hintOpponentPremium");
+
+    const selectedId = sel?.value;
+    const model = models.find((m) => m.id === selectedId);
+    hint.textContent = resolveModelDescription(model);
+}
+
 function populateOpponentSelects() {
     const models = state.models[state.mode] || [];
     const sel = state.mode === "LIGHTWEIGHT" ? $("#opponentLight") : $("#opponentPremium");
@@ -521,7 +568,7 @@ function populateOpponentSelects() {
         opt.dataset.displayName = opt.textContent;
         sel.appendChild(opt);
     }
-    hint.textContent = "";
+    updateOpponentHint();
 }
 
 async function loadModels() {
@@ -609,19 +656,19 @@ function matchEndTitleAndBadge(winner, reason) {
     const r = String(reason || "");
 
     if (r !== "completed") {
-        return {title: t("matchEndNone"), badge: "🏁", klass: "none"};
+        return { title: t("matchEndNone"), badge: "🏁", klass: "none" };
     }
-    if (w === "HUMAN") return {title: t("matchEndWin"), badge: "🏆", klass: "win"};
-    if (w === "LLM") return {title: t("matchEndLose"), badge: "😵", klass: "lose"};
-    if (w === "TIE") return {title: t("matchEndTie"), badge: "🤝", klass: "tie"};
-    return {title: t("matchEndNone"), badge: "🏁", klass: "none"};
+    if (w === "HUMAN") return { title: t("matchEndWin"), badge: "🏆", klass: "win" };
+    if (w === "LLM") return { title: t("matchEndLose"), badge: "😵", klass: "lose" };
+    if (w === "TIE") return { title: t("matchEndTie"), badge: "🤝", klass: "tie" };
+    return { title: t("matchEndNone"), badge: "🏁", klass: "none" };
 }
 
 function showMatchEndModal(payload) {
     const overlay = $("#matchEndOverlay");
     const modal = overlay.querySelector(".end-modal");
 
-    const {title, badge, klass} = matchEndTitleAndBadge(payload.winner, payload.reason);
+    const { title, badge, klass } = matchEndTitleAndBadge(payload.winner, payload.reason);
 
     modal.classList.remove("win", "lose", "tie", "none");
     modal.classList.add(klass);
@@ -654,7 +701,7 @@ function hideMatchEndModal() {
     state.ui.matchEndVisible = false;
 }
 
-function openWsAndJoin({sessionId = null, opponentSpecId, nickname, locale}) {
+function openWsAndJoin({ sessionId = null, opponentSpecId, nickname, locale }) {
     closeWs();
 
     const ws = new WebSocket(wsUrl());
@@ -1052,9 +1099,9 @@ function handleServerEvent(msg) {
 
     if (type === "player_joined") {
         if (msg.playerId === state.playerId) {
-            state.players.human = {playerId: msg.playerId, nickname: msg.nickname};
+            state.players.human = { playerId: msg.playerId, nickname: msg.nickname };
         } else {
-            state.players.llm = {playerId: msg.playerId, nickname: msg.nickname};
+            state.players.llm = { playerId: msg.playerId, nickname: msg.nickname };
         }
         updateMatchupUi();
         return;
@@ -1287,7 +1334,7 @@ function startMatch(mode) {
         return;
     }
     if (nickname.length > MAX_NICKNAME_LEN) {
-        toast(t("toastError"), t("nicknameTooLong", {n: MAX_NICKNAME_LEN}), "error");
+        toast(t("toastError"), t("nicknameTooLong", { n: MAX_NICKNAME_LEN }), "error");
         return;
     }
     for (const ch of nickname) {
@@ -1308,7 +1355,7 @@ function startMatch(mode) {
     state.opponentSpecId = opponentSpecId;
     state.opponentDisplayName = displayName;
 
-    localStorage.setItem(STORAGE_KEY_NICKNAME, nickname);
+    safeLsSet(STORAGE_KEY_NICKNAME, nickname);
 
     updateMatchupUi();
 
@@ -1350,7 +1397,7 @@ function submitAnswer() {
             toast(t("toastError"), "choose one option");
             return;
         }
-        answer = {type: "multiple_choice", choiceIndex: state.selectedChoiceIndex};
+        answer = { type: "multiple_choice", choiceIndex: state.selectedChoiceIndex };
     } else {
         if (state.freeAnswerMode === "int") {
             const raw = $("#intValue").value.trim();
@@ -1358,14 +1405,14 @@ function submitAnswer() {
                 toast(t("toastError"), "enter an integer");
                 return;
             }
-            answer = {type: "integer", value: parseInt(raw, 10)};
+            answer = { type: "integer", value: parseInt(raw, 10) };
         } else {
             const text = $("#freeText").value.trim();
             if (!text) {
                 toast(t("toastError"), "enter text");
                 return;
             }
-            answer = {type: "free_text", text};
+            answer = { type: "free_text", text };
         }
     }
 
@@ -1396,6 +1443,12 @@ function goNext() {
 function bindUi() {
     document.querySelectorAll(".tab-btn").forEach((btn) => {
         btn.addEventListener("click", () => setLobbyTab(btn.dataset.tab));
+    });
+
+    $("#btnLandingDismiss").addEventListener("click", () => {
+        $("#landingOverlay").classList.add("hidden");
+        $("#landingOverlay").setAttribute("aria-hidden", "true");
+        localStorage.setItem(STORAGE_KEY_LANDING, "true");
     });
 
     $("#btnStartLight").addEventListener("click", () => startMatch("LIGHTWEIGHT"));
@@ -1453,12 +1506,12 @@ function bindUi() {
     });
 
     $("#opponentLight").addEventListener("change", () => {
-        const opt = $("#opponentLight").selectedOptions?.[0];
-        $("#hintOpponentLight").textContent = opt ? opt.textContent : "";
+        state.mode = "LIGHTWEIGHT";
+        updateOpponentHint();
     });
     $("#opponentPremium").addEventListener("change", () => {
-        const opt = $("#opponentPremium").selectedOptions?.[0];
-        $("#hintOpponentPremium").textContent = opt ? opt.textContent : "";
+        state.mode = "PREMIUM";
+        updateOpponentHint();
     });
 
     $("#freeText").addEventListener("keydown", (e) => {
@@ -1488,7 +1541,7 @@ function bindUi() {
         llmScroll.addEventListener("scroll", () => {
             if (state.ui.programmaticScroll) return;
             state.ui.reasoningPinnedToTop = llmScroll.scrollTop <= 2;
-        }, {passive: true});
+        }, { passive: true });
     }
 
     // Re-render result details when crossing the responsive breakpoint (e.g., rotation)
@@ -1497,10 +1550,10 @@ function bindUi() {
         if (!state.ui.lastResultDetails) return;
         if (resizeRaf) cancelAnimationFrame(resizeRaf);
         resizeRaf = requestAnimationFrame(() => {
-            const {note, details} = state.ui.lastResultDetails || {};
+            const { note, details } = state.ui.lastResultDetails || {};
             renderResultDetails(note, details);
         });
-    }, {passive: true});
+    }, { passive: true });
 }
 
 /** ---- LICENSE modal ---- */
@@ -1597,8 +1650,8 @@ async function loadLicenseHtml() {
 
     try {
         const [resDs, resFe] = await Promise.all([
-            fetch('./license-dataset.html', {cache: 'no-cache'}),
-            fetch('./license-frontend.html', {cache: 'no-cache'})
+            fetch('./license-dataset.html', { cache: 'no-cache' }),
+            fetch('./license-frontend.html', { cache: 'no-cache' })
         ]);
 
         const parts = [];
@@ -1614,6 +1667,26 @@ async function loadLicenseHtml() {
         host.innerHTML = `<p class="muted small">Failed to load license.</p>`;
         console.error(e);
     }
+}
+
+function checkLandingPopup() {
+    safeLsSet(STORAGE_KEY_LANDING, "true");
+    const ack = safeLsGet(STORAGE_KEY_LANDING);
+    if (!ack) {
+        const overlay = $("#landingOverlay");
+        if (overlay) {
+            overlay.classList.remove("hidden");
+            overlay.setAttribute("aria-hidden", "false");
+            setTimeout(() => $("#btnLandingDismiss")?.focus(), 100);
+        }
+    }
+}
+
+function safeLsGet(key) {
+    try { return localStorage.getItem(key); } catch { return null; }
+}
+function safeLsSet(key, val) {
+    try { localStorage.setItem(key, val); return true; } catch { return false; }
 }
 
 async function main() {
@@ -1635,7 +1708,8 @@ async function main() {
     resetRoundUi();
 
     setLobbyTab("LIGHTWEIGHT");
-    await loadLicenseHtml()
+    await loadLicenseHtml();
+    checkLandingPopup();
 
     try {
         await ensurePlayerSession();
