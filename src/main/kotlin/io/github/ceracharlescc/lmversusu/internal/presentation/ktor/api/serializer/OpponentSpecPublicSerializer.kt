@@ -4,6 +4,7 @@ import io.github.ceracharlescc.lmversusu.internal.domain.entity.OpponentSpec
 import io.github.ceracharlescc.lmversusu.internal.domain.entity.OpponentSpecModeSerializer
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.LlmProfile
 import kotlinx.serialization.KSerializer
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.descriptors.buildClassSerialDescriptor
 import kotlinx.serialization.descriptors.element
@@ -29,6 +30,6 @@ internal object OpponentSpecPublicSerializer : KSerializer<OpponentSpec> {
     }
 
     override fun deserialize(decoder: Decoder): OpponentSpec {
-        return OpponentSpecModeSerializer.deserialize(decoder)
+        throw SerializationException("OpponentSpecPublicSerializer is output-only")
     }
 }
