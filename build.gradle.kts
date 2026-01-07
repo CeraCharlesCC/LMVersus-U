@@ -157,12 +157,10 @@ val collectRenamedMetaInf = tasks.register("collectRenamedMetaInf") {
 tasks.processResources {
     from(rootProject.file("LICENSE")) {
         into("META-INF/LICENSES")
-        rename { "LICENSE" }
     }
 
     from(rootProject.file("AGPL-3.0.txt")) {
         into("META-INF/LICENSES")
-        rename { "AGPL-3.0.txt" }
     }
 }
 
