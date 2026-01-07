@@ -16,6 +16,7 @@ function detectLang() {
     if (raw.startsWith("ja")) return "ja";
     return "en";
 }
+
 const LANG = detectLang();
 
 let I18N_EN = null;
@@ -95,10 +96,10 @@ function renderMarkdownMath(text, targetEl) {
     try {
         window.renderMathInElement(targetEl, {
             delimiters: [
-                { left: "$$", right: "$$", display: true },
-                { left: "\\[", right: "\\]", display: true },
-                { left: "$", right: "$", display: false },
-                { left: "\\(", right: "\\)", display: false },
+                {left: "$$", right: "$$", display: true},
+                {left: "\\[", right: "\\]", display: true},
+                {left: "$", right: "$", display: false},
+                {left: "\\(", right: "\\)", display: false},
             ],
             throwOnError: false,
         });
@@ -119,7 +120,7 @@ class RateLimitError extends Error {
             : null;
 
         const msg = secs
-            ? t("rateLimitedMsg", { s: secs })
+            ? t("rateLimitedMsg", {s: secs})
             : t("rateLimitedMsgNoTime");
 
         super(msg);
@@ -161,7 +162,7 @@ function retryAfterSecondsFromHeaders(res) {
 }
 
 async function httpGetJson(path) {
-    const res = await fetch(path, { credentials: "include" });
+    const res = await fetch(path, {credentials: "include"});
     if (!res.ok) {
         if (res.status === 429) {
             throw new RateLimitError(retryAfterSecondsFromHeaders(res));
@@ -187,7 +188,7 @@ function renderResultDetails(note, detailLines) {
     const details = Array.isArray(detailLines) ? detailLines.map((x) => String(x || "")) : [];
 
     // cache so we can re-render on resize/orientation change
-    state.ui.lastResultDetails = { note: safeNote, details };
+    state.ui.lastResultDetails = {note: safeNote, details};
 
     if (isMobileLayout()) {
         const parts = [];
@@ -215,7 +216,7 @@ const state = {
     issuedAt: null,
 
     mode: "LIGHTWEIGHT",
-    models: { LIGHTWEIGHT: [], PREMIUM: [] },
+    models: {LIGHTWEIGHT: [], PREMIUM: []},
 
     ws: null,
     wsOpen: false,
@@ -225,7 +226,7 @@ const state = {
     opponentSpecId: null,
     opponentDisplayName: null,
 
-    players: { human: null, llm: null },
+    players: {human: null, llm: null},
 
     // round
     inRound: false,
@@ -427,7 +428,7 @@ function setGiveUpVisible(visible) {
 /** ---- Session Recovery (F5) ---- */
 async function tryRecoverActiveSession() {
     try {
-        const res = await fetch("/api/v1/player/active-session", { credentials: "include" });
+        const res = await fetch("/api/v1/player/active-session", {credentials: "include"});
         if (res.status === 204) {
             // No active session, stay on lobby
             return false;
@@ -582,7 +583,10 @@ function setNet(ok) {
 }
 
 function closeWs() {
-    try { state.ws?.close(); } catch { }
+    try {
+        state.ws?.close();
+    } catch {
+    }
     state.ws = null;
     state.wsOpen = false;
     setNet(false);
@@ -605,19 +609,19 @@ function matchEndTitleAndBadge(winner, reason) {
     const r = String(reason || "");
 
     if (r !== "completed") {
-        return { title: t("matchEndNone"), badge: "🏁", klass: "none" };
+        return {title: t("matchEndNone"), badge: "🏁", klass: "none"};
     }
-    if (w === "HUMAN") return { title: t("matchEndWin"), badge: "🏆", klass: "win" };
-    if (w === "LLM") return { title: t("matchEndLose"), badge: "😵", klass: "lose" };
-    if (w === "TIE") return { title: t("matchEndTie"), badge: "🤝", klass: "tie" };
-    return { title: t("matchEndNone"), badge: "🏁", klass: "none" };
+    if (w === "HUMAN") return {title: t("matchEndWin"), badge: "🏆", klass: "win"};
+    if (w === "LLM") return {title: t("matchEndLose"), badge: "😵", klass: "lose"};
+    if (w === "TIE") return {title: t("matchEndTie"), badge: "🤝", klass: "tie"};
+    return {title: t("matchEndNone"), badge: "🏁", klass: "none"};
 }
 
 function showMatchEndModal(payload) {
     const overlay = $("#matchEndOverlay");
     const modal = overlay.querySelector(".end-modal");
 
-    const { title, badge, klass } = matchEndTitleAndBadge(payload.winner, payload.reason);
+    const {title, badge, klass} = matchEndTitleAndBadge(payload.winner, payload.reason);
 
     modal.classList.remove("win", "lose", "tie", "none");
     modal.classList.add(klass);
@@ -650,7 +654,7 @@ function hideMatchEndModal() {
     state.ui.matchEndVisible = false;
 }
 
-function openWsAndJoin({ sessionId = null, opponentSpecId, nickname, locale }) {
+function openWsAndJoin({sessionId = null, opponentSpecId, nickname, locale}) {
     closeWs();
 
     const ws = new WebSocket(wsUrl());
@@ -684,7 +688,9 @@ function openWsAndJoin({ sessionId = null, opponentSpecId, nickname, locale }) {
 
     ws.addEventListener("message", (ev) => {
         let msg;
-        try { msg = JSON.parse(ev.data); } catch {
+        try {
+            msg = JSON.parse(ev.data);
+        } catch {
             toast(t("toastError"), "invalid JSON from server");
             return;
         }
@@ -1046,9 +1052,9 @@ function handleServerEvent(msg) {
 
     if (type === "player_joined") {
         if (msg.playerId === state.playerId) {
-            state.players.human = { playerId: msg.playerId, nickname: msg.nickname };
+            state.players.human = {playerId: msg.playerId, nickname: msg.nickname};
         } else {
-            state.players.llm = { playerId: msg.playerId, nickname: msg.nickname };
+            state.players.llm = {playerId: msg.playerId, nickname: msg.nickname};
         }
         updateMatchupUi();
         return;
@@ -1226,14 +1232,14 @@ function handleServerEvent(msg) {
     if (type === "session_terminated") {
         if (isMatchEndVisible()) {
             closeWs();
-            return;
+
         } else {
             const line = sessionEndLine(msg.reason || "");
             toast(t("toastSession"), line);
             closeWs();
             showLobby();
             resetRoundUi();
-            return;
+
         }
     }
 }
@@ -1281,7 +1287,7 @@ function startMatch(mode) {
         return;
     }
     if (nickname.length > MAX_NICKNAME_LEN) {
-        toast(t("toastError"), t("nicknameTooLong", { n: MAX_NICKNAME_LEN }), "error");
+        toast(t("toastError"), t("nicknameTooLong", {n: MAX_NICKNAME_LEN}), "error");
         return;
     }
     for (const ch of nickname) {
@@ -1344,7 +1350,7 @@ function submitAnswer() {
             toast(t("toastError"), "choose one option");
             return;
         }
-        answer = { type: "multiple_choice", choiceIndex: state.selectedChoiceIndex };
+        answer = {type: "multiple_choice", choiceIndex: state.selectedChoiceIndex};
     } else {
         if (state.freeAnswerMode === "int") {
             const raw = $("#intValue").value.trim();
@@ -1352,14 +1358,14 @@ function submitAnswer() {
                 toast(t("toastError"), "enter an integer");
                 return;
             }
-            answer = { type: "integer", value: parseInt(raw, 10) };
+            answer = {type: "integer", value: parseInt(raw, 10)};
         } else {
             const text = $("#freeText").value.trim();
             if (!text) {
                 toast(t("toastError"), "enter text");
                 return;
             }
-            answer = { type: "free_text", text };
+            answer = {type: "free_text", text};
         }
     }
 
@@ -1482,7 +1488,7 @@ function bindUi() {
         llmScroll.addEventListener("scroll", () => {
             if (state.ui.programmaticScroll) return;
             state.ui.reasoningPinnedToTop = llmScroll.scrollTop <= 2;
-        }, { passive: true });
+        }, {passive: true});
     }
 
     // Re-render result details when crossing the responsive breakpoint (e.g., rotation)
@@ -1491,10 +1497,10 @@ function bindUi() {
         if (!state.ui.lastResultDetails) return;
         if (resizeRaf) cancelAnimationFrame(resizeRaf);
         resizeRaf = requestAnimationFrame(() => {
-            const { note, details } = state.ui.lastResultDetails || {};
+            const {note, details} = state.ui.lastResultDetails || {};
             renderResultDetails(note, details);
         });
-    }, { passive: true });
+    }, {passive: true});
 }
 
 /** ---- LICENSE modal ---- */
@@ -1591,8 +1597,8 @@ async function loadLicenseHtml() {
 
     try {
         const [resDs, resFe] = await Promise.all([
-            fetch('./license-dataset.html', { cache: 'no-cache' }),
-            fetch('./license-frontend.html', { cache: 'no-cache' })
+            fetch('./license-dataset.html', {cache: 'no-cache'}),
+            fetch('./license-frontend.html', {cache: 'no-cache'})
         ]);
 
         const parts = [];

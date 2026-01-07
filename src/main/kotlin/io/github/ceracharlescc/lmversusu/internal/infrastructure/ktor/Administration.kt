@@ -1,12 +1,9 @@
 package io.github.ceracharlescc.lmversusu.internal.infrastructure.ktor
 
-import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
 import io.ktor.server.plugins.ratelimit.RateLimit
 import io.ktor.server.plugins.ratelimit.RateLimiter
-import io.ktor.server.plugins.statuspages.StatusPages
-import io.ktor.server.response.respondText
 import kotlin.math.max
 import kotlin.time.Duration.Companion.seconds
 

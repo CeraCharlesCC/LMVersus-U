@@ -1,8 +1,6 @@
 package io.github.ceracharlescc.lmversusu.internal.presentation.ktor.api.serializer
 
 import io.github.ceracharlescc.lmversusu.internal.domain.entity.OpponentSpec
-import io.github.ceracharlescc.lmversusu.internal.domain.entity.OpponentSpecModeSerializer
-import io.github.ceracharlescc.lmversusu.internal.domain.vo.LlmProfile
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.descriptors.SerialDescriptor

@@ -1246,7 +1246,7 @@ a:hover {
     font-size: 0.9em;
 }
 
-.md :not(pre)>code {
+.md :not(pre) > code {
     background: rgba(255, 255, 255, .06);
     padding: 2px 6px;
     border-radius: 4px;
@@ -1398,6 +1398,7 @@ a:hover {
         min-height: 52px;
         border-radius: 8px;
     }
+
     .input,
     .select,
     .textarea {
@@ -1434,7 +1435,6 @@ a:hover {
     /* -----------------------------
        Shared font-size declarations
        ----------------------------- */
-
     /* 13px group (deduped) */
     .tab-btn,
     .btn,

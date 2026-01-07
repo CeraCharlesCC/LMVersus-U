@@ -68,7 +68,7 @@ class GameRoutesSecurityTest {
         ) {
             // Should connect (though will fail auth immediately after, connection is open)
             // If CORS failed, we would be disconnected immediately with policy violation
-            val frame = incoming.receive() // Receive Auth Error
+            incoming.receive() // Receive Auth Error
             // If we received a frame, handshake worked.
         }
 
@@ -83,7 +83,7 @@ class GameRoutesSecurityTest {
         ) {
             // Ktor client usually throws exception on close, or we can check closed reason
             try {
-                val frame = incoming.receive()
+                incoming.receive()
                 // If we get here, security failed
                 assertTrue(false, "Should not receive frames from evil origin")
             } catch (e: Exception) {
@@ -122,7 +122,7 @@ class GameRoutesSecurityTest {
             }
         }
 
-        val client = createClient {
+        createClient {
             install(io.ktor.client.plugins.websocket.WebSockets) {
                 contentConverter = KotlinxWebsocketSerializationConverter(Json)
             }

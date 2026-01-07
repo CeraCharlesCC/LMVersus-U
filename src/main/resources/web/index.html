@@ -2,10 +2,10 @@
 <html lang="ja">
 
 <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
     <title>LM Versus U</title>
-    <meta name="description" content="Challenge AI models in a head-to-head quiz battle" />
+    <meta name="description" content="Challenge AI models in a head-to-head quiz battle"/>
 
     <!-- Google Fonts: Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -15,325 +15,325 @@
     <!-- KaTeX -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
 
-    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./styles.css"/>
 </head>
 
 <body>
-    <div id="app">
-        <header class="app-header">
-            <div class="brand">LMVU</div>
-            <div class="header-right">
-                <div id="netDot" class="net-dot" title="network"></div>
-                <button id="btnGiveUp" class="btn ghost small danger hidden" type="button"></button>
-                <button id="btnExit" class="btn ghost small" type="button"></button>
+<div id="app">
+    <header class="app-header">
+        <div class="brand">LMVU</div>
+        <div class="header-right">
+            <div id="netDot" class="net-dot" title="network"></div>
+            <button id="btnGiveUp" class="btn ghost small danger hidden" type="button"></button>
+            <button id="btnExit" class="btn ghost small" type="button"></button>
+        </div>
+    </header>
+
+    <!-- Toast -->
+    <div id="toastHost" class="toast-host" aria-live="polite" aria-atomic="true"></div>
+
+    <!-- Lobby (waiting screen) -->
+    <main id="lobbyScreen" class="screen screen-active">
+        <div class="backdrop"></div>
+
+        <section class="modal" role="dialog" aria-modal="true" aria-label="lobby">
+            <div class="modal-tabs" role="tablist" aria-label="mode tabs">
+                <button class="tab-btn is-active" data-tab="LIGHTWEIGHT" role="tab" aria-selected="true"></button>
+                <button class="tab-btn" data-tab="PREMIUM" role="tab" aria-selected="false"></button>
+                <button class="tab-btn" data-tab="LEADERBOARD" role="tab" aria-selected="false"></button>
             </div>
-        </header>
 
-        <!-- Toast -->
-        <div id="toastHost" class="toast-host" aria-live="polite" aria-atomic="true"></div>
+            <div class="modal-body">
+                <!-- Lightweight -->
+                <div class="tab-panel is-active" id="panel-LIGHTWEIGHT" role="tabpanel">
+                    <p id="modeDescLight" class="muted"></p>
 
-        <!-- Lobby (waiting screen) -->
-        <main id="lobbyScreen" class="screen screen-active">
-            <div class="backdrop"></div>
+                    <div class="form">
+                        <label class="field">
+                            <span class="label" id="lblNicknameLight"></span>
+                            <input id="nicknameLight" class="input" maxlength="16" autocomplete="nickname"/>
+                        </label>
 
-            <section class="modal" role="dialog" aria-modal="true" aria-label="lobby">
-                <div class="modal-tabs" role="tablist" aria-label="mode tabs">
-                    <button class="tab-btn is-active" data-tab="LIGHTWEIGHT" role="tab" aria-selected="true"></button>
-                    <button class="tab-btn" data-tab="PREMIUM" role="tab" aria-selected="false"></button>
-                    <button class="tab-btn" data-tab="LEADERBOARD" role="tab" aria-selected="false"></button>
-                </div>
+                        <label class="field">
+                            <span class="label" id="lblOpponentLight"></span>
+                            <select id="opponentLight" class="select"></select>
+                            <div class="hint" id="hintOpponentLight"></div>
+                        </label>
 
-                <div class="modal-body">
-                    <!-- Lightweight -->
-                    <div class="tab-panel is-active" id="panel-LIGHTWEIGHT" role="tabpanel">
-                        <p id="modeDescLight" class="muted"></p>
-
-                        <div class="form">
-                            <label class="field">
-                                <span class="label" id="lblNicknameLight"></span>
-                                <input id="nicknameLight" class="input" maxlength="16" autocomplete="nickname" />
-                            </label>
-
-                            <label class="field">
-                                <span class="label" id="lblOpponentLight"></span>
-                                <select id="opponentLight" class="select"></select>
-                                <div class="hint" id="hintOpponentLight"></div>
-                            </label>
-
-                            <div class="actions">
-                                <button id="btnStartLight" class="btn primary" type="button"></button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Premium -->
-                    <div class="tab-panel" id="panel-PREMIUM" role="tabpanel">
-                        <p id="modeDescPremium" class="muted"></p>
-
-                        <div class="form">
-                            <label class="field">
-                                <span class="label" id="lblNicknamePremium"></span>
-                                <input id="nicknamePremium" class="input" maxlength="16" autocomplete="nickname" />
-                            </label>
-
-                            <label class="field">
-                                <span class="label" id="lblOpponentPremium"></span>
-                                <select id="opponentPremium" class="select"></select>
-                                <div class="hint" id="hintOpponentPremium"></div>
-                            </label>
-
-                            <div class="actions">
-                                <button id="btnStartPremium" class="btn primary" type="button"></button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Leaderboard -->
-                    <div class="tab-panel" id="panel-LEADERBOARD" role="tabpanel">
-                        <div class="row between">
-                            <div>
-                                <div class="section-title" id="lbTitle"></div>
-                                <div class="muted small" id="lbNote"></div>
-                            </div>
-                            <button id="btnRefreshLb" class="btn ghost" type="button"></button>
-                        </div>
-
-                        <div class="table-wrap">
-                            <table class="table" aria-label="leaderboard">
-                                <thead>
-                                    <tr>
-                                        <th id="thRank"></th>
-                                        <th id="thName"></th>
-                                        <th id="thScore"></th>
-                                        <th id="thSet"></th>
-                                        <th id="thOpponent"></th>
-                                        <th id="thMode"></th>
-                                    </tr>
-                                </thead>
-                                <tbody id="lbBody"></tbody>
-                            </table>
+                        <div class="actions">
+                            <button id="btnStartLight" class="btn primary" type="button"></button>
                         </div>
                     </div>
                 </div>
 
-                <div class="modal-footer">
-                    <button id="btnLicense" class="btn ghost small license-btn" type="button">LICENSE</button>
-                </div>
-            </section>
-        </main>
+                <!-- Premium -->
+                <div class="tab-panel" id="panel-PREMIUM" role="tabpanel">
+                    <p id="modeDescPremium" class="muted"></p>
 
-        <!-- Game screen -->
-        <main id="gameScreen" class="screen">
-            <section class="arena">
-                <div class="topbar">
-                    <div class="matchup">
-                        <div id="humanChip" class="chip">
-                            <div class="chip-title" id="humanName"></div>
-                            <div class="chip-sub" id="humanSub"></div>
-                        </div>
+                    <div class="form">
+                        <label class="field">
+                            <span class="label" id="lblNicknamePremium"></span>
+                            <input id="nicknamePremium" class="input" maxlength="16" autocomplete="nickname"/>
+                        </label>
 
-                        <div class="vs">VS</div>
+                        <label class="field">
+                            <span class="label" id="lblOpponentPremium"></span>
+                            <select id="opponentPremium" class="select"></select>
+                            <div class="hint" id="hintOpponentPremium"></div>
+                        </label>
 
-                        <div id="llmChip" class="chip">
-                            <div class="chip-row">
-                                <div class="chip-title" id="llmName"></div>
-                                <span id="llmStatus" class="status-pill"></span>
-                            </div>
-                            <div class="chip-sub"></div>
-                        </div>
-                    </div>
-
-                    <div class="timers">
-                        <div class="timer">
-                            <div class="timer-label" id="lblDeadline"></div>
-                            <div class="timer-value" id="deadlineLeft">--:--</div>
-                            <div class="bar">
-                                <div id="deadlineBar" class="bar-fill"></div>
-                            </div>
-                        </div>
-
-                        <div class="timer">
-                            <div class="timer-label" id="lblHandicap"></div>
-                            <div class="timer-value" id="handicapLeft">--</div>
-                            <div class="bar">
-                                <div id="handicapBar" class="bar-fill"></div>
-                            </div>
+                        <div class="actions">
+                            <button id="btnStartPremium" class="btn primary" type="button"></button>
                         </div>
                     </div>
                 </div>
 
-                <!-- Mobile top tabs -->
-                <div class="mobile-tabs" role="tablist" aria-label="mobile top tabs">
-                    <button id="btnTopQuestion" class="tab-btn2 is-active" type="button"></button>
-                    <button id="btnTopReasoning" class="tab-btn2" type="button"></button>
+                <!-- Leaderboard -->
+                <div class="tab-panel" id="panel-LEADERBOARD" role="tabpanel">
+                    <div class="row between">
+                        <div>
+                            <div class="section-title" id="lbTitle"></div>
+                            <div class="muted small" id="lbNote"></div>
+                        </div>
+                        <button id="btnRefreshLb" class="btn ghost" type="button"></button>
+                    </div>
+
+                    <div class="table-wrap">
+                        <table class="table" aria-label="leaderboard">
+                            <thead>
+                            <tr>
+                                <th id="thRank"></th>
+                                <th id="thName"></th>
+                                <th id="thScore"></th>
+                                <th id="thSet"></th>
+                                <th id="thOpponent"></th>
+                                <th id="thMode"></th>
+                            </tr>
+                            </thead>
+                            <tbody id="lbBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button id="btnLicense" class="btn ghost small license-btn" type="button">LICENSE</button>
+            </div>
+        </section>
+    </main>
+
+    <!-- Game screen -->
+    <main id="gameScreen" class="screen">
+        <section class="arena">
+            <div class="topbar">
+                <div class="matchup">
+                    <div id="humanChip" class="chip">
+                        <div class="chip-title" id="humanName"></div>
+                        <div class="chip-sub" id="humanSub"></div>
+                    </div>
+
+                    <div class="vs">VS</div>
+
+                    <div id="llmChip" class="chip">
+                        <div class="chip-row">
+                            <div class="chip-title" id="llmName"></div>
+                            <span id="llmStatus" class="status-pill"></span>
+                        </div>
+                        <div class="chip-sub"></div>
+                    </div>
                 </div>
 
-                <div id="splitTop" class="split-top show-question">
-                    <section id="questionPanel" class="panel">
-                        <div class="panel-head">
-                            <div class="panel-title" id="qTitle"></div>
-                            <div class="panel-meta" id="qMeta"></div>
+                <div class="timers">
+                    <div class="timer">
+                        <div class="timer-label" id="lblDeadline"></div>
+                        <div class="timer-value" id="deadlineLeft">--:--</div>
+                        <div class="bar">
+                            <div id="deadlineBar" class="bar-fill"></div>
                         </div>
+                    </div>
 
-                        <div class="panel-body q-scroll">
-                            <div id="questionBody" class="md"></div>
-                            <hr id="qSep" class="q-sep hidden" aria-hidden="true" />
-                            <div id="choiceHintTop" class="choice-hint hidden"></div>
-                            <div id="choicesHost" class="choices"></div>
-                            <hr id="qSep2" class="q-sep hidden" aria-hidden="true" />
-                            <div id="choiceHintBottom" class="choice-hint hidden"></div>
+                    <div class="timer">
+                        <div class="timer-label" id="lblHandicap"></div>
+                        <div class="timer-value" id="handicapLeft">--</div>
+                        <div class="bar">
+                            <div id="handicapBar" class="bar-fill"></div>
                         </div>
-                    </section>
-
-                    <section id="llmPanel" class="panel">
-                        <div class="panel-head">
-                            <div class="panel-title" id="rTitle"></div>
-                            <div class="panel-meta">
-                                <span id="omitHint" class="badge hidden"></span>
-                            </div>
-                        </div>
-
-                        <div class="panel-body">
-                            <div id="reasoningWrap" class="reasoning-wrap masked" aria-label="llm reasoning">
-                                <div id="reasoningBody" class="md"></div>
-
-                                <div class="blur-mask" aria-hidden="true"></div>
-                                <button id="btnPeek" class="peek-btn" type="button"></button>
-                            </div>
-
-                            <div id="llmAnswerBox" class="answer-box hidden">
-                                <div class="answer-box-head">
-                                    <div class="answer-box-title" id="lblOpponentAnswer"></div>
-                                    <div class="muted small" id="lblConfidence"></div>
-                                </div>
-                                <div id="llmAnswerBody" class="md"></div>
-                            </div>
-
-                            <div id="llmStreamError" class="error-box hidden"></div>
-                        </div>
-                    </section>
+                    </div>
                 </div>
+            </div>
 
-                <section id="bottomPanel" class="panel bottom">
+            <!-- Mobile top tabs -->
+            <div class="mobile-tabs" role="tablist" aria-label="mobile top tabs">
+                <button id="btnTopQuestion" class="tab-btn2 is-active" type="button"></button>
+                <button id="btnTopReasoning" class="tab-btn2" type="button"></button>
+            </div>
+
+            <div id="splitTop" class="split-top show-question">
+                <section id="questionPanel" class="panel">
                     <div class="panel-head">
-                        <div class="panel-head-group">
-                            <div class="panel-title" id="bpTitle"></div>
-                            <div class="panel-hint hidden" id="preRoundHint"></div>
-                        </div>
-                        <div class="panel-meta" id="aMeta"></div>
+                        <div class="panel-title" id="qTitle"></div>
+                        <div class="panel-meta" id="qMeta"></div>
                     </div>
 
-                    <div class="panel-body bottom-body">
-                        <!-- Pre-round -->
-                        <div id="preRound" class="bottom-state">
-                            <div class="bottom-action">
-                                <button id="btnStartRound" class="btn primary action-btn" type="button"></button>
-                            </div>
-                            <div class="bottom-content"></div>
-                        </div>
-
-                        <!-- In-round -->
-                        <div id="answerForm" class="bottom-state hidden">
-                            <div class="bottom-action">
-                                <button id="btnSubmit" class="btn primary action-btn" type="button"></button>
-                            </div>
-
-                            <div class="bottom-content">
-                                <div id="freeAnswerType" class="seg hidden" role="tablist" aria-label="answer type">
-                                    <button id="segText" class="seg-btn is-active" type="button"></button>
-                                    <button id="segInt" class="seg-btn" type="button"></button>
-                                </div>
-
-                                <div id="freeTextWrap" class="hidden">
-                                    <textarea id="freeText" class="textarea" rows="3"></textarea>
-                                </div>
-
-                                <div id="intWrap" class="hidden">
-                                    <input id="intValue" class="input" inputmode="numeric" />
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Post-round -->
-                        <div id="postRound" class="bottom-state hidden">
-                            <div class="bottom-action">
-                                <button id="btnNext" class="btn primary action-btn" type="button"></button>
-                            </div>
-                            <div class="bottom-content">
-                                <div id="resultDetails" class="result-details"></div>
-                            </div>
-                        </div>
+                    <div class="panel-body q-scroll">
+                        <div id="questionBody" class="md"></div>
+                        <hr id="qSep" class="q-sep hidden" aria-hidden="true"/>
+                        <div id="choiceHintTop" class="choice-hint hidden"></div>
+                        <div id="choicesHost" class="choices"></div>
+                        <hr id="qSep2" class="q-sep hidden" aria-hidden="true"/>
+                        <div id="choiceHintBottom" class="choice-hint hidden"></div>
                     </div>
                 </section>
-            </section>
-        </main>
 
-        <!-- Match end popup -->
-        <div id="matchEndOverlay" class="overlay hidden" aria-hidden="true">
-            <section class="end-modal" role="dialog" aria-modal="true" aria-labelledby="endTitle">
-                <div class="end-top">
-                    <div id="endBadge" class="end-badge" aria-hidden="true">🏁</div>
-                    <div class="end-top-text">
-                        <div id="endTitle" class="end-title"></div>
-                        <div id="endSub" class="end-sub muted"></div>
-                    </div>
-                </div>
-
-                <div class="end-body">
-                    <div class="end-scores" aria-label="final scores">
-                        <div class="score-card" id="endHumanCard">
-                            <div class="score-name" id="endHumanName"></div>
-                            <div class="score-points" id="endHumanScore">0</div>
-                        </div>
-                        <div class="score-card" id="endLlmCard">
-                            <div class="score-name" id="endLlmName"></div>
-                            <div class="score-points" id="endLlmScore">0</div>
+                <section id="llmPanel" class="panel">
+                    <div class="panel-head">
+                        <div class="panel-title" id="rTitle"></div>
+                        <div class="panel-meta">
+                            <span id="omitHint" class="badge hidden"></span>
                         </div>
                     </div>
 
-                    <div class="end-kv" aria-label="match summary">
-                        <div class="kv-row">
-                            <div class="kv-k" id="lblEndRounds"></div>
-                            <div class="kv-v" id="endRounds"></div>
+                    <div class="panel-body">
+                        <div id="reasoningWrap" class="reasoning-wrap masked" aria-label="llm reasoning">
+                            <div id="reasoningBody" class="md"></div>
+
+                            <div class="blur-mask" aria-hidden="true"></div>
+                            <button id="btnPeek" class="peek-btn" type="button"></button>
                         </div>
-                        <div class="kv-row">
-                            <div class="kv-k" id="lblEndDuration"></div>
-                            <div class="kv-v" id="endDuration"></div>
+
+                        <div id="llmAnswerBox" class="answer-box hidden">
+                            <div class="answer-box-head">
+                                <div class="answer-box-title" id="lblOpponentAnswer"></div>
+                                <div class="muted small" id="lblConfidence"></div>
+                            </div>
+                            <div id="llmAnswerBody" class="md"></div>
+                        </div>
+
+                        <div id="llmStreamError" class="error-box hidden"></div>
+                    </div>
+                </section>
+            </div>
+
+            <section id="bottomPanel" class="panel bottom">
+                <div class="panel-head">
+                    <div class="panel-head-group">
+                        <div class="panel-title" id="bpTitle"></div>
+                        <div class="panel-hint hidden" id="preRoundHint"></div>
+                    </div>
+                    <div class="panel-meta" id="aMeta"></div>
+                </div>
+
+                <div class="panel-body bottom-body">
+                    <!-- Pre-round -->
+                    <div id="preRound" class="bottom-state">
+                        <div class="bottom-action">
+                            <button id="btnStartRound" class="btn primary action-btn" type="button"></button>
+                        </div>
+                        <div class="bottom-content"></div>
+                    </div>
+
+                    <!-- In-round -->
+                    <div id="answerForm" class="bottom-state hidden">
+                        <div class="bottom-action">
+                            <button id="btnSubmit" class="btn primary action-btn" type="button"></button>
+                        </div>
+
+                        <div class="bottom-content">
+                            <div id="freeAnswerType" class="seg hidden" role="tablist" aria-label="answer type">
+                                <button id="segText" class="seg-btn is-active" type="button"></button>
+                                <button id="segInt" class="seg-btn" type="button"></button>
+                            </div>
+
+                            <div id="freeTextWrap" class="hidden">
+                                <textarea id="freeText" class="textarea" rows="3"></textarea>
+                            </div>
+
+                            <div id="intWrap" class="hidden">
+                                <input id="intValue" class="input" inputmode="numeric"/>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Post-round -->
+                    <div id="postRound" class="bottom-state hidden">
+                        <div class="bottom-action">
+                            <button id="btnNext" class="btn primary action-btn" type="button"></button>
+                        </div>
+                        <div class="bottom-content">
+                            <div id="resultDetails" class="result-details"></div>
                         </div>
                     </div>
                 </div>
-
-                <div class="end-actions">
-                    <button id="btnEndLobby" class="btn primary" type="button"></button>
-                    <button id="btnEndLb" class="btn ghost" type="button"></button>
-                </div>
             </section>
-        </div>
-        <!-- License popup -->
-        <div id="licenseOverlay" class="overlay hidden" aria-hidden="true">
-            <section class="license-modal" role="dialog" aria-modal="true" aria-labelledby="licenseTitle">
-                <div class="license-head">
-                    <div class="license-title" id="licenseTitle">LICENSE</div>
-                    <button id="btnCloseLicense" class="btn ghost small" type="button" aria-label="Close">✕</button>
+        </section>
+    </main>
+
+    <!-- Match end popup -->
+    <div id="matchEndOverlay" class="overlay hidden" aria-hidden="true">
+        <section class="end-modal" role="dialog" aria-modal="true" aria-labelledby="endTitle">
+            <div class="end-top">
+                <div id="endBadge" class="end-badge" aria-hidden="true">🏁</div>
+                <div class="end-top-text">
+                    <div id="endTitle" class="end-title"></div>
+                    <div id="endSub" class="end-sub muted"></div>
+                </div>
+            </div>
+
+            <div class="end-body">
+                <div class="end-scores" aria-label="final scores">
+                    <div class="score-card" id="endHumanCard">
+                        <div class="score-name" id="endHumanName"></div>
+                        <div class="score-points" id="endHumanScore">0</div>
+                    </div>
+                    <div class="score-card" id="endLlmCard">
+                        <div class="score-name" id="endLlmName"></div>
+                        <div class="score-points" id="endLlmScore">0</div>
+                    </div>
                 </div>
 
-                <div id="licenseContent" class="license-body"></div>
-                <div class="license-actions">
-                    <button id="btnLicenseOk" class="btn primary" type="button">OK</button>
+                <div class="end-kv" aria-label="match summary">
+                    <div class="kv-row">
+                        <div class="kv-k" id="lblEndRounds"></div>
+                        <div class="kv-v" id="endRounds"></div>
+                    </div>
+                    <div class="kv-row">
+                        <div class="kv-k" id="lblEndDuration"></div>
+                        <div class="kv-v" id="endDuration"></div>
+                    </div>
                 </div>
-            </section>
-        </div>
+            </div>
 
+            <div class="end-actions">
+                <button id="btnEndLobby" class="btn primary" type="button"></button>
+                <button id="btnEndLb" class="btn ghost" type="button"></button>
+            </div>
+        </section>
+    </div>
+    <!-- License popup -->
+    <div id="licenseOverlay" class="overlay hidden" aria-hidden="true">
+        <section class="license-modal" role="dialog" aria-modal="true" aria-labelledby="licenseTitle">
+            <div class="license-head">
+                <div class="license-title" id="licenseTitle">LICENSE</div>
+                <button id="btnCloseLicense" class="btn ghost small" type="button" aria-label="Close">✕</button>
+            </div>
+
+            <div id="licenseContent" class="license-body"></div>
+            <div class="license-actions">
+                <button id="btnLicenseOk" class="btn primary" type="button">OK</button>
+            </div>
+        </section>
     </div>
 
-    <!-- markdown-it -->
-    <script src="https://cdn.jsdelivr.net/npm/markdown-it@14.1.0/dist/markdown-it.min.js"></script>
+</div>
 
-    <!-- KaTeX + auto-render -->
-    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+<!-- markdown-it -->
+<script src="https://cdn.jsdelivr.net/npm/markdown-it@14.1.0/dist/markdown-it.min.js"></script>
 
-    <script type="module" src="./app.js"></script>
+<!-- KaTeX + auto-render -->
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+
+<script type="module" src="./app.js"></script>
 </body>
 
 </html>

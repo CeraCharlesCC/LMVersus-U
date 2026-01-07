@@ -1,18 +1,18 @@
 {
-    "id": "lightweight-sonnet45",
-    "mode": "LIGHTWEIGHT",
-    "displayName": "Claude Sonnet 4.5 (Replay)",
-    "llmProfile": {
-        "modelName": "claude-sonnet-4.5",
-        "displayName": "Sonnet 4.5"
-    },
-    "datasetPath": "LLM-Configs/Datasets/models/lightweight/sonnet45_mmlu_pro_subset",
-    "questionSetPath": "LLM-Configs/Datasets/questions/mmlu-pro/",
-    "questionSetDisplayName": "MMLU Pro",
-    "streaming": {
-        "revealDelayMs": 1000,
-        "targetTokensPerSecond": 37,
-        "burstMultiplierOnFinal": 5.0,
-        "maxBufferedChars": 200000
-    }
+  "id": "lightweight-sonnet45",
+  "mode": "LIGHTWEIGHT",
+  "displayName": "Claude Sonnet 4.5 (Replay)",
+  "llmProfile": {
+    "modelName": "claude-sonnet-4.5",
+    "displayName": "Sonnet 4.5"
+  },
+  "datasetPath": "LLM-Configs/Datasets/models/lightweight/sonnet45_mmlu_pro_subset",
+  "questionSetPath": "LLM-Configs/Datasets/questions/mmlu-pro/",
+  "questionSetDisplayName": "MMLU Pro",
+  "streaming": {
+    "revealDelayMs": 1000,
+    "targetTokensPerSecond": 37,
+    "burstMultiplierOnFinal": 5.0,
+    "maxBufferedChars": 200000
+  }
 }
