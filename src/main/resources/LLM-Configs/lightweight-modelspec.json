@@ -3,7 +3,7 @@
   "mode": "LIGHTWEIGHT",
   "displayName": "Claude Sonnet 4.5 (Replay)",
   "description": "replay of Claude Sonnet 4.5 model on MMLU Pro subset",
-  "descriptionI18nkey": "model.lightweight.sonnet45.description",
+  "descriptionI18nKey": "model.lightweight.sonnet45.description",
   "llmProfile": {
     "modelName": "claude-sonnet-4.5",
     "displayName": "Sonnet 4.5"
