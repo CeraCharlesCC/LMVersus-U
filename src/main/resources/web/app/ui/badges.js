@@ -1,5 +1,5 @@
-import {escapeHtml} from "../core/utils.js";
-import {t} from "../core/i18n.js";
+import { escapeHtml } from "../core/utils.js";
+import { t } from "../core/i18n.js";
 
 /** GitHub-ish dark label background */
 const LABEL_COLOR = "30363d";
@@ -50,13 +50,14 @@ function resolveQuestionSetDescription(meta) {
 }
 
 /** shields.io static endpoint (avoids path escaping issues) */
-export function shieldsStaticUrl({label, message, color, labelColor = LABEL_COLOR}) {
+export function shieldsStaticUrl({ label, message, color, labelColor = LABEL_COLOR }) {
     const qs = new URLSearchParams({
         label: String(label ?? ""),
         message: String(message ?? ""),
         color: String(color ?? SET_COLOR),
         labelColor: String(labelColor ?? LABEL_COLOR),
-        style: "flat",
+        style: "flat-square",
+        cacheSeconds: "86400",
     });
     return `https://img.shields.io/static/v1?${qs.toString()}`;
 }
@@ -109,6 +110,8 @@ export function renderModelBadgesHtml(meta) {
         });
         parts.push(
             `<img class="gh-badge" loading="lazy" src="${src}" ` +
+            `data-kind="difficulty" ` +
+            `data-diff-name="${escapeHtml(diffPretty || diffEnum)}" ` +
             `alt="${escapeHtml(`Difficulty: ${diffPretty || diffEnum}`)}" title="${escapeHtml(`Difficulty: ${diffPretty || diffEnum}`)}">`
         );
     }
