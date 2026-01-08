@@ -82,6 +82,8 @@ internal class SessionActor(
     private val roundStreamStates = ConcurrentHashMap<Uuid, RoundStreamState>()
 
     private var sessionResolvedEmitted: Boolean = false
+    @Volatile
+    private var resolvedState: SessionState? = null
     private var droppedReasoningDeltaCount: Int = 0
     private val startRoundCommandIds = LruSet<Uuid>(START_ROUND_DEDUP_CAPACITY)
     private val submitAnswerCommandIdsByRound = HashMap<Uuid, LruSet<Uuid>>()
@@ -103,6 +105,8 @@ internal class SessionActor(
     fun submit(command: SessionCommand): Boolean {
         return mailbox.trySend(command).isSuccess
     }
+
+    fun isResolved(): Boolean = resolvedState != null
 
     suspend fun submitCritical(command: SessionCommand) {
         submitToInternalQueue(criticalQueue, command)
@@ -278,6 +282,15 @@ internal class SessionActor(
         }
 
         val existingSession = session ?: return
+        if (existingSession.state == SessionState.COMPLETED || existingSession.state == SessionState.CANCELLED) {
+            command.response.complete(
+                JoinResponse.Rejected(
+                    errorCode = "session_resolved",
+                    message = "session already resolved",
+                )
+            )
+            return
+        }
         if (existingSession.players.human.playerId != command.playerId) {
             // Return error directly via response channel instead of broadcasting to session bus
             command.response.complete(
@@ -721,6 +734,10 @@ internal class SessionActor(
         resolvedAt: Instant,
     ) {
         if (sessionResolvedEmitted) return
+
+        if (resolvedState == null) {
+            resolvedState = state
+        }
 
         val currentSession = session ?: return
 

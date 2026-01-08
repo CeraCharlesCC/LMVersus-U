@@ -137,6 +137,14 @@ internal class SessionManager @Inject constructor(
                     binding.sessionId
                 )
                 binding = null
+            } else if (activeEntry != null && activeEntry.actor.isResolved()) {
+                playerActiveSessionRepository.clear(playerId, binding.sessionId)
+                logger.debug(
+                    "Cleared active session binding for player {} due to resolved session {}",
+                    playerId,
+                    binding.sessionId
+                )
+                binding = null
             } else if (sessionId != null && sessionId != binding.sessionId) {
                 return rejectActiveSessionExists(binding.sessionId, sessionId)
             }
@@ -736,7 +744,7 @@ internal class SessionManager @Inject constructor(
     ): SessionEntry? {
         return when (val entry = actors[binding.sessionId]) {
             is SessionEntry.Active -> {
-                if (entry.ownerPlayerId == playerId) entry else null
+                if (entry.ownerPlayerId == playerId && !entry.actor.isResolved()) entry else null
             }
 
             is SessionEntry.Creating -> entry
@@ -746,7 +754,7 @@ internal class SessionManager @Inject constructor(
 
     private fun getOwnedActiveEntry(playerId: Uuid, sessionId: Uuid): SessionEntry.Active? {
         val entry = actors[sessionId] as? SessionEntry.Active ?: return null
-        return if (entry.ownerPlayerId == playerId) entry else null
+        return if (entry.ownerPlayerId == playerId && !entry.actor.isResolved()) entry else null
     }
 
     private fun ensureActiveBinding(entry: SessionEntry.Active, playerId: Uuid) {
