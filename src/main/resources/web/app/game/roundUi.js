@@ -10,6 +10,12 @@ import {
     fmtScore,
 } from "../core/utils.js";
 import { state } from "../core/state.js";
+import {
+    updateAnswerSummary,
+    applySubmitLockState,
+    updateKeyboardHint,
+    resetWorkspace,
+} from "./workspace.js";
 
 /** ---- Small UI helpers ---- */
 export function showBottomState(which /* "pre" | "answer" | "post" */) {
@@ -181,6 +187,7 @@ export function resetRoundUi() {
 
     // Re-enable buttons in case a previous session disabled them
     $("#btnSubmit").disabled = false;
+    $("#btnSubmit").classList.remove("is-locked");
     $("#btnStartRound").disabled = false;
     $("#btnNext").disabled = false;
     setSubmitFrozen(false);
@@ -188,6 +195,9 @@ export function resetRoundUi() {
     updateLlmStatusPill();
     stopTimers();
     updateTimers(0);
+
+    // Reset workspace UI (summary chip, lock state, etc.)
+    resetWorkspace();
 }
 
 export function updateMatchupUi() {
@@ -255,6 +265,9 @@ function updateChoiceSelection() {
         const idx = Number(b.dataset.index);
         b.classList.toggle("is-selected", idx === state.selectedChoiceIndex);
     });
+    // Update workspace UI
+    updateAnswerSummary();
+    applySubmitLockState();
 }
 
 export function applyFreeAnswerMode() {
@@ -263,6 +276,11 @@ export function applyFreeAnswerMode() {
 
     $("#freeTextWrap").classList.toggle("hidden", state.freeAnswerMode !== "text");
     $("#intWrap").classList.toggle("hidden", state.freeAnswerMode !== "int");
+
+    // Update workspace to reflect mode change
+    updateAnswerSummary();
+    applySubmitLockState();
+    updateKeyboardHint();
 }
 
 export function renderQuestion() {
@@ -313,6 +331,8 @@ export function renderQuestion() {
         $("#btnSubmit").disabled = false;
         $("#aMeta").textContent = "";
         updateChoiceSelection();
+        updateKeyboardHint();
+        applySubmitLockState();
     } else {
         // free response
         $("#choicesHost").innerHTML = "";
@@ -322,6 +342,9 @@ export function renderQuestion() {
 
         $("#freeAnswerType").classList.remove("hidden");
         applyFreeAnswerMode();
+        updateKeyboardHint();
+        updateAnswerSummary();
+        applySubmitLockState();
     }
 }
 

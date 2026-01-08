@@ -9,6 +9,7 @@ import { showLobby } from "./uiScreens.js";
 import { setTopMobileTab, renderResultDetails, getLlmScrollEl } from "./roundUi.js";
 import { setLobbyTab } from "./lobbyTabs.js";
 import { giveUp, startMatch, startRound, submitAnswer, goNext, applyFreeAnswerMode } from "./actions.js";
+import { bindWorkspaceEvents, initWorkspaceText } from "./workspace.js";
 
 export function bindUi() {
     document.querySelectorAll(".tab-btn").forEach((btn) => {
@@ -131,4 +132,8 @@ export function bindUi() {
 
     // small safety: keep same error toast usage patterns if needed
     window.__lmvuToastError = (msg) => toast(t("toastError"), msg, "error");
+
+    // Initialize workspace features (answer summary, copy tools, scratchpad, etc.)
+    initWorkspaceText();
+    bindWorkspaceEvents(submitAnswer);
 }

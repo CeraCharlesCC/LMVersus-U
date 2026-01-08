@@ -556,6 +556,28 @@ a:hover {
     background: rgba(255, 255, 255, .03) !important;
 }
 
+/* Submit "locked" (answer invalid / unselected) */
+.btn.is-locked {
+    border-color: rgba(154, 148, 140, .25) !important;
+    background:
+        repeating-linear-gradient(-45deg,
+            rgba(154, 148, 140, .08),
+            rgba(154, 148, 140, .08) 6px,
+            rgba(154, 148, 140, .02) 6px,
+            rgba(154, 148, 140, .02) 12px) !important;
+    color: rgba(232, 228, 223, .45) !important;
+    cursor: not-allowed;
+}
+
+.btn.is-locked:hover {
+    background:
+        repeating-linear-gradient(-45deg,
+            rgba(154, 148, 140, .1),
+            rgba(154, 148, 140, .1) 6px,
+            rgba(154, 148, 140, .03) 6px,
+            rgba(154, 148, 140, .03) 12px) !important;
+}
+
 .row {
     display: flex;
     gap: 10px;
@@ -624,6 +646,7 @@ a:hover {
         opacity: 0;
         transform: translateX(100%);
     }
+
     to {
         opacity: 1;
         transform: translateX(0);
@@ -635,6 +658,7 @@ a:hover {
         opacity: 1;
         transform: translateX(0);
     }
+
     to {
         opacity: 0;
         transform: translateX(100%);
@@ -1536,7 +1560,7 @@ a:hover {
     }
 }
 
-/* PC/tablet: keep the bottom panel stable */
+/* PC/tablet */
 @media (min-width: 761px) {
 
     .panel-hint,
@@ -1567,7 +1591,107 @@ a:hover {
     .choices.dense .choice-btn {
         font-size: 17px;
     }
+
+    .kbd-hint {
+        display: block;
+    }
+
+    #answerForm #answerSummary {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+        flex-wrap: nowrap;
+    }
+
+    #answerForm #answerSummaryText {
+        max-width: 240px;
+        white-space: normal;
+    }
+
+    #answerForm .bottom-content {
+        display: grid;
+        grid-template-columns: clamp(180px, 22vw, 280px) minmax(0, 1fr);
+        grid-template-rows: auto 1fr;
+        align-content: start;
+        height: 100%;
+        overflow: hidden;
+    }
+
+    #answerForm .bottom-content > :not(#scratchpadSection) {
+        grid-column: 1;
+        min-width: 0;
+    }
+
+    #answerForm #scratchpadSection {
+        grid-column: 2;
+        grid-row: 1 / -1;
+        align-self: stretch;
+        height: 100%;
+        min-height: 0;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+
+    #answerForm #scratchpadPanel {
+        flex: 1;
+        min-height: 0;
+    }
+
+    .scratchpad-text {
+        flex: 1 1 0;
+        min-height: 0;
+        resize: none;
+    }
+
+    .calc-row {
+        position: absolute;
+        right: 10px;
+        bottom: 10px;
+        left: auto;
+
+        width: auto;
+        max-width: calc(100% - 20px);
+
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 6px;
+
+        padding: 6px 8px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+
+        background: rgba(18, 18, 18, 0.82);
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
+
+        /* IMPORTANT: remove the "click-through" hack so inputs always work */
+        pointer-events: auto;
+        z-index: 10;
+    }
+
+    .calc-input {
+        width: auto;
+        flex: 1 1 140px;
+        min-width: 80px;
+        max-width: 220px;
+
+        font-family: var(--mono);
+        padding: 8px 10px;
+    }
+
+    .calc-input:focus {
+        max-width: 320px;
+    }
+
+    .calc-result {
+        min-width: 0;
+        white-space: nowrap;
+    }
 }
+
 
 /* ---- Landing Modal ---- */
 .landing-modal {
@@ -1619,14 +1743,17 @@ a:hover {
     min-width: 120px;
     font-size: 18px;
     padding: 12px 24px;
-}/* Opponent Selector (Rich vertical list) */
+}
+
+/* Opponent Selector (Rich vertical list) */
 .opponent-list {
     display: grid;
     gap: 8px;
     margin-top: 4px;
     max-height: 300px;
     overflow-y: auto;
-    padding-right: 4px; /* for scrollbar */
+    padding-right: 4px;
+    /* for scrollbar */
     scrollbar-width: thin;
     scrollbar-color: rgba(255, 255, 255, .12) transparent;
 }
@@ -1718,19 +1845,23 @@ a:hover {
 
 /* Specific colors for stats if needed */
 .opp-stat.speed .pip.filled {
-    background: #eebb55; /* distinct yellow/gold */
+    background: #eebb55;
+    /* distinct yellow/gold */
 }
 
 .opp-stat.efficiency .pip.filled {
-    background: #55aacc; /* blueish */
+    background: #55aacc;
+    /* blueish */
 }
 
 /* ---- Custom Model Selector (ChatGPT-style) ---- */
 
 /* Hide the native select/list container styles if present */
 .opponent-list {
-    display: block; /* Override grid */
-    overflow: visible; /* Allow dropdown to overflow */
+    display: block;
+    /* Override grid */
+    overflow: visible;
+    /* Allow dropdown to overflow */
     max-height: none;
     padding: 0;
 }
@@ -1747,7 +1878,8 @@ a:hover {
 .selector-trigger {
     background: rgba(255, 255, 255, 0.04);
     border: 1px solid var(--border);
-    border-radius: 16px; /* Large rounded corners */
+    border-radius: 16px;
+    /* Large rounded corners */
     padding: 16px;
     cursor: pointer;
     display: flex;
@@ -1775,7 +1907,8 @@ a:hover {
     flex-direction: column;
     gap: 4px;
     flex: 1;
-    min-width: 0; /* Text truncation fix */
+    min-width: 0;
+    /* Text truncation fix */
 }
 
 .trigger-title {
@@ -1790,7 +1923,8 @@ a:hover {
     line-height: 1.4;
     overflow: hidden;
     display: -webkit-box;
-    -webkit-line-clamp: 2; /* Limit to 2 lines */
+    -webkit-line-clamp: 2;
+    /* Limit to 2 lines */
     -webkit-box-orient: vertical;
 }
 
@@ -1821,12 +1955,13 @@ a:hover {
     max-height: 0;
     opacity: 0;
     transition: opacity 0.2s ease, max-height 0.2s ease;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
     visibility: hidden;
 }
 
 .selector-options.is-open {
-    max-height: 400px; /* Max expansion height */
+    max-height: 400px;
+    /* Max expansion height */
     opacity: 1;
     visibility: visible;
     overflow-y: auto;
@@ -1835,7 +1970,7 @@ a:hover {
 .selector-options.is-fixed {
     position: fixed;
     z-index: 9999;
-    box-shadow: 0 16px 48px rgba(0,0,0,0.6);
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6);
     margin-top: 0;
     border: 1px solid var(--accent);
     border-top: 0;
@@ -1901,3 +2036,221 @@ a:hover {
 }
 
 
+/* ---- Bottom Panel Workspace Enhancements ---- */
+
+/* Answer Summary Row */
+.answer-summary {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.summary-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: rgba(255, 255, 255, .04);
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 500;
+    max-width: 280px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.summary-chip.has-value {
+    border-color: rgba(201, 168, 108, .35);
+    background: rgba(201, 168, 108, .08);
+}
+
+/* Copy Tools Row */
+.copy-tools {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.copy-tools .btn {
+    font-size: 11px;
+    padding: 5px 10px;
+}
+
+/* Keyboard Hint (PC only) */
+.kbd-hint {
+    font-size: 11px;
+    color: var(--muted);
+    opacity: 0.75;
+    letter-spacing: 0.02em;
+}
+
+.kbd-hint:empty {
+    display: none;
+}
+
+/* Scratchpad Section */
+.scratchpad-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.scratchpad-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: transparent;
+    border: 0;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 0;
+    transition: color 0.15s ease;
+    width: fit-content;
+}
+
+.scratchpad-toggle:hover {
+    color: var(--text);
+}
+
+.scratchpad-arrow {
+    font-size: 10px;
+    transition: transform 0.2s ease;
+}
+
+.scratchpad-section.is-open .scratchpad-arrow {
+    transform: rotate(90deg);
+}
+
+.scratchpad-toggle.is-open .scratchpad-arrow {
+    transform: rotate(90deg);
+}
+
+.scratchpad-section.is-relocated {
+    display: none;
+}
+
+.scratchpad-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius2);
+    background: rgba(0, 0, 0, .15);
+}
+
+.scratchpad-text {
+    min-height: 60px;
+    max-height: 200px;
+    resize: vertical;
+    font-size: 14px;
+}
+
+/* Calculator Row */
+.calc-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.calc-input {
+    flex: 1 1 120px;
+    min-width: 80px;
+    max-width: 200px;
+    font-family: var(--mono);
+    font-size: 14px;
+    padding: 8px 10px;
+}
+
+.calc-result {
+    font-family: var(--mono);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    padding: 4px 8px;
+    min-width: 60px;
+    background: rgba(255, 255, 255, .03);
+    border-radius: 4px;
+}
+
+.calc-result:empty {
+    display: none;
+}
+
+.calc-result.error {
+    color: var(--bad);
+}
+
+/* Mobile adjustments for workspace */
+@media (max-width: 760px) {
+    .answer-summary {
+        order: -1;
+    }
+
+    .summary-chip {
+        font-size: 12px;
+        padding: 5px 10px;
+        max-width: 220px;
+    }
+
+    .copy-tools {
+        display: none;
+        /* Hide on mobile for cleaner UI */
+    }
+
+    .kbd-hint {
+        display: none;
+        /* No keyboard hints on mobile */
+    }
+
+    .scratchpad-text {
+        font-size: 14px;
+    }
+
+    .calc-input {
+        flex: 1 1 100px;
+    }
+
+    #answerForm #answerSummary {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .scratchpad-toggle {
+        margin-left: 4px;
+        padding: 6px 10px;
+        background: rgba(255,255,255,0.05);
+        border-radius: 6px;
+    }
+}
+
+/* --- Compact-height phones: merge the two timers into one shared block --- */
+@media (max-width: 760px) and (max-height: 800px) {
+    .timers {
+        gap: 0;
+        flex-wrap: nowrap;
+        border: 1px solid var(--border);
+        border-radius: var(--radius2);
+        background: rgba(26, 26, 26, .7);
+        overflow: hidden;
+    }
+
+    .timers .timer {
+        flex: 1 1 0;
+        width: auto;
+        border: 0;
+        background: transparent;
+        border-radius: 0;
+        padding: 4px 4px;
+    }
+
+    .timers .timer + .timer {
+        border-left: 1px solid var(--border);
+    }
+}

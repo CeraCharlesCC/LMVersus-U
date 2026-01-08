@@ -239,6 +239,13 @@
                             </div>
 
                             <div class="bottom-content">
+                                <!-- Workspace Row A: Answer Summary + Clear -->
+                                <div id="answerSummary" class="answer-summary">
+                                    <span id="answerSummaryText" class="summary-chip"></span>
+                                    <button id="btnClearAnswer" class="btn ghost small" type="button"></button>
+                                </div>
+
+                                <!-- Free answer type toggle (for free response questions) -->
                                 <div id="freeAnswerType" class="seg hidden" role="tablist" aria-label="answer type">
                                     <button id="segText" class="seg-btn is-active" type="button"></button>
                                     <button id="segInt" class="seg-btn" type="button"></button>
@@ -250,6 +257,34 @@
 
                                 <div id="intWrap" class="hidden">
                                     <input id="intValue" class="input" inputmode="numeric" />
+                                </div>
+
+                                <!-- Workspace Row B: Copy utilities -->
+                                <div id="copyTools" class="copy-tools">
+                                    <button id="btnCopyQuestion" class="btn ghost small" type="button"></button>
+                                    <button id="btnCopyChoice" class="btn ghost small hidden" type="button"></button>
+                                    <button id="btnCopyScratch" class="btn ghost small hidden" type="button"></button>
+                                </div>
+
+                                <!-- Workspace Row C: Keyboard hint (PC only) -->
+                                <div id="kbdHint" class="kbd-hint"></div>
+
+                                <!-- Workspace Row D: Collapsible Scratchpad -->
+                                <div id="scratchpadSection" class="scratchpad-section">
+                                    <button id="scratchpadToggle" class="scratchpad-toggle" type="button">
+                                        <span id="scratchpadLabel"></span>
+                                        <span id="scratchpadArrow" class="scratchpad-arrow">▸</span>
+                                    </button>
+                                    <div id="scratchpadPanel" class="scratchpad-panel hidden">
+                                        <textarea id="scratchpadText" class="textarea scratchpad-text" rows="4"
+                                            placeholder=""></textarea>
+                                        <div class="calc-row">
+                                            <input id="calcExpr" class="input calc-input" type="text" />
+                                            <button id="btnCalcEval" class="btn ghost small" type="button">=</button>
+                                            <div id="calcResult" class="calc-result"></div>
+                                            <button id="btnScratchClear" class="btn ghost small" type="button"></button>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
