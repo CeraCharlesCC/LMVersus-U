@@ -212,6 +212,8 @@ export function updateMatchupUi() {
     if (llmSub) {
         llmSub.innerHTML = renderModelBadgesHtml({
             questionSetDisplayName: state.opponentQuestionSetDisplayName,
+            questionSetDescription: state.opponentQuestionSetDescription,
+            questionSetDescriptionI18nKey: state.opponentQuestionSetDescriptionI18nKey,
             difficulty: state.opponentDifficulty,
         });
     }

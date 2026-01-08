@@ -1,4 +1,5 @@
 import { escapeHtml } from "../core/utils.js";
+import { t } from "../core/i18n.js";
 
 /** GitHub-ish dark label background */
 const LABEL_COLOR = "30363d";
@@ -31,6 +32,23 @@ function escapeRegExp(s) {
     return String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+function resolveQuestionSetDescription(meta) {
+    if (!meta) return "";
+
+    // Prefer i18n key (expected to live in i18n/{lang}/models.js, like model descriptions)
+    const key = meta.questionSetDescriptionI18nKey;
+    if (key) {
+        const localized = t(key);
+        // t() returns the key itself if missing
+        if (localized && localized !== key) {
+            return String(localized || "").trim();
+        }
+    }
+
+    // Fallback to static description
+    return String(meta.questionSetDescription || "").trim();
+}
+
 /** shields.io static endpoint (avoids path escaping issues) */
 export function shieldsStaticUrl({ label, message, color, labelColor = LABEL_COLOR }) {
     const qs = new URLSearchParams({
@@ -56,6 +74,8 @@ export function difficultyColor(difficultyEnum) {
 /** Returns "" if there are no badges */
 export function renderModelBadgesHtml(meta) {
     const setName = String(meta?.questionSetDisplayName || "").trim();
+    const setDescRaw = resolveQuestionSetDescription(meta);
+    const setDesc = setDescRaw.replace(/\s+/g, " ").trim();
     const diffEnum = normDifficultyEnum(meta?.difficulty);
     const diffPretty = prettyDifficulty(diffEnum);
 
@@ -67,9 +87,17 @@ export function renderModelBadgesHtml(meta) {
             message: setName,
             color: SET_COLOR,
         });
-        parts.push(
+
+        const tooltip = setDesc ? `Set: ${setName} — ${setDesc}` : `Set: ${setName}`;
+        const dataAttrs =
             `<img class="gh-badge" loading="lazy" src="${src}" ` +
-            `alt="${escapeHtml(`Set: ${setName}`)}" title="${escapeHtml(`Set: ${setName}`)}">`
+            `data-kind="questionset" ` +
+            `data-qs-name="${escapeHtml(setName)}" ` +
+            `data-qs-desc="${escapeHtml(setDesc || "")}"`;
+
+        parts.push(
+            `${dataAttrs} ` +
+            `alt="${escapeHtml(tooltip)}" title="${escapeHtml(tooltip)}">`
         );
     }
 

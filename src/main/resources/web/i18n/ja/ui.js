@@ -112,7 +112,8 @@ export default {
     copyFailed: "コピー失敗",
 
     scratchpad: "メモ帳",
-    calcPlaceholder: "式",
+    scratchpadPlaceholder: "計算やメモなど自由に使ってください。",
+    calcPlaceholder: "例: 1 + 2 * 3",
     calcEval: "=",
     calcClear: "クリア",
 

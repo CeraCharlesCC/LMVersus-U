@@ -1,9 +1,10 @@
 import { $ } from "../core/dom.js";
 import { httpGetJson } from "../core/net.js";
-import { escapeHtml } from "../core/utils.js";
+import { escapeHtml, isMobileLayout } from "../core/utils.js";
 import { t } from "../core/i18n.js";
 import { state } from "../core/state.js";
 import { renderModelBadgesHtml } from "../ui/badges.js";
+import { showDetailModal } from "../ui/modals.js";
 
 // Icons
 const ICON_SPEED = `<svg class="opp-stat-icon" viewBox="0 0 24 24"><path fill="currentColor" d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg>`;
@@ -202,6 +203,35 @@ function renderModelSelectorWidget(container, input, models, mode) {
         e.stopPropagation();
         toggleMenu();
     });
+
+    // Mobile: tapping the SET badge shows a detail modal instead of toggling/selecting.
+    // IMPORTANT: optionsList can be teleported to <body>, so use a window capture listener,
+    // and scope it strictly to this widget’s wrapper/optionsList.
+    const onQuestionSetBadgeTap = (e) => {
+        if (!isMobileLayout()) return;
+
+        const img = e.target?.closest?.("img.gh-badge[data-kind='questionset']");
+        if (!img) return;
+
+        // Scope: only badges inside this model selector instance (trigger or its dropdown)
+        if (!(wrapper.contains(img) || optionsList.contains(img))) return;
+
+        const name = String(img.dataset.qsName || "").trim();
+        const desc = String(img.dataset.qsDesc || "").trim();
+        if (!name && !desc) return;
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        // Close menu to avoid weird layering / accidental selection
+        if (trigger.classList.contains("is-open")) toggleMenu(false);
+
+        showDetailModal({
+            title: name || "Question Set",
+            body: desc || "",
+        });
+    };
+    window.addEventListener("click", onQuestionSetBadgeTap, { signal: ac.signal, capture: true });
 
     // Trigger keyboard toggle
     trigger.addEventListener("keydown", (e) => {

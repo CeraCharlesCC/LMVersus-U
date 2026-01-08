@@ -112,7 +112,8 @@ export default {
     copyFailed: "Copy failed",
 
     scratchpad: "Scratchpad",
-    calcPlaceholder: "expr",
+    scratchpadPlaceholder: "Freely use this area for notes or draft calculations.",
+    calcPlaceholder: "e.g. 1 + 2 * 3",
     calcEval: "=",
     calcClear: "Clear",
 

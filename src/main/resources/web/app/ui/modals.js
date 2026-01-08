@@ -65,6 +65,86 @@ export function hideMatchEndModal() {
     state.ui.matchEndVisible = false;
 }
 
+/** ---- DETAIL modal (for mobile question set badge) ---- */
+let detailLastFocusEl = null;
+
+function ensureDetailOverlay() {
+    let overlay = $("#detailOverlay");
+    if (overlay) return overlay;
+
+    overlay = document.createElement("div");
+    overlay.id = "detailOverlay";
+    overlay.className = "overlay hidden";
+    overlay.setAttribute("aria-hidden", "true");
+
+    overlay.innerHTML = `
+      <section class="detail-modal" role="dialog" aria-modal="true" aria-labelledby="detailTitle">
+        <div class="detail-head">
+          <div class="detail-title" id="detailTitle"></div>
+          <button id="btnDetailClose" class="btn ghost small" type="button" aria-label="Close">✕</button>
+        </div>
+        <div class="detail-body" id="detailBody"></div>
+        <div class="detail-actions">
+          <button id="btnDetailOk" class="btn primary" type="button">OK</button>
+        </div>
+      </section>
+    `;
+
+    // Prefer attaching under #app so stacking matches other overlays
+    const host = document.getElementById("app") || document.body;
+    host.appendChild(overlay);
+
+    // Close on background click
+    overlay.addEventListener("click", (e) => {
+        if (e.target && e.target.id === "detailOverlay") hideDetailModal();
+    });
+
+    overlay.querySelector("#btnDetailClose")?.addEventListener("click", hideDetailModal);
+    overlay.querySelector("#btnDetailOk")?.addEventListener("click", hideDetailModal);
+
+    // Escape to close (scoped to this modal being open)
+    window.addEventListener("keydown", (e) => {
+        if (e.key !== "Escape") return;
+        if (overlay.classList.contains("hidden")) return;
+        hideDetailModal();
+    });
+
+    return overlay;
+}
+
+export function showDetailModal({ title = "", body = "" } = {}) {
+    const overlay = ensureDetailOverlay();
+    if (!overlay) return;
+
+    detailLastFocusEl = document.activeElement;
+
+    const titleEl = overlay.querySelector("#detailTitle");
+    const bodyEl = overlay.querySelector("#detailBody");
+
+    if (titleEl) titleEl.textContent = String(title || "");
+    if (bodyEl) bodyEl.textContent = String(body || "");
+
+    overlay.classList.remove("hidden");
+    overlay.setAttribute("aria-hidden", "false");
+
+    requestAnimationFrame(() => {
+        overlay.querySelector("#btnDetailOk")?.focus?.();
+    });
+}
+
+export function hideDetailModal() {
+    const overlay = $("#detailOverlay");
+    if (!overlay) return;
+
+    overlay.classList.add("hidden");
+    overlay.setAttribute("aria-hidden", "true");
+
+    if (detailLastFocusEl && typeof detailLastFocusEl.focus === "function") {
+        detailLastFocusEl.focus();
+    }
+    detailLastFocusEl = null;
+}
+
 /** ---- LICENSE modal ---- */
 let lastFocusEl = null;
 

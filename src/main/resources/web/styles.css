@@ -237,6 +237,55 @@ a:hover {
     white-space: nowrap;
 }
 
+/* ---- Detail Modal (mobile question set badge) ---- */
+.detail-modal {
+    width: min(520px, calc(100vw - 32px));
+    max-height: min(80vh, 560px);
+    overflow: hidden;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+}
+
+.detail-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 16px 18px 12px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(0, 0, 0, .08);
+}
+
+.detail-title {
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.detail-body {
+    padding: 16px 18px;
+    overflow: auto;
+    max-height: calc(min(80vh, 560px) - 120px);
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.55;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.detail-actions {
+    padding: 14px 18px 18px;
+    display: flex;
+    justify-content: flex-end;
+    border-top: 1px solid var(--border);
+    background: rgba(0, 0, 0, .08);
+}
+
 .score-points {
     margin-top: 6px;
     font-family: var(--mono);
@@ -1930,8 +1979,7 @@ a:hover {
     line-height: 1.4;
     overflow: hidden;
     display: -webkit-box;
-    -webkit-line-clamp: 2;
-    /* Limit to 2 lines */
+    -webkit-line-clamp: 3;
     -webkit-box-orient: vertical;
 }
 
@@ -2256,6 +2304,22 @@ a:hover {
 
     .gh-badge {
         height: 16px;
+    }
+
+    .selector-trigger {
+        align-items: flex-start;
+        min-height: unset;
+    }
+
+    .trigger-desc {
+        display: block;
+        overflow: visible;
+        -webkit-line-clamp: unset;
+        -webkit-box-orient: unset;
+    }
+
+    .trigger-icon {
+        margin-top: 2px;
     }
 }
 

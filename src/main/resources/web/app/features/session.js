@@ -40,6 +40,8 @@ export async function tryRecoverActiveSession() {
         state.opponentSpecId = data.opponentSpecId;
         state.opponentDisplayName = displayName;
         state.opponentQuestionSetDisplayName = matchingModel?.metadata?.questionSetDisplayName || null;
+        state.opponentQuestionSetDescription = matchingModel?.metadata?.questionSetDescription || null;
+        state.opponentQuestionSetDescriptionI18nKey = matchingModel?.metadata?.questionSetDescriptionI18nKey || null;
         state.opponentDifficulty = matchingModel?.metadata?.difficulty || null;
         // Nickname is not returned by this endpoint, so we use a placeholder
         state.nickname = state.nickname || t("yourId");

@@ -514,6 +514,9 @@ export function initWorkspaceText() {
 
     const calcInput = $("#calcExpr");
     if (calcInput) calcInput.placeholder = t("calcPlaceholder");
+
+    const scratch = $("#scratchpadText");
+    if (scratch) scratch.placeholder = t("scratchpadPlaceholder");
 }
 
 /**

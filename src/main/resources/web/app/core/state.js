@@ -18,6 +18,8 @@ export const state = {
     opponentSpecId: null,
     opponentDisplayName: null,
     opponentQuestionSetDisplayName: null,
+    opponentQuestionSetDescription: null,
+    opponentQuestionSetDescriptionI18nKey: null,
     opponentDifficulty: null,
     players: { human: null, llm: null },
 
