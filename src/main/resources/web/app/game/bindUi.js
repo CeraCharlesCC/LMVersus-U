@@ -1,15 +1,17 @@
-import {$} from "../core/dom.js";
-import {state, STORAGE_KEY_LANDING} from "../core/state.js";
-import {t} from "../core/i18n.js";
-import {refreshLeaderboard} from "../features/leaderboard.js";
-import {showNetError, toast} from "../ui/toast.js";
-import {hideLicenseModal, hideMatchEndModal, isMatchEndVisible, showLicenseModal} from "../ui/modals.js";
-import {closeWs} from "./ws.js";
-import {showLobby} from "./uiScreens.js";
-import {getLlmScrollEl, renderResultDetails, setTopMobileTab} from "./roundUi.js";
-import {setLobbyTab} from "./lobbyTabs.js";
-import {applyFreeAnswerMode, giveUp, goNext, startMatch, startRound, submitAnswer} from "./actions.js";
-import {bindWorkspaceEvents, initWorkspaceText} from "./workspace.js";
+import { $ } from "../core/dom.js";
+import { state, STORAGE_KEY_LANDING } from "../core/state.js";
+import { t } from "../core/i18n.js";
+import { safeLsSet } from "../core/utils.js";
+import { refreshLeaderboard } from "../features/leaderboard.js";
+
+import { showNetError, toast } from "../ui/toast.js";
+import { hideLicenseModal, hideMatchEndModal, isMatchEndVisible, showLicenseModal } from "../ui/modals.js";
+import { closeWs } from "./ws.js";
+import { showLobby } from "./uiScreens.js";
+import { getLlmScrollEl, renderResultDetails, setTopMobileTab } from "./roundUi.js";
+import { setLobbyTab } from "./lobbyTabs.js";
+import { applyFreeAnswerMode, giveUp, goNext, startMatch, startRound, submitAnswer } from "./actions.js";
+import { bindWorkspaceEvents, initWorkspaceText } from "./workspace.js";
 
 export function bindUi() {
     document.querySelectorAll(".tab-btn").forEach((btn) => {
@@ -19,7 +21,7 @@ export function bindUi() {
     $("#btnLandingDismiss").addEventListener("click", () => {
         $("#landingOverlay").classList.add("hidden");
         $("#landingOverlay").setAttribute("aria-hidden", "true");
-        localStorage.setItem(STORAGE_KEY_LANDING, "true");
+        safeLsSet(STORAGE_KEY_LANDING, "true");
     });
 
     $("#btnStartLight").addEventListener("click", () => startMatch("LIGHTWEIGHT"));
@@ -112,7 +114,7 @@ export function bindUi() {
                 if (state.ui.programmaticScroll) return;
                 state.ui.reasoningPinnedToTop = llmScroll.scrollTop <= 2;
             },
-            {passive: true}
+            { passive: true }
         );
     }
 
@@ -124,11 +126,11 @@ export function bindUi() {
             if (!state.ui.lastResultDetails) return;
             if (resizeRaf) cancelAnimationFrame(resizeRaf);
             resizeRaf = requestAnimationFrame(() => {
-                const {note, details} = state.ui.lastResultDetails || {};
+                const { note, details } = state.ui.lastResultDetails || {};
                 renderResultDetails(note, details);
             });
         },
-        {passive: true}
+        { passive: true }
     );
 
     // keep behavior: if something calls old stubs, don’t crash

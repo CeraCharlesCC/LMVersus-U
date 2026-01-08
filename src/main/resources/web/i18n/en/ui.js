@@ -121,7 +121,7 @@ export default {
     lockReasonInt: "Enter a valid integer",
     lockReasonText: "Enter your answer",
 
-    kbdHintMcq: "1–9 select · Enter submit",
+    kbdHintMcq: "1–0 / Shift+1–0 select · Enter submit",
     kbdHintText: "Ctrl+Enter submit",
     kbdHintInt: "Enter submit",
 };

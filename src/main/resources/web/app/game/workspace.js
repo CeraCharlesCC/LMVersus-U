@@ -476,8 +476,12 @@ export function handleKeyboardShortcut(e, submitFn) {
     // MCQ mode: 1-9 for selection, Enter for submit
     const key = e.key;
 
-    if (/^[1-9]$/.test(key)) {
-        const idx = parseInt(key, 10) - 1;
+    const m = e.code?.match(/^Digit([0-9])$/);
+    if (m) {
+        const d = Number(m[1]);
+        let idx = d - 1;
+        if (d === 0) idx = 9;
+        if (e.shiftKey) idx += 10;
         if (idx < state.choices.length) {
             state.selectedChoiceIndex = idx;
             document.querySelectorAll(".choice-btn").forEach((btn, i) => {
