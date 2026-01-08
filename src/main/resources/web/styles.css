@@ -1688,10 +1688,34 @@ a:hover {
     /* Text truncation fix */
 }
 
+.trigger-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-width: 0;
+}
+
+.trigger-stats {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 0 0 auto;
+    justify-content: flex-end;
+}
+
+.trigger-stats.is-empty {
+    display: none;
+}
+
 .trigger-title {
     font-size: 17px;
     font-weight: 600;
     color: var(--text);
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .trigger-desc {
@@ -1706,7 +1730,6 @@ a:hover {
 
 /* The Chevron Icon */
 .trigger-icon {
-    margin-left: 12px;
     color: var(--muted);
     transition: transform 0.3s ease;
 }

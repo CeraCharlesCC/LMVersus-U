@@ -56,14 +56,24 @@ function updateTriggerUI(triggerEl, model) {
     const titleEl = triggerEl.querySelector(".trigger-title");
     const badgesEl = triggerEl.querySelector(".trigger-badges");
     const descEl = triggerEl.querySelector(".trigger-desc");
+    const statsEl = triggerEl.querySelector(".trigger-stats");
 
     titleEl.textContent = meta.displayName || model.id;
     if (badgesEl) {
         badgesEl.innerHTML = renderModelBadgesHtml(meta);
     }
 
-
     descEl.textContent = resolveModelDescription(model);
+    if (statsEl) {
+        const speed = meta.speed || 0;
+        const eff = meta.efficiency || 0;
+        const statsHtml = `
+            ${renderStat(ICON_SPEED, "Speed", speed, 5, "speed")}
+            ${renderStat(ICON_EFFICIENCY, "Efficiency", eff, 5, "efficiency")}
+        `;
+        statsEl.innerHTML = statsHtml;
+        statsEl.classList.toggle("is-empty", !statsHtml.trim());
+    }
 }
 
 function renderModelSelectorWidget(container, input, models, mode) {
@@ -100,7 +110,10 @@ function renderModelSelectorWidget(container, input, models, mode) {
     trigger.setAttribute("aria-haspopup", "listbox");
     trigger.innerHTML = `
         <div class="trigger-content">
-            <div class="trigger-title">Select Model</div>
+            <div class="trigger-title-row">
+                <div class="trigger-title">Select Model</div>
+                <div class="trigger-stats opt-stats-row"></div>
+            </div>
             <div class="trigger-badges"></div>
             <div class="trigger-desc">...</div>
         </div>
