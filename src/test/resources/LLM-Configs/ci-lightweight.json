@@ -1,7 +1,11 @@
 {
   "id": "ci-light-1",
   "mode": "LIGHTWEIGHT",
-  "displayName": "CI Lightweight",
+  "metadata": {
+    "displayName": "CI Lightweight Model",
+    "description": "A lightweight model configuration for continuous integration testing.",
+    "descriptionI18nKey": "model.lightweight.ci.description"
+  },
   "llmProfile": {
     "modelName": "gpt-4o-mini",
     "displayName": "CI Model"
