@@ -480,7 +480,8 @@ def select_spec(specs: list[dict[str, Any]]) -> dict[str, Any] | None:
 
     for i, spec in enumerate(specs, 1):
         spec_id = spec.get("id", "unknown")
-        display_name = spec.get("displayName", spec_id)
+        metadata = spec.get("metadata", {})
+        display_name = metadata.get("displayName", spec_id)
         model_name = spec.get("llmProfile", {}).get("modelName", "unknown")
         question_set = spec.get("questionSetPath", "")
         print(f"  {i}. {display_name}")
@@ -545,7 +546,7 @@ def main():
         print("Cancelled.")
         sys.exit(0)
 
-    print(f"\nSelected: {spec.get('displayName', spec.get('id'))}")
+    print(f"\nSelected: {spec.get('metadata', {}).get('displayName', spec.get('id'))}")
 
     # Determine output directory
     spec_id = spec.get("id", "unknown")

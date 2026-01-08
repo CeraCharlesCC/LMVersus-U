@@ -468,7 +468,7 @@ async function tryRecoverActiveSession() {
         // Try to recover display name from opponent specs
         const models = [...(state.models.LIGHTWEIGHT || []), ...(state.models.PREMIUM || [])];
         const matchingModel = models.find(m => m.id === data.opponentSpecId);
-        const displayName = matchingModel?.displayName || data.opponentSpecId;
+        const displayName = matchingModel?.metadata?.displayName || data.opponentSpecId;
 
         // We have an active session, attempt to rejoin via WebSocket
         toast(t("toastSession"), t("recovering"));
@@ -525,15 +525,15 @@ async function giveUp() {
 function resolveModelDescription(model) {
     if (!model) return "";
     // Try i18n key first
-    if (model.descriptionI18nKey) {
-        const localized = t(model.descriptionI18nKey);
+    if (model.metadata?.descriptionI18nKey) {
+        const localized = t(model.metadata.descriptionI18nKey);
         // t() returns the key itself if not found, so check if it's different
-        if (localized && localized !== model.descriptionI18nKey) {
+        if (localized && localized !== model.metadata.descriptionI18nKey) {
             return localized;
         }
     }
     // Fallback to static description
-    return model.description || "";
+    return model.metadata?.description || "";
 }
 
 function updateOpponentHint() {
@@ -564,7 +564,7 @@ function populateOpponentSelects() {
     for (const m of models) {
         const opt = document.createElement("option");
         opt.value = m.id;
-        opt.textContent = m.displayName || m.id;
+        opt.textContent = m.metadata?.displayName || m.id;
         opt.dataset.displayName = opt.textContent;
         sel.appendChild(opt);
     }

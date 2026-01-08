@@ -11,42 +11,43 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlin.reflect.full.memberProperties
 
+@Serializable
+internal data class OpponentMetadata(
+    val displayName: String,
+    val description: String? = null,
+    val descriptionI18nKey: String? = null,
+)
+
 @Serializable(with = OpponentSpecModeSerializer::class)
 internal sealed interface OpponentSpec {
     val id: String
     val mode: GameMode
-    val displayName: String
+    val metadata: OpponentMetadata
     val llmProfile: LlmProfile
     val streaming: StreamingPolicy
-    val description: String?
-    val descriptionI18nKey: String?
 
     @Serializable
     data class Lightweight(
         override val id: String,
         override val mode: GameMode = GameMode.LIGHTWEIGHT,
-        override val displayName: String,
+        override val metadata: OpponentMetadata,
         override val llmProfile: LlmProfile,
         override val streaming: StreamingPolicy,
         val questionSetPath: String,
         val questionSetDisplayName: String,
         val datasetPath: String,
-        override val description: String? = null,
-        override val descriptionI18nKey: String? = null,
     ) : OpponentSpec
 
     @Serializable
     data class Premium(
         override val id: String,
         override val mode: GameMode = GameMode.PREMIUM,
-        override val displayName: String,
+        override val metadata: OpponentMetadata,
         override val llmProfile: LlmProfile,
         override val streaming: StreamingPolicy,
         val questionSetPath: String,
         val questionSetDisplayName: String,
         val provider: ProviderConfig,
-        override val description: String? = null,
-        override val descriptionI18nKey: String? = null,
     ) : OpponentSpec
 }
 

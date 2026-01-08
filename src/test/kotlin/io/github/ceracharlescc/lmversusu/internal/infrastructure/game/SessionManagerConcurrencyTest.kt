@@ -4,6 +4,7 @@ package io.github.ceracharlescc.lmversusu.internal.infrastructure.game
 
 import io.github.ceracharlescc.lmversusu.internal.AppConfig
 import io.github.ceracharlescc.lmversusu.internal.domain.entity.GameMode
+import io.github.ceracharlescc.lmversusu.internal.domain.entity.OpponentMetadata
 import io.github.ceracharlescc.lmversusu.internal.domain.entity.OpponentSpec
 import io.github.ceracharlescc.lmversusu.internal.domain.repository.OpponentSpecRepository
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.ClientIdentity
@@ -43,7 +44,7 @@ class SessionManagerConcurrencyTest {
         every { specRepo.findById("spec-1") } returns mockk<OpponentSpec.Lightweight> {
             every { id } returns "spec-1"
             every { mode } returns GameMode.LIGHTWEIGHT
-            every { displayName } returns "Bot"
+            every { metadata } returns OpponentMetadata(displayName = "Bot")
             every { llmProfile } returns mockk(relaxed = true)
             every { streaming } returns mockk(relaxed = true)
         }

@@ -242,7 +242,7 @@ internal class SessionActor(
             val llm = Player(
                 playerId = Uuid.random(),
                 type = Player.PlayerType.LLM,
-                nickname = opponentSpec.displayName,
+                nickname = opponentSpec.metadata.displayName,
             )
             val players = PlayerSet(human = human, llm = llm)
             val joinCode = buildJoinCode(sessionId)

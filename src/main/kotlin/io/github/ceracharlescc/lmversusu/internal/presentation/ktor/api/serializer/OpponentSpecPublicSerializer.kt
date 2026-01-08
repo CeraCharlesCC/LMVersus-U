@@ -1,5 +1,6 @@
 package io.github.ceracharlescc.lmversusu.internal.presentation.ktor.api.serializer
 
+import io.github.ceracharlescc.lmversusu.internal.domain.entity.OpponentMetadata
 import io.github.ceracharlescc.lmversusu.internal.domain.entity.OpponentSpec
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.KSerializer
@@ -19,18 +20,14 @@ internal object OpponentSpecPublicSerializer : KSerializer<OpponentSpec> {
         buildClassSerialDescriptor("OpponentSpecPublic") {
             element<String>("id")
             element<String>("mode")
-            element<String>("displayName")
-            element<String?>("description")
-            element<String?>("descriptionI18nKey")
+            element("metadata", OpponentMetadata.serializer().descriptor)
         }
 
     override fun serialize(encoder: Encoder, value: OpponentSpec) {
         encoder.encodeStructure(descriptor) {
             encodeStringElement(descriptor, 0, value.id)
             encodeStringElement(descriptor, 1, value.mode.name)
-            encodeStringElement(descriptor, 2, value.displayName)
-            encodeNullableSerializableElement(descriptor, 3, String.serializer(), value.description)
-            encodeNullableSerializableElement(descriptor, 4, String.serializer(), value.descriptionI18nKey)
+            encodeSerializableElement(descriptor, 2, OpponentMetadata.serializer(), value.metadata)
         }
     }
 
