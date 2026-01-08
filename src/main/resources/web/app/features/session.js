@@ -31,7 +31,7 @@ export async function tryRecoverActiveSession() {
         // Try to recover display name from opponent specs
         const models = [...(state.models.LIGHTWEIGHT || []), ...(state.models.PREMIUM || [])];
         const matchingModel = models.find((m) => m.id === data.opponentSpecId);
-        const displayName = matchingModel?.metadata.displayName || data.opponentSpecId
+        const displayName = matchingModel?.metadata.displayName || data.opponentSpecId;
 
         // We have an active session, attempt to rejoin via WebSocket
         toast(t("toastSession"), t("recovering"));
