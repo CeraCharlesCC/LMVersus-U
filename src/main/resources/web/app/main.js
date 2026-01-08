@@ -46,6 +46,3 @@ export async function main() {
         showNetError(e);
     }
 }
-
-// preserve original behavior
-main().catch((e) => toast(t("toastError"), e.message));
