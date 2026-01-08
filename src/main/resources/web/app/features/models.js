@@ -6,117 +6,19 @@ import { state } from "../core/state.js";
 import { renderModelBadgesHtml } from "../ui/badges.js";
 import { showDetailModal } from "../ui/modals.js";
 
+import { installRichTooltip } from "../ui/tooltips.js";
+
 // ----- Rich tooltip for Question Set badges (PC only, scoped to model picker) -----
-let _qsTooltipEl = null;
-
-function ensureQsTooltipEl() {
-    if (_qsTooltipEl && _qsTooltipEl.isConnected) return _qsTooltipEl;
-    const el = document.createElement("div");
-    el.className = "qs-tooltip";
-    el.innerHTML = `<div class="qs-tt-title"></div><div class="qs-tt-body"></div>`;
-    document.body.appendChild(el);
-    _qsTooltipEl = el;
-    return el;
-}
-
-function stripNativeQsTitle(img) {
-    // Prevent the native tooltip from competing with our rich one.
-    if (img && img.getAttribute && img.getAttribute("title")) {
-        img.dataset._nativeTitle = img.getAttribute("title") || "";
-        img.removeAttribute("title");
-    }
-}
-
-function positionQsTooltip(img, tooltipEl) {
-    const pad = 10;
-    const r = img.getBoundingClientRect();
-    const tr = tooltipEl.getBoundingClientRect();
-
-    // Prefer to the right; fallback left; clamp to viewport
-    let x = r.right + 10;
-    if (x + tr.width > window.innerWidth - pad) x = r.left - tr.width - 10;
-    x = Math.max(pad, Math.min(x, window.innerWidth - tr.width - pad));
-
-    // Prefer vertically aligned near the badge
-    let y = r.top - 6;
-    y = Math.max(pad, Math.min(y, window.innerHeight - tr.height - pad));
-
-    tooltipEl.style.left = `${x}px`;
-    tooltipEl.style.top = `${y}px`;
-}
-
 function installQsRichTooltip({ wrapper, optionsList, ac }) {
-    const tooltipEl = ensureQsTooltipEl();
-    let activeImg = null;
+    const t1 = installRichTooltip(wrapper, ac.signal);
+    const t2 = installRichTooltip(optionsList, ac.signal);
 
-    const hide = () => {
-        activeImg = null;
-        tooltipEl.classList.remove("is-visible");
-    };
-
-    const showFor = (img) => {
-        if (!img) return;
-        if (isMobileLayout()) return; // PC only
-
-        const name = String(img.dataset.qsName || "").trim();
-        const desc = String(img.dataset.qsDesc || "").trim();
-        if (!name && !desc) return;
-
-        stripNativeQsTitle(img);
-
-        const titleEl = tooltipEl.querySelector(".qs-tt-title");
-        const bodyEl = tooltipEl.querySelector(".qs-tt-body");
-        if (titleEl) titleEl.textContent = name || "Question Set";
-        if (bodyEl) bodyEl.textContent = desc || "";
-
-        // Make visible first so we can measure it, then position.
-        tooltipEl.classList.add("is-visible");
-        positionQsTooltip(img, tooltipEl);
-        activeImg = img;
-    };
-
-    const scoped = (img) => !!img && (wrapper.contains(img) || optionsList.contains(img));
-
-    const onOver = (e) => {
-        if (isMobileLayout()) return;
-        const img = e.target?.closest?.("img.gh-badge[data-kind='questionset']");
-        if (!img || !scoped(img)) return;
-        showFor(img);
-    };
-
-    const onOut = (e) => {
-        if (!activeImg) return;
-        const to = e.relatedTarget;
-        const nextImg = to?.closest?.("img.gh-badge[data-kind='questionset']");
-        if (nextImg && scoped(nextImg)) {
-            showFor(nextImg);
-            return;
+    return {
+        hide: () => {
+            t1.hide();
+            t2.hide();
         }
-        hide();
     };
-
-    const onResize = () => {
-        if (!activeImg) return;
-        if (isMobileLayout()) return hide();
-        positionQsTooltip(activeImg, tooltipEl);
-    };
-
-    // Event delegation on both roots (optionsList may be teleported to <body>)
-    wrapper.addEventListener("mouseover", onOver, { signal: ac.signal });
-    wrapper.addEventListener("mouseout", onOut, { signal: ac.signal });
-    optionsList.addEventListener("mouseover", onOver, { signal: ac.signal });
-    optionsList.addEventListener("mouseout", onOut, { signal: ac.signal });
-
-    // Keyboard focus (rare for IMG, but keep robust)
-    wrapper.addEventListener("focusin", onOver, { signal: ac.signal });
-    wrapper.addEventListener("focusout", hide, { signal: ac.signal });
-    optionsList.addEventListener("focusin", onOver, { signal: ac.signal });
-    optionsList.addEventListener("focusout", hide, { signal: ac.signal });
-
-    window.addEventListener("resize", onResize, { signal: ac.signal, passive: true });
-    window.addEventListener("scroll", hide, { signal: ac.signal, passive: true });
-
-    return { hide };
 }
 
 // Icons
@@ -158,10 +60,6 @@ function updateTriggerUI(triggerEl, model) {
     titleEl.textContent = meta.displayName || model.id;
     if (badgesEl) {
         badgesEl.innerHTML = renderModelBadgesHtml(meta);
-        // Remove native tooltip on PC (rich tooltip handles it inside the picker)
-        if (!isMobileLayout()) {
-            badgesEl.querySelectorAll("img.gh-badge[data-kind='questionset']").forEach(stripNativeQsTitle);
-        }
     }
 
 
@@ -239,10 +137,7 @@ function renderModelSelectorWidget(container, input, models, mode) {
             </div>
         `;
 
-        // Remove native tooltip on PC (rich tooltip handles it inside the picker)
-        if (!isMobileLayout()) {
-            opt.querySelectorAll("img.gh-badge[data-kind='questionset']").forEach(stripNativeQsTitle);
-        }
+
 
 
         // Click Option Event

@@ -5,6 +5,15 @@ import { escapeHtml, fmtMs, isChoiceCompact, isMobileLayout, } from "../core/uti
 import { state } from "../core/state.js";
 import { applySubmitLockState, resetWorkspace, updateAnswerSummary, updateKeyboardHint, } from "./workspace.js";
 import { renderModelBadgesHtml } from "../ui/badges.js";
+import { installRichTooltip } from "../ui/tooltips.js";
+
+// Initialize rich tooltips for the LLM chip area (where badges appear)
+const llmChipAcc = $("#llmChip");
+if (llmChipAcc) {
+    // No specific abort signal needed as this persists for the app lifetime
+    installRichTooltip(llmChipAcc);
+}
+
 
 /** ---- Small UI helpers ---- */
 export function showBottomState(which /* "pre" | "answer" | "post" */) {
