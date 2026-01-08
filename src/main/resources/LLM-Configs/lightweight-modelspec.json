@@ -3,11 +3,12 @@
   "mode": "LIGHTWEIGHT",
   "metadata": {
     "displayName": "Claude Sonnet 4.5 (Replay)",
-    "questionSetDisplayName": "MMLU Pro",
     "description": "replay of Claude Sonnet 4.5 model on MMLU Pro subset",
     "descriptionI18nKey": "model.lightweight.sonnet45.description",
+    "questionSetDisplayName": "MMLU Pro",
     "speed": 5,
-    "efficiency": 3
+    "efficiency": 3,
+    "difficulty": "HARD"
   },
   "llmProfile": {
     "modelName": "claude-sonnet-4.5",
