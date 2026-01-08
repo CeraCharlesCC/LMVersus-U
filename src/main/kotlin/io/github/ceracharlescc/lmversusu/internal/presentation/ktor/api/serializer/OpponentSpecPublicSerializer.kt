@@ -1,7 +1,7 @@
 package io.github.ceracharlescc.lmversusu.internal.presentation.ktor.api.serializer
 
-import io.github.ceracharlescc.lmversusu.internal.domain.entity.OpponentSpec.OpponentMetadata
 import io.github.ceracharlescc.lmversusu.internal.domain.entity.OpponentSpec
+import io.github.ceracharlescc.lmversusu.internal.domain.entity.OpponentSpec.OpponentMetadata
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerializationException

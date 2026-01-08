@@ -3,6 +3,7 @@ package io.github.ceracharlescc.lmversusu.internal.infrastructure.repository
 import io.github.ceracharlescc.lmversusu.internal.di.annotation.ConfigDirectory
 import io.github.ceracharlescc.lmversusu.internal.domain.entity.OpponentSpec
 import io.github.ceracharlescc.lmversusu.internal.domain.repository.OpponentSpecRepository
+import io.github.ceracharlescc.lmversusu.internal.infrastructure.serializer.OpponentSpecModeSerializer
 import kotlinx.serialization.json.Json
 import org.slf4j.Logger
 import java.nio.file.Files
@@ -65,7 +66,7 @@ internal class JsonOpponentSpecRepositoryImpl @Inject constructor(
     private fun parseSpec(path: Path): OpponentSpec? {
         return try {
             val content = path.readText()
-            val spec = json.decodeFromString<OpponentSpec>(content)
+            val spec = json.decodeFromString(OpponentSpecModeSerializer, content)
             resolveEnvSecrets(spec)
         } catch (_: Exception) {
             null

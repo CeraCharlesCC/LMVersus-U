@@ -15,7 +15,7 @@ import com.openai.models.chat.completions.ChatCompletionChunk
 import com.openai.models.chat.completions.ChatCompletionCreateParams
 import com.openai.models.responses.*
 import io.github.ceracharlescc.lmversusu.internal.application.port.ExpectedAnswerKind
-import io.github.ceracharlescc.lmversusu.internal.domain.entity.OpponentSpec.ProviderConfig.*
+import io.github.ceracharlescc.lmversusu.internal.domain.entity.OpponentSpec.ProviderConfig.ProviderCompat
 import io.github.ceracharlescc.lmversusu.internal.domain.entity.OpponentSpec.ProviderConfig.ProviderCompat.*
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.streaming.LlmAnswer
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.streaming.LlmStreamEvent
@@ -112,7 +112,7 @@ internal class OpenAIApiDao(
                 reasoning = resolvedReasoning,
             )
 
-            ProviderCompat.ProviderApiProtocol.AUTO -> error("Resolved protocol cannot be AUTO")
+            ProviderApiProtocol.AUTO -> error("Resolved protocol cannot be AUTO")
         }
     }
 

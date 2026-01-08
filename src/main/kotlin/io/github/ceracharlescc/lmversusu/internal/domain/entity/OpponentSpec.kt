@@ -1,17 +1,12 @@
 package io.github.ceracharlescc.lmversusu.internal.domain.entity
 
+import io.github.ceracharlescc.lmversusu.internal.domain.serializer.DeserializeOnlyStringSerializer
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.LlmProfile
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.streaming.StreamingPolicy
-import kotlinx.serialization.DeserializationStrategy
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.SerializationException
-import kotlinx.serialization.json.JsonContentPolymorphicSerializer
 import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlin.reflect.full.memberProperties
 
-@Serializable(with = OpponentSpecModeSerializer::class)
 internal sealed interface OpponentSpec {
     val id: String
     val mode: GameMode
@@ -54,6 +49,7 @@ internal sealed interface OpponentSpec {
     data class ProviderConfig(
         val providerName: String,
         val apiUrl: String,
+        @Serializable(with = DeserializeOnlyStringSerializer::class)
         val apiKey: String,
         val compat: ProviderCompat = ProviderCompat(),
         val extraBody: Map<String, JsonElement>? = null,
@@ -101,18 +97,5 @@ internal sealed interface OpponentSpec {
         }
 
         override fun toString(): String = toSafeString()
-    }
-}
-
-internal object OpponentSpecModeSerializer : JsonContentPolymorphicSerializer<OpponentSpec>(OpponentSpec::class) {
-    override fun selectDeserializer(element: JsonElement): DeserializationStrategy<OpponentSpec> {
-        val mode = element.jsonObject["mode"]?.jsonPrimitive?.content
-            ?: throw SerializationException("OpponentSpec is missing 'mode'")
-
-        return when (mode) {
-            "LIGHTWEIGHT" -> OpponentSpec.Lightweight.serializer()
-            "PREMIUM" -> OpponentSpec.Premium.serializer()
-            else -> throw SerializationException("Unknown OpponentSpec mode='$mode'")
-        }
     }
 }
