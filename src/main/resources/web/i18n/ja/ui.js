@@ -98,4 +98,30 @@ export default {
     landingTitle: "LM Versus Uへようこそ！",
     landingDesc: "最先端のLLMとリアルタイムでクイズ対決！AIよりも早く正確に答えて、あなたの知識とスピードを証明しましょう。",
     landingButton: "やってみる",
+
+    // Bottom panel workspace
+    answerSummaryEmpty: "未選択",
+    answerSummaryMcq: "選択: #{n}",
+    answerSummaryInt: "整数: {v}",
+    answerSummaryText: "テキスト: {v}",
+    clearAnswer: "クリア",
+    copyQuestion: "問題コピー",
+    copyChoice: "選択コピー",
+    copyScratch: "メモコピー",
+    copied: "コピーしました",
+    copyFailed: "コピー失敗",
+
+    scratchpad: "メモ帳",
+    scratchpadPlaceholder: "計算やメモなど自由に使ってください。",
+    calcPlaceholder: "例: 1 + 2 * 3",
+    calcEval: "=",
+    calcClear: "クリア",
+
+    lockReasonMcq: "選択肢を選んでください",
+    lockReasonInt: "有効な整数を入力してください",
+    lockReasonText: "回答を入力してください",
+
+    kbdHintMcq: "1–9 選択 · Enter 確定",
+    kbdHintText: "Ctrl+Enter 確定",
+    kbdHintInt: "Enter 確定",
 };

@@ -98,4 +98,30 @@ export default {
     landingTitle: "Welcome to LM Versus U!",
     landingDesc: "Race against top LLMs in a real-time trivia battle. Beat the AI's speed and accuracy to claim victory!",
     landingButton: "Ready!",
+
+    // Bottom panel workspace
+    answerSummaryEmpty: "No answer selected",
+    answerSummaryMcq: "Selected: #{n}",
+    answerSummaryInt: "Integer: {v}",
+    answerSummaryText: "Text: {v}",
+    clearAnswer: "Clear",
+    copyQuestion: "Copy Q",
+    copyChoice: "Copy choice",
+    copyScratch: "Copy notes",
+    copied: "Copied!",
+    copyFailed: "Copy failed",
+
+    scratchpad: "Scratchpad",
+    scratchpadPlaceholder: "Freely use this area for notes or draft calculations.",
+    calcPlaceholder: "e.g. 1 + 2 * 3",
+    calcEval: "=",
+    calcClear: "Clear",
+
+    lockReasonMcq: "Select an option",
+    lockReasonInt: "Enter a valid integer",
+    lockReasonText: "Enter your answer",
+
+    kbdHintMcq: "1–9 select · Enter submit",
+    kbdHintText: "Ctrl+Enter submit",
+    kbdHintInt: "Enter submit",
 };

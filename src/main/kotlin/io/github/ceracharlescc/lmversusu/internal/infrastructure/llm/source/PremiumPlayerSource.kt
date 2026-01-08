@@ -2,7 +2,7 @@ package io.github.ceracharlescc.lmversusu.internal.infrastructure.llm.source
 
 import io.github.ceracharlescc.lmversusu.internal.application.port.RoundContext
 import io.github.ceracharlescc.lmversusu.internal.domain.entity.OpponentSpec
-import io.github.ceracharlescc.lmversusu.internal.domain.entity.ProviderConfig
+import io.github.ceracharlescc.lmversusu.internal.domain.entity.OpponentSpec.ProviderConfig
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.streaming.LlmAnswer
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.streaming.LlmStreamEvent
 import io.github.ceracharlescc.lmversusu.internal.infrastructure.llm.dao.OpenAIApiDao

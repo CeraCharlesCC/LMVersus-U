@@ -15,10 +15,8 @@ import com.openai.models.chat.completions.ChatCompletionChunk
 import com.openai.models.chat.completions.ChatCompletionCreateParams
 import com.openai.models.responses.*
 import io.github.ceracharlescc.lmversusu.internal.application.port.ExpectedAnswerKind
-import io.github.ceracharlescc.lmversusu.internal.domain.entity.ProviderApiProtocol
-import io.github.ceracharlescc.lmversusu.internal.domain.entity.ProviderCompat
-import io.github.ceracharlescc.lmversusu.internal.domain.entity.ProviderReasoning
-import io.github.ceracharlescc.lmversusu.internal.domain.entity.ProviderStructuredOutput
+import io.github.ceracharlescc.lmversusu.internal.domain.entity.OpponentSpec.ProviderConfig.ProviderCompat
+import io.github.ceracharlescc.lmversusu.internal.domain.entity.OpponentSpec.ProviderConfig.ProviderCompat.*
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.streaming.LlmAnswer
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.streaming.LlmStreamEvent
 import kotlinx.coroutines.Dispatchers

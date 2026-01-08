@@ -242,7 +242,7 @@ internal class SessionActor(
             val llm = Player(
                 playerId = Uuid.random(),
                 type = Player.PlayerType.LLM,
-                nickname = opponentSpec.displayName,
+                nickname = opponentSpec.metadata.displayName,
             )
             val players = PlayerSet(human = human, llm = llm)
             val joinCode = buildJoinCode(sessionId)
@@ -683,10 +683,7 @@ internal class SessionActor(
     ) {
         val now = Instant.now(clock)
         val durationMs = Duration.between(session.createdAt, now).toMillis()
-        val questionSetDisplayName = when (opponentSpec) {
-            is OpponentSpec.Lightweight -> opponentSpec.questionSetDisplayName
-            is OpponentSpec.Premium -> opponentSpec.questionSetDisplayName
-        }
+        val questionSetDisplayName = opponentSpec.metadata.questionSetDisplayName
         val result = SessionResult(
             sessionId = session.sessionId,
             gameMode = session.mode,

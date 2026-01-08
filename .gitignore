@@ -35,7 +35,11 @@ out/
 ### VS Code ###
 .vscode/
 
-### Testintg ###
+### Working Files ###
+/replay_output
+
+### Testing ###
+/web/
 /LLM-Configs/
 /config.test.toml
 /config.toml

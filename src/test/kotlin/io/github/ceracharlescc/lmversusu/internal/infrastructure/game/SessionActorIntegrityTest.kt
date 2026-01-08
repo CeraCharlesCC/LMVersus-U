@@ -95,7 +95,17 @@ class SessionActorIntegrityTest {
         val spec = mockk<OpponentSpec.Lightweight> {
             every { id } returns "test-spec"
             every { mode } returns GameMode.LIGHTWEIGHT
-            every { displayName } returns "Bot"
+            every { metadata } returns OpponentSpec.OpponentMetadata(
+                displayName = "Bot",
+                questionSetDisplayName = "TestSet",
+                description = "A test bot",
+                descriptionI18nKey = "opponent.test_bot.description",
+                questionSetDescription = "A set of test questions",
+                questionSetDescriptionI18nKey = "opponent.test_bot.question_set_description",
+                speed = 5,
+                efficiency = 5,
+                difficulty = "Easy",
+            )
             every { llmProfile } returns LlmProfile.DEFAULT
             every { streaming } returns StreamingPolicy()
         }
@@ -180,8 +190,7 @@ class SessionActorIntegrityTest {
             )
         }
     }
-
-
+    
     @Test
     fun `Adversarial - Invalid Nonce Token Rejection`() = runTest {
         every { llmGateway.streamAnswer(any()) } returns emptyFlow()
