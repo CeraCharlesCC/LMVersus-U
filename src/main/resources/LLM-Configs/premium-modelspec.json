@@ -6,6 +6,8 @@
     "description": "Kimi K2 Thinking model accessed via Kimi's own API endpoint. This configuration is intended for live usage scenarios.",
     "descriptionI18nKey": "model.premium.kimi-k2.description",
     "questionSetDisplayName": "MMLU Pro",
+    "questionSetDescription": "expert-reviewed, 10-choice multiple-choice questions spanning 14 domains",
+    "questionSetDescriptionI18nKey": "model.questionset.mmlu-pro.description",
     "speed": 2,
     "efficiency": 5,
     "Difficulty": "HARD"
