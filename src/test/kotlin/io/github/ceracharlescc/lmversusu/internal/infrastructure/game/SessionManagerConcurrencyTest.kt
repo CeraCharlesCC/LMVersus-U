@@ -45,7 +45,12 @@ class SessionManagerConcurrencyTest {
             every { mode } returns GameMode.LIGHTWEIGHT
             every { metadata } returns OpponentSpec.OpponentMetadata(
                 displayName = "Bot",
-                questionSetDisplayName = "TestSet"
+                questionSetDisplayName = "TestSet",
+                description = "Test Bot",
+                descriptionI18nKey = "opponent.bot.test",
+                speed = 5,
+                efficiency = 5,
+                difficulty = "medium"
             )
             every { llmProfile } returns mockk(relaxed = true)
             every { streaming } returns mockk(relaxed = true)

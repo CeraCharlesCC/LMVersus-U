@@ -97,7 +97,12 @@ class SessionActorIntegrityTest {
             every { mode } returns GameMode.LIGHTWEIGHT
             every { metadata } returns OpponentSpec.OpponentMetadata(
                 displayName = "Bot",
-                questionSetDisplayName = "TestSet"
+                questionSetDisplayName = "TestSet",
+                description = "A test bot",
+                descriptionI18nKey = "opponent.test_bot.description",
+                speed = 5,
+                efficiency = 5,
+                difficulty = "Easy",
             )
             every { llmProfile } returns LlmProfile.DEFAULT
             every { streaming } returns StreamingPolicy()
