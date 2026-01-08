@@ -88,8 +88,6 @@ export function installRichTooltip(container, signal) {
         activeImg = img;
     };
 
-    const isBadge = (el) => el && el.matches && el.matches("img.gh-badge[data-kind]");
-
     const onOver = (e) => {
         if (isMobileLayout()) return;
         const img = e.target?.closest?.("img.gh-badge[data-kind]");

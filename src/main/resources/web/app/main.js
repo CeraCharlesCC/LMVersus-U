@@ -1,5 +1,5 @@
 import {$} from "./core/dom.js";
-import {LANG, loadI18n, t} from "./core/i18n.js";
+import {LANG, loadI18n} from "./core/i18n.js";
 import {state, STORAGE_KEY_NICKNAME} from "./core/state.js";
 import {initStaticText} from "./ui/staticText.js";
 import {bindUi} from "./game/bindUi.js";
@@ -8,7 +8,7 @@ import {setLobbyTab} from "./game/lobbyTabs.js";
 import {checkLandingPopup, loadLicenseHtml} from "./ui/modals.js";
 import {ensurePlayerSession, tryRecoverActiveSession} from "./features/session.js";
 import {loadModels} from "./features/models.js";
-import {showNetError, toast} from "./ui/toast.js";
+import {showNetError} from "./ui/toast.js";
 import {setNet} from "./ui/netIndicator.js";
 import {installCompatGlobals} from "./compat/globals.js";
 

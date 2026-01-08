@@ -28,10 +28,6 @@ function normDifficultyEnum(d) {
     return String(d || "").trim().toUpperCase();
 }
 
-function escapeRegExp(s) {
-    return String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
 function resolveQuestionSetDescription(meta) {
     if (!meta) return "";
 
