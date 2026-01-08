@@ -2314,7 +2314,7 @@ a:hover {
 
     .scratchpad-toggle {
         margin-left: 4px;
-        padding: 6px 8px;
+        padding: 2px 8px;
         background: rgba(255, 255, 255, 0.05);
         border-radius: 6px;
     }
@@ -2337,6 +2337,19 @@ a:hover {
 
     .trigger-icon {
         margin-top: 2px;
+    }
+
+    .bottom-body {
+        gap: 0;
+        padding: 6px 12px;
+    }
+
+    .bottom-content {
+        gap: 0;
+    }
+
+    .q-sep {
+        margin: -15px;
     }
 }
 

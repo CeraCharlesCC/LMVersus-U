@@ -6,14 +6,15 @@ import {t} from "../core/i18n.js";
 import {handleServerEvent} from "./serverEvents.js";
 
 export function closeWs() {
-    try {
-        state.ws?.close();
-    } catch {
-        // ignore
-    }
+    const ws = state.ws;
     state.ws = null;
     state.wsOpen = false;
     setNet(false);
+    try {
+        ws?.close();
+    } catch {
+        // ignore
+    }
 }
 
 export function openWsAndJoin({sessionId = null, opponentSpecId, nickname, locale}) {
@@ -23,6 +24,7 @@ export function openWsAndJoin({sessionId = null, opponentSpecId, nickname, local
     state.ws = ws;
 
     ws.addEventListener("open", () => {
+        if (state.ws !== ws) return;
         state.wsOpen = true;
         setNet(true);
         toast(t("toastSession"), t("toastNetOk"));
@@ -38,17 +40,20 @@ export function openWsAndJoin({sessionId = null, opponentSpecId, nickname, local
     });
 
     ws.addEventListener("close", () => {
+        if (state.ws !== ws) return;
         state.wsOpen = false;
         setNet(false);
         toast(t("toastSession"), t("toastNetBad"));
     });
 
     ws.addEventListener("error", () => {
+        if (state.ws !== ws) return;
         state.wsOpen = false;
         setNet(false);
     });
 
     ws.addEventListener("message", (ev) => {
+        if (state.ws !== ws) return;
         let msg;
         try {
             msg = JSON.parse(ev.data);
