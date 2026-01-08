@@ -1,5 +1,5 @@
-import { $ } from "../core/dom.js";
-import { hideMatchEndModal } from "../ui/modals.js";
+import {$} from "../core/dom.js";
+import {hideMatchEndModal} from "../ui/modals.js";
 
 export function setGiveUpVisible(visible) {
     $("#btnGiveUp")?.classList.toggle("hidden", !visible);

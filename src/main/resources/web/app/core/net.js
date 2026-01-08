@@ -1,4 +1,4 @@
-import { t } from "./i18n.js";
+import {t} from "./i18n.js";
 
 export function wsUrl() {
     const proto = location.protocol === "https:" ? "wss:" : "ws:";
@@ -13,7 +13,7 @@ export class RateLimitError extends Error {
                 : null;
 
         const msg = secs
-            ? t("rateLimitedMsg", { s: secs })
+            ? t("rateLimitedMsg", {s: secs})
             : t("rateLimitedMsgNoTime");
 
         super(msg);
@@ -55,7 +55,7 @@ export function retryAfterSecondsFromHeaders(res) {
 }
 
 export async function httpGetJson(path) {
-    const res = await fetch(path, { credentials: "include" });
+    const res = await fetch(path, {credentials: "include"});
     if (!res.ok) {
         if (res.status === 429) {
             throw new RateLimitError(retryAfterSecondsFromHeaders(res));

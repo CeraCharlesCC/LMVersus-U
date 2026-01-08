@@ -1,7 +1,7 @@
-import { $ } from "../core/dom.js";
-import { escapeHtml } from "../core/utils.js";
-import { t } from "../core/i18n.js";
-import { RateLimitError } from "../core/net.js";
+import {$} from "../core/dom.js";
+import {escapeHtml} from "../core/utils.js";
+import {t} from "../core/i18n.js";
+import {RateLimitError} from "../core/net.js";
 
 export function toast(title, body, kind = "info", ttlMs = 3200) {
     const host = $("#toastHost");
@@ -16,7 +16,7 @@ export function toast(title, body, kind = "info", ttlMs = 3200) {
     const close = () => {
         if (el.classList.contains("closing")) return;
         el.classList.add("closing");
-        el.addEventListener("animationend", () => el.remove(), { once: true });
+        el.addEventListener("animationend", () => el.remove(), {once: true});
     };
 
     el.querySelector(".t-close").addEventListener("click", close);

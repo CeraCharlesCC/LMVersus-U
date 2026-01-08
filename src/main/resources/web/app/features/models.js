@@ -1,10 +1,10 @@
-import { $ } from "../core/dom.js";
-import { httpGetJson } from "../core/net.js";
-import { escapeHtml, isMobileLayout } from "../core/utils.js";
-import { t } from "../core/i18n.js";
-import { state } from "../core/state.js";
-import { renderModelBadgesHtml } from "../ui/badges.js";
-import { showDetailModal } from "../ui/modals.js";
+import {$} from "../core/dom.js";
+import {httpGetJson} from "../core/net.js";
+import {escapeHtml, isMobileLayout} from "../core/utils.js";
+import {t} from "../core/i18n.js";
+import {state} from "../core/state.js";
+import {renderModelBadgesHtml} from "../ui/badges.js";
+import {showDetailModal} from "../ui/modals.js";
 
 // Icons
 const ICON_SPEED = `<svg class="opp-stat-icon" viewBox="0 0 24 24"><path fill="currentColor" d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg>`;
@@ -51,10 +51,12 @@ function renderModelSelectorWidget(container, input, models, mode) {
     // Cleanup previous instance (prevents leaking global window listeners and orphaned floating menus)
     try {
         container._selectorAbort?.abort?.();
-    } catch { /* ignore */ }
+    } catch { /* ignore */
+    }
     try {
         container._selectorOptionsEl?.remove?.();
-    } catch { /* ignore */ }
+    } catch { /* ignore */
+    }
 
     const ac = new AbortController();
     container._selectorAbort = ac;
@@ -231,7 +233,7 @@ function renderModelSelectorWidget(container, input, models, mode) {
             body: desc || "",
         });
     };
-    window.addEventListener("click", onQuestionSetBadgeTap, { signal: ac.signal, capture: true });
+    window.addEventListener("click", onQuestionSetBadgeTap, {signal: ac.signal, capture: true});
 
     // Trigger keyboard toggle
     trigger.addEventListener("keydown", (e) => {
@@ -253,7 +255,7 @@ function renderModelSelectorWidget(container, input, models, mode) {
             toggleMenu(false);
         }
     };
-    window.addEventListener("click", onWindowClick, { signal: ac.signal });
+    window.addEventListener("click", onWindowClick, {signal: ac.signal});
 
     // Close on window resize to prevent alignment issues
     const onResize = () => {
@@ -261,13 +263,13 @@ function renderModelSelectorWidget(container, input, models, mode) {
             toggleMenu(false);
         }
     };
-    window.addEventListener("resize", onResize, { signal: ac.signal, passive: true });
+    window.addEventListener("resize", onResize, {signal: ac.signal, passive: true});
 
     // Close on scroll (prevents misalignment if the page/viewport moves)
     const onScroll = () => {
         if (trigger.classList.contains("is-open")) toggleMenu(false);
     };
-    window.addEventListener("scroll", onScroll, { signal: ac.signal, passive: true });
+    window.addEventListener("scroll", onScroll, {signal: ac.signal, passive: true});
 
     // Close on Escape even if focus isn't on trigger
     const onKeydown = (e) => {
@@ -276,7 +278,7 @@ function renderModelSelectorWidget(container, input, models, mode) {
             toggleMenu(false);
         }
     };
-    window.addEventListener("keydown", onKeydown, { signal: ac.signal });
+    window.addEventListener("keydown", onKeydown, {signal: ac.signal});
 }
 
 export function populateOpponentSelects() {

@@ -1,6 +1,6 @@
-import { $ } from "../core/dom.js";
-import { httpGetJson } from "../core/net.js";
-import { fmtPoints } from "../core/utils.js";
+import {$} from "../core/dom.js";
+import {httpGetJson} from "../core/net.js";
+import {fmtPoints} from "../core/utils.js";
 
 function lbRow(entry) {
     const tr = document.createElement("tr");

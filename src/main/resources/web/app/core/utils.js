@@ -22,11 +22,20 @@ export function isMobileLayout() {
 }
 
 export function safeLsGet(key) {
-    try { return localStorage.getItem(key); } catch { return null; }
+    try {
+        return localStorage.getItem(key);
+    } catch {
+        return null;
+    }
 }
 
 export function safeLsSet(key, val) {
-    try { localStorage.setItem(key, val); return true; } catch { return false; }
+    try {
+        localStorage.setItem(key, val);
+        return true;
+    } catch {
+        return false;
+    }
 }
 
 export function newCommandId() {

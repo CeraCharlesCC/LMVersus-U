@@ -1,8 +1,7 @@
-import { $ } from "../core/dom.js";
-import { t } from "../core/i18n.js";
+import {$} from "../core/dom.js";
+import {t} from "../core/i18n.js";
 
 export function initStaticText() {
-    $("#btnExit").textContent = t("exit");
     $("#btnGiveUp").textContent = t("giveUp");
 
     document.querySelectorAll(".tab-btn").forEach((btn) => {

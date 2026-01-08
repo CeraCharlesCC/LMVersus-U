@@ -216,6 +216,9 @@ export function resetRoundUi() {
 
     // Reset workspace UI (summary chip, lock state, etc.)
     resetWorkspace();
+
+    const bn = $("#btnNext");
+    if (bn) bn.textContent = t("next");
 }
 
 export function updateMatchupUi() {

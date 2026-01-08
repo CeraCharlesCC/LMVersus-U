@@ -39,10 +39,9 @@ body {
     margin: 0;
     font-family: var(--sans);
     /* Subtle gradient with very low saturation - clean and calm */
-    background:
-        radial-gradient(ellipse 1000px 600px at 15% -10%, rgba(201, 168, 108, .04), transparent 60%),
-        radial-gradient(ellipse 800px 500px at 85% 5%, rgba(126, 184, 126, .03), transparent 60%),
-        var(--bg);
+    background: radial-gradient(ellipse 1000px 600px at 15% -10%, rgba(201, 168, 108, .04), transparent 60%),
+    radial-gradient(ellipse 800px 500px at 85% 5%, rgba(126, 184, 126, .03), transparent 60%),
+    var(--bg);
     color: var(--text);
     font-size: 18px;
     line-height: 1.5;
@@ -615,23 +614,21 @@ a:hover {
 /* Submit "locked" (answer invalid / unselected) */
 .btn.is-locked {
     border-color: rgba(154, 148, 140, .25) !important;
-    background:
-        repeating-linear-gradient(-45deg,
-            rgba(154, 148, 140, .08),
-            rgba(154, 148, 140, .08) 6px,
-            rgba(154, 148, 140, .02) 6px,
-            rgba(154, 148, 140, .02) 12px) !important;
+    background: repeating-linear-gradient(-45deg,
+    rgba(154, 148, 140, .08),
+    rgba(154, 148, 140, .08) 6px,
+    rgba(154, 148, 140, .02) 6px,
+    rgba(154, 148, 140, .02) 12px) !important;
     color: rgba(232, 228, 223, .45) !important;
     cursor: not-allowed;
 }
 
 .btn.is-locked:hover {
-    background:
-        repeating-linear-gradient(-45deg,
-            rgba(154, 148, 140, .1),
-            rgba(154, 148, 140, .1) 6px,
-            rgba(154, 148, 140, .03) 6px,
-            rgba(154, 148, 140, .03) 12px) !important;
+    background: repeating-linear-gradient(-45deg,
+    rgba(154, 148, 140, .1),
+    rgba(154, 148, 140, .1) 6px,
+    rgba(154, 148, 140, .03) 6px,
+    rgba(154, 148, 140, .03) 12px) !important;
 }
 
 .row {
@@ -1088,7 +1085,7 @@ a:hover {
     overflow-wrap: break-word;
 }
 
-.choices.dense .choice-inner>p {
+.choices.dense .choice-inner > p {
     display: inline;
     margin: 0;
 }
@@ -1376,7 +1373,7 @@ a:hover {
     font-size: 0.9em;
 }
 
-.md :not(pre)>code {
+.md :not(pre) > code {
     background: rgba(255, 255, 255, .06);
     padding: 2px 4px;
     border-radius: 4px;
@@ -1681,7 +1678,7 @@ a:hover {
         overflow: hidden;
     }
 
-    #answerForm .bottom-content> :not(#scratchpadSection) {
+    #answerForm .bottom-content > :not(#scratchpadSection) {
         grid-column: 1;
         min-width: 0;
     }
@@ -2363,7 +2360,7 @@ a:hover {
         padding: 4px 4px;
     }
 
-    .timers .timer+.timer {
+    .timers .timer + .timer {
         border-left: 1px solid var(--border);
     }
 }

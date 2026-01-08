@@ -1,8 +1,8 @@
-import { state } from "../core/state.js";
-import { t } from "../core/i18n.js";
-import { toast } from "../ui/toast.js";
-import { populateOpponentSelects } from "../features/models.js";
-import { refreshLeaderboard } from "../features/leaderboard.js";
+import {state} from "../core/state.js";
+import {t} from "../core/i18n.js";
+import {toast} from "../ui/toast.js";
+import {populateOpponentSelects} from "../features/models.js";
+import {refreshLeaderboard} from "../features/leaderboard.js";
 
 export function setLobbyTab(tab) {
     document.querySelectorAll(".tab-btn").forEach((btn) => {

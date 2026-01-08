@@ -1,12 +1,12 @@
-import { $ } from "../core/dom.js";
-import { LANG, t } from "../core/i18n.js";
-import { state, MAX_NICKNAME_LEN, STORAGE_KEY_NICKNAME } from "../core/state.js";
-import { toast } from "../ui/toast.js";
-import { safeLsSet, newCommandId } from "../core/utils.js";
-import { openWsAndJoin, wsSend, closeWs } from "./ws.js";
-import { resetRoundUi, updateMatchupUi, setSubmitFrozen, enforceDeadline, applyFreeAnswerMode } from "./roundUi.js";
-import { showLobby } from "./uiScreens.js";
-import { readErrorBody } from "../core/net.js";
+import {$} from "../core/dom.js";
+import {LANG, t} from "../core/i18n.js";
+import {MAX_NICKNAME_LEN, state, STORAGE_KEY_NICKNAME} from "../core/state.js";
+import {toast} from "../ui/toast.js";
+import {newCommandId, safeLsSet} from "../core/utils.js";
+import {closeWs, openWsAndJoin, wsSend} from "./ws.js";
+import {applyFreeAnswerMode, enforceDeadline, resetRoundUi, setSubmitFrozen, updateMatchupUi} from "./roundUi.js";
+import {showLobby} from "./uiScreens.js";
+import {readErrorBody} from "../core/net.js";
 
 /** ---- Give Up (Terminate Active Session) ---- */
 export async function giveUp() {
@@ -46,7 +46,7 @@ export function startMatch(mode) {
         return;
     }
     if (nickname.length > MAX_NICKNAME_LEN) {
-        toast(t("toastError"), t("nicknameTooLong", { n: MAX_NICKNAME_LEN }), "error");
+        toast(t("toastError"), t("nicknameTooLong", {n: MAX_NICKNAME_LEN}), "error");
         return;
     }
     for (const ch of nickname) {
@@ -115,7 +115,7 @@ export function submitAnswer() {
             toast(t("toastError"), "choose one option");
             return;
         }
-        answer = { type: "multiple_choice", choiceIndex: state.selectedChoiceIndex };
+        answer = {type: "multiple_choice", choiceIndex: state.selectedChoiceIndex};
     } else {
         if (state.freeAnswerMode === "int") {
             const raw = $("#intValue").value.trim();
@@ -123,14 +123,14 @@ export function submitAnswer() {
                 toast(t("toastError"), "enter an integer");
                 return;
             }
-            answer = { type: "integer", value: parseInt(raw, 10) };
+            answer = {type: "integer", value: parseInt(raw, 10)};
         } else {
             const text = $("#freeText").value.trim();
             if (!text) {
                 toast(t("toastError"), "enter text");
                 return;
             }
-            answer = { type: "free_text", text };
+            answer = {type: "free_text", text};
         }
     }
 
@@ -153,9 +153,19 @@ export function submitAnswer() {
 }
 
 export function goNext() {
+    if (state.ui.sessionEnded) {
+        closeWs();
+        showLobby();
+        resetRoundUi();
+        state.sessionId = null;
+        state.ui.sessionEnded = false;
+        location.hash = "";
+        return;
+    }
+
     resetRoundUi();
     startRound();
 }
 
 // re-export for bindUi convenience
-export { applyFreeAnswerMode };
+export {applyFreeAnswerMode};

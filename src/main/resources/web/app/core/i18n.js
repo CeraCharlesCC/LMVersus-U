@@ -34,11 +34,11 @@ export async function loadI18n(lang) {
         const ui =
             uiRes.status === "fulfilled"
                 ? uiRes.value
-                : (console.warn(`Missing ui i18n '${code}'`, uiRes.reason), { default: {} });
+                : (console.warn(`Missing ui i18n '${code}'`, uiRes.reason), {default: {}});
         const models =
             modelsRes.status === "fulfilled"
                 ? modelsRes.value
-                : (console.warn(`Missing models i18n '${code}'`, modelsRes.reason), { default: {} });
+                : (console.warn(`Missing models i18n '${code}'`, modelsRes.reason), {default: {}});
 
         return {
             ...(ui.default ?? ui),

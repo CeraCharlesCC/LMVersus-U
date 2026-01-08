@@ -1,4 +1,4 @@
-import { $ } from "../core/dom.js";
+import {$} from "../core/dom.js";
 
 export function setNet(ok) {
     const dot = $("#netDot");

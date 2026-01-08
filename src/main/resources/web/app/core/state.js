@@ -8,7 +8,7 @@ export const state = {
     issuedAt: null,
 
     mode: "LIGHTWEIGHT",
-    models: { LIGHTWEIGHT: [], PREMIUM: [] },
+    models: {LIGHTWEIGHT: [], PREMIUM: []},
 
     ws: null,
     wsOpen: false,
@@ -21,7 +21,7 @@ export const state = {
     opponentQuestionSetDescription: null,
     opponentQuestionSetDescriptionI18nKey: null,
     opponentDifficulty: null,
-    players: { human: null, llm: null },
+    players: {human: null, llm: null},
 
     // round
     inRound: false,

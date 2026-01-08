@@ -3,7 +3,7 @@
 const $ = (sel, root = document) => root.querySelector(sel);
 
 (async () => {
-    const { main } = await import("./app/main.js");
+    const {main} = await import("./app/main.js");
     await main();
 })().catch((e) => {
     console.error(e);

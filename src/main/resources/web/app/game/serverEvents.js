@@ -1,27 +1,29 @@
-import { $ } from "../core/dom.js";
-import { t } from "../core/i18n.js";
-import { toast } from "../ui/toast.js";
-import { state } from "../core/state.js";
-import { showMatchEndModal, isMatchEndVisible } from "../ui/modals.js";
-import { showLobby, showGame } from "./uiScreens.js";
+import {$} from "../core/dom.js";
+import {t} from "../core/i18n.js";
+import {toast} from "../ui/toast.js";
+import {state} from "../core/state.js";
+import {isMatchEndVisible, showMatchEndModal} from "../ui/modals.js";
+import {setGiveUpVisible, showGame, showLobby} from "./uiScreens.js";
 import {
-    resetRoundUi,
-    stopTimers,
-    setSubmitFrozen,
-    updateMatchupUi,
-    updateLlmStatusPill,
-    renderQuestion,
-    startTimers,
-    updateTimers,
-    enforceDeadline,
-    scheduleReasoningRender,
-    maybeShowHiddenSquares,
-    showBottomState,
     applyOutcomeGlows,
-    renderResultDetails,
+    enforceDeadline,
     formatAnswerDisplay,
+    maybeShowHiddenSquares,
+    renderQuestion,
+    renderResultDetails,
+    resetRoundUi,
+    scheduleReasoningRender,
+    setSubmitFrozen,
+    showBottomState,
     showLlmAnswerBox,
+    startTimers,
+    stopTimers,
+    updateLlmStatusPill,
+    updateMatchupUi,
+    updateTimers,
 } from "./roundUi.js";
+// local helper used above to preserve exact formatting
+import {fmtScore as formatScore} from "../core/utils.js";
 
 function roundResolveLine(reason) {
     const r = String(reason || "");
@@ -40,7 +42,7 @@ function sessionEndLine(reason) {
 }
 
 /** ---- Server event handler ---- */
-export function handleServerEvent(msg, { closeWs }) {
+export function handleServerEvent(msg, {closeWs}) {
     const type = msg.type;
 
     if (type === "session_error") {
@@ -60,10 +62,13 @@ export function handleServerEvent(msg, { closeWs }) {
         stopTimers();
         $("#btnSubmit").disabled = true;
         $("#btnStartRound").disabled = true;
-        $("#btnNext").disabled = true;
+        setGiveUpVisible(false);
 
         state.ui.sessionEnded = true;
         showBottomState("post");
+
+        $("#btnNext").disabled = false;
+        $("#btnNext").textContent = t("backToLobby");
 
         showMatchEndModal({
             sessionId: msg.sessionId,
@@ -93,9 +98,9 @@ export function handleServerEvent(msg, { closeWs }) {
 
     if (type === "player_joined") {
         if (msg.playerId === state.playerId) {
-            state.players.human = { playerId: msg.playerId, nickname: msg.nickname };
+            state.players.human = {playerId: msg.playerId, nickname: msg.nickname};
         } else {
-            state.players.llm = { playerId: msg.playerId, nickname: msg.nickname };
+            state.players.llm = {playerId: msg.playerId, nickname: msg.nickname};
         }
         updateMatchupUi();
         return;
@@ -292,5 +297,3 @@ export function handleServerEvent(msg, { closeWs }) {
     }
 }
 
-// local helper used above to preserve exact formatting
-import { fmtScore as formatScore } from "../core/utils.js";

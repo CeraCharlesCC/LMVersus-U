@@ -1,15 +1,15 @@
-import { $ } from "../core/dom.js";
-import { state, STORAGE_KEY_LANDING } from "../core/state.js";
-import { t } from "../core/i18n.js";
-import { refreshLeaderboard } from "../features/leaderboard.js";
-import { showNetError, toast } from "../ui/toast.js";
-import { hideMatchEndModal, showLicenseModal, hideLicenseModal, isMatchEndVisible } from "../ui/modals.js";
-import { closeWs } from "./ws.js";
-import { showLobby } from "./uiScreens.js";
-import { setTopMobileTab, renderResultDetails, getLlmScrollEl } from "./roundUi.js";
-import { setLobbyTab } from "./lobbyTabs.js";
-import { giveUp, startMatch, startRound, submitAnswer, goNext, applyFreeAnswerMode } from "./actions.js";
-import { bindWorkspaceEvents, initWorkspaceText } from "./workspace.js";
+import {$} from "../core/dom.js";
+import {state, STORAGE_KEY_LANDING} from "../core/state.js";
+import {t} from "../core/i18n.js";
+import {refreshLeaderboard} from "../features/leaderboard.js";
+import {showNetError, toast} from "../ui/toast.js";
+import {hideLicenseModal, hideMatchEndModal, isMatchEndVisible, showLicenseModal} from "../ui/modals.js";
+import {closeWs} from "./ws.js";
+import {showLobby} from "./uiScreens.js";
+import {getLlmScrollEl, renderResultDetails, setTopMobileTab} from "./roundUi.js";
+import {setLobbyTab} from "./lobbyTabs.js";
+import {applyFreeAnswerMode, giveUp, goNext, startMatch, startRound, submitAnswer} from "./actions.js";
+import {bindWorkspaceEvents, initWorkspaceText} from "./workspace.js";
 
 export function bindUi() {
     document.querySelectorAll(".tab-btn").forEach((btn) => {
@@ -26,15 +26,6 @@ export function bindUi() {
     $("#btnStartPremium").addEventListener("click", () => startMatch("PREMIUM"));
 
     $("#btnRefreshLb").addEventListener("click", () => refreshLeaderboard().catch(showNetError));
-
-    $("#btnExit").addEventListener("click", () => {
-        hideMatchEndModal();
-        closeWs();
-        showLobby();
-        // resetRoundUi is triggered by screen transitions elsewhere; keep exact behavior:
-        // (original called resetRoundUi here)
-        import("./roundUi.js").then((m) => m.resetRoundUi());
-    });
 
     $("#btnGiveUp").addEventListener("click", giveUp);
 
@@ -121,7 +112,7 @@ export function bindUi() {
                 if (state.ui.programmaticScroll) return;
                 state.ui.reasoningPinnedToTop = llmScroll.scrollTop <= 2;
             },
-            { passive: true }
+            {passive: true}
         );
     }
 
@@ -133,16 +124,18 @@ export function bindUi() {
             if (!state.ui.lastResultDetails) return;
             if (resizeRaf) cancelAnimationFrame(resizeRaf);
             resizeRaf = requestAnimationFrame(() => {
-                const { note, details } = state.ui.lastResultDetails || {};
+                const {note, details} = state.ui.lastResultDetails || {};
                 renderResultDetails(note, details);
             });
         },
-        { passive: true }
+        {passive: true}
     );
 
     // keep behavior: if something calls old stubs, don’t crash
-    window.selectOpponent = function () { };
-    window.updateOpponentHint = function () { };
+    window.selectOpponent = function () {
+    };
+    window.updateOpponentHint = function () {
+    };
 
     // small safety: keep same error toast usage patterns if needed
     window.__lmvuToastError = (msg) => toast(t("toastError"), msg, "error");
