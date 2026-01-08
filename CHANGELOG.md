@@ -1,3 +1,33 @@
+## [v0.7.0] - 2026-01-08
+### Added
+- Add bottom panel workspace with answer summary, scratchpad, and calculator (#17)
+- Add model badges for question set and difficulty in the selector UI (#17)
+- Add model stats display (speed, efficiency) to selector UI (#17)
+- Add rich tooltips for Question Set badges on desktop and detail modal on mobile (#17)
+- Add clear button state management and improve session recovery flow (#17)
+- Add close button and Escape key support to the match end modal (#17)
+
+### Changed
+- Redesign model selector with a custom dropdown widget for better UX (#17)
+- Refactor frontend from monolithic app.js to modular structure under app/ (#17)
+- Refactor OpponentSpec to nest metadata and provider config for better organization (#17)
+- Make OpponentMetadata fields non-nullable and add difficulty field (#17)
+- Improve WebSocket handling to ensure events affect only current connection (#17)
+- Simplify MCQ answer summary to show only the selected number (#17)
+- Improve model selector accessibility with ARIA roles and keyboard navigation (#17)
+
+### Fixed
+- Fix session end handling: Next button now returns to lobby and resets state (#17)
+- Fix answer form display and result details placement in post-round state (#17)
+
+### Documentation
+- Update README.md and add Shields.io attribution to license-frontend.html (#17)
+
+### Internal
+- Bump version to v0.7.0 and update model specs with new metadata fields (#17)
+- Remove unused functions and imports across frontend modules (#17)
+- Standardize import formatting and remove obsolete UI elements (#17)
+
 ## [v0.6.0] - 2026-01-07
 ### Added
 - Add model descriptions and i18n support for UI and model metadata (#16)
