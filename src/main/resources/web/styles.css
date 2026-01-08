@@ -1724,3 +1724,127 @@ a:hover {
 .opp-stat.efficiency .pip.filled {
     background: #55aacc; /* blueish */
 }
+
+/* ---- Custom Model Selector (ChatGPT-style) ---- */
+
+/* Hide the native select/list container styles if present */
+.opponent-list {
+    display: block; /* Override grid */
+    overflow: visible; /* Allow dropdown to overflow */
+    max-height: none;
+    padding: 0;
+}
+
+/* The Wrapper */
+.model-selector {
+    position: relative;
+    width: 100%;
+    font-family: var(--sans);
+    user-select: none;
+}
+
+/* The Main Button (Trigger) */
+.selector-trigger {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border);
+    border-radius: 16px; /* Large rounded corners */
+    padding: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: background 0.2s ease, border-color 0.2s ease;
+    min-height: 80px;
+}
+
+.selector-trigger:hover {
+    background: rgba(255, 255, 255, 0.07);
+    border-color: rgba(255, 255, 255, 0.15);
+}
+
+.selector-trigger.is-open {
+    border-color: var(--accent);
+    background: var(--panel);
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+/* Trigger Content Layout */
+.trigger-content {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+    min-width: 0; /* Text truncation fix */
+}
+
+.trigger-title {
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.trigger-desc {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.4;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2; /* Limit to 2 lines */
+    -webkit-box-orient: vertical;
+}
+
+/* The Chevron Icon */
+.trigger-icon {
+    margin-left: 12px;
+    color: var(--muted);
+    transition: transform 0.3s ease;
+}
+
+.selector-trigger.is-open .trigger-icon {
+    transform: rotate(180deg);
+}
+
+/* The Dropdown Menu */
+.selector-options {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-top: none;
+    border-bottom-left-radius: 16px;
+    border-bottom-right-radius: 16px;
+    z-index: 100;
+    overflow: hidden;
+    max-height: 0;
+    opacity: 0;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    visibility: hidden;
+}
+
+.selector-options.is-open {
+    max-height: 400px; /* Max expansion height */
+    opacity: 1;
+    visibility: visible;
+    overflow-y: auto;
+}
+
+/* Individual Option */
+.selector-option {
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    border-top: 1px solid rgba(255, 255, 255, 0.03);
+    transition: background 0.15s;
+}
+
+.selector-option:first-child {
+    border-top: none;
+}
+
+.selector-option:hover {

@@ -36,56 +36,6 @@ function renderStat(icon, label, value, max = 5, className = "") {
     return `<div class="opp-stat ${className}" title="${label}: ${value}/${max}">${icon}<div class="opp-stat-val stat-pips">${pips}</div></div>`;
 }
 
-function renderOpponentCard(m, mode) {
-    const card = document.createElement("div");
-    card.className = "opponent-card";
-    card.dataset.id = m.id;
-    card.role = "option";
-    card.ariaSelected = "false";
-    card.tabIndex = 0;
-
-    const meta = m.metadata || {};
-    const speed = meta.speed || 0;
-    const eff = meta.efficiency || 0;
-
-    card.innerHTML = `
-      <div class="opp-card-head">
-        <div class="opp-name">${escapeHtml(meta.displayName || m.id)}</div>
-      </div>
-      <div class="opp-stats">
-         ${renderStat(ICON_SPEED, "Speed", speed, 5, "speed")}
-         ${renderStat(ICON_EFFICIENCY, "Efficiency", eff, 5, "efficiency")}
-      </div>
-    `;
-
-    card.addEventListener("click", () => selectOpponent(mode, m.id));
-    card.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            selectOpponent(mode, m.id);
-        }
-    });
-
-    return card;
-}
-
-function selectOpponent(mode, id) {
-    const listId = mode === "LIGHTWEIGHT" ? "opponentLight" : "opponentPremium";
-    const inputId = mode === "LIGHTWEIGHT" ? "opponentLightVal" : "opponentPremiumVal";
-
-    document.querySelectorAll(`#${listId} .opponent-card`).forEach(c => {
-        const selected = c.dataset.id === id;
-        c.classList.toggle("is-selected", selected);
-        c.ariaSelected = String(selected);
-    });
-
-    const input = document.getElementById(inputId);
-    if (input) input.value = id;
-
-    state.mode = mode;
-    updateOpponentHint();
-}
-
 function formatTemplate(str, vars) {
     if (!vars) return String(str ?? "");
     return String(str ?? "").replace(/\{(\w+)\}/g, (_, k) =>
@@ -609,20 +559,7 @@ function resolveModelDescription(model) {
     return model.metadata?.description || "";
 }
 
-function updateOpponentHint() {
-    const mode = state.mode;
-    const hintId = mode === "LIGHTWEIGHT" ? "hintOpponentLight" : "hintOpponentPremium";
-    const inputId = mode === "LIGHTWEIGHT" ? "opponentLightVal" : "opponentPremiumVal";
-
-    const input = document.getElementById(inputId);
-    const selectedId = input?.value;
-
-    const models = state.models[mode] || [];
-    const model = models.find(m => m.id === selectedId);
-
-    const hint = document.getElementById(hintId);
-    if (hint) hint.textContent = resolveModelDescription(model);
-}
+/* --- New Selector Logic --- */
 
 function populateOpponentSelects() {
     ["LIGHTWEIGHT", "PREMIUM"].forEach(mode => {
@@ -632,25 +569,132 @@ function populateOpponentSelects() {
 
         if (!container) return;
 
-        const currentVal = input?.value;
-        container.innerHTML = "";
-
-        if (!models.length) {
-            container.innerHTML = `<div class="muted small" style="padding:10px;">(no models)</div>`;
-            return;
-        }
-
-        let firstId = null;
-        for (const m of models) {
-            if (!firstId) firstId = m.id;
-            container.appendChild(renderOpponentCard(m, mode));
-        }
-
-        // Auto-select first or restore
-        const toSelect = (currentVal && models.find(m => m.id === currentVal)) ? currentVal : firstId;
-        if (toSelect) selectOpponent(mode, toSelect);
+        renderModelSelectorWidget(container, input, models, mode);
     });
 }
+
+function renderModelSelectorWidget(container, input, models, mode) {
+    container.innerHTML = "";
+
+    if (!models.length) {
+        container.innerHTML = `<div class="muted small" style="padding:10px;">(no models)</div>`;
+        return;
+    }
+
+    // 1. Create Structure
+    const wrapper = document.createElement("div");
+    wrapper.className = "model-selector";
+
+    // 2. Create Trigger (The main button)
+    const trigger = document.createElement("div");
+    trigger.className = "selector-trigger";
+    trigger.innerHTML = `
+        <div class="trigger-content">
+            <div class="trigger-title">Select Model</div>
+            <div class="trigger-desc">...</div>
+        </div>
+        <svg class="trigger-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+    `;
+
+    // 3. Create Options Dropdown
+    const optionsList = document.createElement("div");
+    optionsList.className = "selector-options";
+
+    // Fill Options
+    models.forEach(m => {
+        const meta = m.metadata || {};
+        const speed = meta.speed || 0;
+        const eff = meta.efficiency || 0;
+
+        const opt = document.createElement("div");
+        opt.className = "selector-option";
+        if (m.id === input.value) opt.classList.add("selected");
+
+        opt.dataset.value = m.id;
+
+        opt.innerHTML = `
+            <div class="opt-info">
+                <div class="opt-name">${escapeHtml(meta.displayName || m.id)}</div>
+                </div>
+            <div class="opt-stats-row">
+                 ${renderStat(ICON_SPEED, "Speed", speed, 5, "speed")}
+                 ${renderStat(ICON_EFFICIENCY, "Efficiency", eff, 5, "efficiency")}
+            </div>
+        `;
+
+        // Click Option Event
+        opt.addEventListener("click", (e) => {
+            e.stopPropagation();
+            input.value = m.id;
+
+            // Update UI state
+            optionsList.querySelectorAll(".selector-option").forEach(el => el.classList.remove("selected"));
+            opt.classList.add("selected");
+
+            updateTriggerUI(trigger, m);
+            toggleMenu(false);
+
+            // Sync global state
+            state.mode = mode;
+        });
+
+        optionsList.appendChild(opt);
+    });
+
+    wrapper.appendChild(trigger);
+    wrapper.appendChild(optionsList);
+    container.appendChild(wrapper);
+
+    // Initial Trigger Update
+    const currentModel = models.find(m => m.id === input.value) || models[0];
+    if (currentModel) updateTriggerUI(trigger, currentModel);
+
+    // --- Interaction Logic --- //
+
+    function toggleMenu(forceState) {
+        const isOpen = trigger.classList.contains("is-open");
+        const newState = forceState !== undefined ? forceState : !isOpen;
+
+        trigger.classList.toggle("is-open", newState);
+        optionsList.classList.toggle("is-open", newState);
+    }
+
+    trigger.addEventListener("click", (e) => {
+        e.stopPropagation();
+        // Close other selectors if any
+        document.querySelectorAll(".selector-options.is-open").forEach(el => {
+            if (el !== optionsList) {
+                el.classList.remove("is-open");
+                el.parentElement.querySelector(".selector-trigger")?.classList.remove("is-open");
+            }
+        });
+        toggleMenu();
+    });
+
+    // Close when clicking outside
+    document.addEventListener("click", (e) => {
+        if (!wrapper.contains(e.target)) {
+            toggleMenu(false);
+        }
+    });
+}
+
+function updateTriggerUI(triggerEl, model) {
+    if (!model) return;
+    const meta = model.metadata || {};
+
+    const titleEl = triggerEl.querySelector(".trigger-title");
+    const descEl = triggerEl.querySelector(".trigger-desc");
+
+    titleEl.textContent = meta.displayName || model.id;
+    descEl.textContent = resolveModelDescription(model);
+}
+
+// Stub out the old functions to prevent errors if called elsewhere
+function selectOpponent(mode, id) { /* Handled internally by widget now */ }
+function updateOpponentHint() { /* Handled internally by widget now */ }
+
+/* --- End New Selector Logic --- */
 
 async function loadModels() {
     const [light, prem] = await Promise.all([
