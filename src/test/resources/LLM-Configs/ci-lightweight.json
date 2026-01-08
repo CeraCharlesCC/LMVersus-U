@@ -3,6 +3,7 @@
   "mode": "LIGHTWEIGHT",
   "metadata": {
     "displayName": "CI Lightweight Model",
+    "questionSetDisplayName": "Test Questions",
     "description": "A lightweight model configuration for continuous integration testing.",
     "descriptionI18nKey": "model.lightweight.ci.description"
   },
@@ -12,6 +13,5 @@
   },
   "streaming": {},
   "questionSetPath": "questions/test.json",
-  "questionSetDisplayName": "Test Questions",
   "datasetPath": "datasets/test.json"
 }

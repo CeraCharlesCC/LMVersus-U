@@ -3,6 +3,7 @@
   "mode": "PREMIUM",
   "metadata": {
     "displayName": "Kimi K2 Thinking (Live)",
+    "questionSetDisplayName": "MMLU Pro",
     "description": "Kimi K2 Thinking model accessed via Kimi's own API endpoint. This configuration is intended for live usage scenarios.",
     "descriptionI18nKey": "model.premium.kimi-k2.description",
     "speed": 2,
@@ -29,7 +30,6 @@
     }
   },
   "questionSetPath": "LLM-Configs/Datasets/questions/mmlu-pro/",
-  "questionSetDisplayName": "MMLU Pro",
   "streaming": {
     "revealDelayMs": 1,
     "targetTokensPerSecond": 20,

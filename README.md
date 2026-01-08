@@ -127,9 +127,14 @@ Each file describes **one** opponent today (kept intentionally simple). The REST
 ### Common fields
 
 * `id`: stable identifier used by the UI
-* `displayName`: shown in the UI
+* `mode`: `LIGHTWEIGHT | PREMIUM`
+* `metadata`:
+  * `displayName`: shown in the UI
+  * `questionSetDisplayName`: question set name shown in the UI
+  * `description`: (optional) short description
+  * `speed`, `efficiency`: (optional) visual stats
 * `llmProfile`: model name and decoding parameters
-* `questionSetPath` / `questionSetDisplayName`: which question set to use
+* `questionSetPath`: which question set to use
 * `streaming`: how the reasoning stream is shaped
 
 ### Lightweight-only fields

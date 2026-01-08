@@ -95,7 +95,10 @@ class SessionActorIntegrityTest {
         val spec = mockk<OpponentSpec.Lightweight> {
             every { id } returns "test-spec"
             every { mode } returns GameMode.LIGHTWEIGHT
-            every { metadata } returns OpponentSpec.OpponentMetadata(displayName = "Bot")
+            every { metadata } returns OpponentSpec.OpponentMetadata(
+                displayName = "Bot",
+                questionSetDisplayName = "TestSet"
+            )
             every { llmProfile } returns LlmProfile.DEFAULT
             every { streaming } returns StreamingPolicy()
         }

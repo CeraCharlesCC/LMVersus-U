@@ -43,7 +43,10 @@ class SessionManagerConcurrencyTest {
         every { specRepo.findById("spec-1") } returns mockk<OpponentSpec.Lightweight> {
             every { id } returns "spec-1"
             every { mode } returns GameMode.LIGHTWEIGHT
-            every { metadata } returns OpponentSpec.OpponentMetadata(displayName = "Bot")
+            every { metadata } returns OpponentSpec.OpponentMetadata(
+                displayName = "Bot",
+                questionSetDisplayName = "TestSet"
+            )
             every { llmProfile } returns mockk(relaxed = true)
             every { streaming } returns mockk(relaxed = true)
         }

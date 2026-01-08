@@ -22,7 +22,6 @@ internal sealed interface OpponentSpec {
         override val llmProfile: LlmProfile,
         override val streaming: StreamingPolicy,
         val questionSetPath: String,
-        val questionSetDisplayName: String,
         val datasetPath: String,
     ) : OpponentSpec
 
@@ -34,13 +33,13 @@ internal sealed interface OpponentSpec {
         override val llmProfile: LlmProfile,
         override val streaming: StreamingPolicy,
         val questionSetPath: String,
-        val questionSetDisplayName: String,
         val provider: ProviderConfig,
     ) : OpponentSpec
 
     @Serializable
     data class OpponentMetadata(
         val displayName: String,
+        val questionSetDisplayName: String,
         val description: String? = null,
         val descriptionI18nKey: String? = null,
         val speed: Int? = null,
