@@ -1148,6 +1148,30 @@ a:hover {
     font-weight: 500;
     min-width: 0;
     transition: background 0.15s ease, border-color 0.15s ease;
+    display: flex;
+    gap: 0;
+    align-items: stretch;
+}
+
+.choice-idx {
+    flex: 0 0 auto;
+    font-family: var(--sans), serif;
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1;
+    opacity: 0.7;
+    margin-top: 0;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding-right: 8px;
+    margin-right: 8px;
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.choice-idx::after {
+    display: none;
 }
 
 .choice-btn:hover {
@@ -1725,6 +1749,7 @@ a:hover {
     overflow: hidden;
     display: -webkit-box;
     -webkit-line-clamp: 3;
+    line-clamp: 3;
     -webkit-box-orient: vertical;
 }
 
@@ -2284,6 +2309,7 @@ a:hover {
         display: block;
         overflow: visible;
         -webkit-line-clamp: unset;
+        line-clamp: unset;
         -webkit-box-orient: unset;
     }
 

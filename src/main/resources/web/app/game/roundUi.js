@@ -382,6 +382,11 @@ export function renderQuestion() {
             btn.className = "choice-btn";
             btn.dataset.index = String(i);
 
+            const idxSpan = document.createElement("span");
+            idxSpan.className = "choice-idx";
+            idxSpan.textContent = `${i + 1}`;
+            btn.appendChild(idxSpan);
+
             const inner = document.createElement("div");
             inner.className = "choice-inner";
             renderMarkdownMath(state.choices[i], inner);
