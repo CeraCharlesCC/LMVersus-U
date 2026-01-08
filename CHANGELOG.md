@@ -1,3 +1,8 @@
+## [v0.7.2] - 2026-01-08
+### Fixed
+- Prevent actions on resolved sessions by excluding them from active session lookups.
+- Clear active session bindings when a session is resolved.
+
 ## [v0.7.1] - 2026-01-08
 ### Added
 - Add numbered index display to each choice button in the question UI.
