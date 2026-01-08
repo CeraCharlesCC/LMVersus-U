@@ -20,8 +20,71 @@ function detectLang() {
 
 const LANG = detectLang();
 
+// Icons
+const ICON_SPEED = `<svg class="opp-stat-icon" viewBox="0 0 24 24"><path fill="currentColor" d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg>`;
+const ICON_EFFICIENCY = `<svg class="opp-stat-icon" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2L2 12l10 10 10-10L12 2z"></path></svg>`;
+
 let I18N_EN = null;
 let I18N_CUR = null;
+
+function renderStat(icon, label, value, max = 5, className = "") {
+    if (!value) return "";
+    let pips = "";
+    for (let i = 1; i <= max; i++) {
+        pips += `<div class="pip ${i <= value ? 'filled' : ''}"></div>`;
+    }
+    return `<div class="opp-stat ${className}" title="${label}: ${value}/${max}">${icon}<div class="opp-stat-val stat-pips">${pips}</div></div>`;
+}
+
+function renderOpponentCard(m, mode) {
+    const card = document.createElement("div");
+    card.className = "opponent-card";
+    card.dataset.id = m.id;
+    card.role = "option";
+    card.ariaSelected = "false";
+    card.tabIndex = 0;
+
+    const meta = m.metadata || {};
+    const speed = meta.speed || 0;
+    const eff = meta.efficiency || 0;
+
+    card.innerHTML = `
+      <div class="opp-card-head">
+        <div class="opp-name">${escapeHtml(meta.displayName || m.id)}</div>
+      </div>
+      <div class="opp-stats">
+         ${renderStat(ICON_SPEED, "Speed", speed, 5, "speed")}
+         ${renderStat(ICON_EFFICIENCY, "Efficiency", eff, 5, "efficiency")}
+      </div>
+    `;
+
+    card.addEventListener("click", () => selectOpponent(mode, m.id));
+    card.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            selectOpponent(mode, m.id);
+        }
+    });
+
+    return card;
+}
+
+function selectOpponent(mode, id) {
+    const listId = mode === "LIGHTWEIGHT" ? "opponentLight" : "opponentPremium";
+    const inputId = mode === "LIGHTWEIGHT" ? "opponentLightVal" : "opponentPremiumVal";
+
+    document.querySelectorAll(`#${listId} .opponent-card`).forEach(c => {
+        const selected = c.dataset.id === id;
+        c.classList.toggle("is-selected", selected);
+        c.ariaSelected = String(selected);
+    });
+
+    const input = document.getElementById(inputId);
+    if (input) input.value = id;
+
+    state.mode = mode;
+    updateOpponentHint();
+}
 
 function formatTemplate(str, vars) {
     if (!vars) return String(str ?? "");
@@ -89,11 +152,21 @@ function toast(title, body, kind = "info", ttlMs = 3200) {
     <div class="t-title">${escapeHtml(title)}</div>
     <div class="t-body">${escapeHtml(body)}</div>
   `;
-    el.querySelector(".t-close").addEventListener("click", () => el.remove());
+
+    const close = () => {
+        if (el.classList.contains("closing")) return;
+        el.classList.add("closing");
+        el.addEventListener("animationend", () => el.remove(), { once: true });
+    };
+
+    el.querySelector(".t-close").addEventListener("click", close);
     host.appendChild(el);
-    setTimeout(() => {
-        if (el.isConnected) el.remove();
-    }, ttlMs);
+
+    if (ttlMs > 0) {
+        setTimeout(() => {
+            if (el.isConnected) close();
+        }, ttlMs);
+    }
 }
 
 function escapeHtml(s) {
@@ -537,38 +610,46 @@ function resolveModelDescription(model) {
 }
 
 function updateOpponentHint() {
-    const models = state.models[state.mode] || [];
-    const sel = state.mode === "LIGHTWEIGHT" ? $("#opponentLight") : $("#opponentPremium");
-    const hint = state.mode === "LIGHTWEIGHT" ? $("#hintOpponentLight") : $("#hintOpponentPremium");
+    const mode = state.mode;
+    const hintId = mode === "LIGHTWEIGHT" ? "hintOpponentLight" : "hintOpponentPremium";
+    const inputId = mode === "LIGHTWEIGHT" ? "opponentLightVal" : "opponentPremiumVal";
 
-    const selectedId = sel?.value;
-    const model = models.find((m) => m.id === selectedId);
-    hint.textContent = resolveModelDescription(model);
+    const input = document.getElementById(inputId);
+    const selectedId = input?.value;
+
+    const models = state.models[mode] || [];
+    const model = models.find(m => m.id === selectedId);
+
+    const hint = document.getElementById(hintId);
+    if (hint) hint.textContent = resolveModelDescription(model);
 }
 
 function populateOpponentSelects() {
-    const models = state.models[state.mode] || [];
-    const sel = state.mode === "LIGHTWEIGHT" ? $("#opponentLight") : $("#opponentPremium");
-    const hint = state.mode === "LIGHTWEIGHT" ? $("#hintOpponentLight") : $("#hintOpponentPremium");
+    ["LIGHTWEIGHT", "PREMIUM"].forEach(mode => {
+        const models = state.models[mode] || [];
+        const container = $(mode === "LIGHTWEIGHT" ? "#opponentLight" : "#opponentPremium");
+        const input = $(mode === "LIGHTWEIGHT" ? "#opponentLightVal" : "#opponentPremiumVal");
 
-    sel.innerHTML = "";
-    if (!models.length) {
-        const opt = document.createElement("option");
-        opt.value = "";
-        opt.textContent = "(no models)";
-        sel.appendChild(opt);
-        hint.textContent = "";
-        return;
-    }
+        if (!container) return;
 
-    for (const m of models) {
-        const opt = document.createElement("option");
-        opt.value = m.id;
-        opt.textContent = m.metadata?.displayName || m.id;
-        opt.dataset.displayName = opt.textContent;
-        sel.appendChild(opt);
-    }
-    updateOpponentHint();
+        const currentVal = input?.value;
+        container.innerHTML = "";
+
+        if (!models.length) {
+            container.innerHTML = `<div class="muted small" style="padding:10px;">(no models)</div>`;
+            return;
+        }
+
+        let firstId = null;
+        for (const m of models) {
+            if (!firstId) firstId = m.id;
+            container.appendChild(renderOpponentCard(m, mode));
+        }
+
+        // Auto-select first or restore
+        const toSelect = (currentVal && models.find(m => m.id === currentVal)) ? currentVal : firstId;
+        if (toSelect) selectOpponent(mode, toSelect);
+    });
 }
 
 async function loadModels() {
@@ -1326,8 +1407,9 @@ function escapeMarkdownInline(s) {
 /** ---- Actions ---- */
 function startMatch(mode) {
     const nickname = (mode === "LIGHTWEIGHT" ? $("#nicknameLight").value : $("#nicknamePremium").value).trim();
-    const sel = (mode === "LIGHTWEIGHT" ? $("#opponentLight") : $("#opponentPremium"));
-    const opponentSpecId = sel.value;
+    // Use the hidden input for value
+    const valInput = (mode === "LIGHTWEIGHT" ? $("#opponentLightVal") : $("#opponentPremiumVal"));
+    const opponentSpecId = valInput.value;
 
     if (!nickname) {
         toast(t("toastError"), `${t("nickname")} is required`, "error");
@@ -1348,7 +1430,9 @@ function startMatch(mode) {
         return;
     }
 
-    const displayName = sel.selectedOptions?.[0]?.dataset?.displayName || sel.selectedOptions?.[0]?.textContent || "LLM";
+    const models = state.models[mode] || [];
+    const selectedModel = models.find(m => m.id === opponentSpecId);
+    const displayName = selectedModel?.metadata?.displayName || selectedModel?.id || "LLM";
 
     state.mode = mode;
     state.nickname = nickname;
@@ -1505,14 +1589,8 @@ function bindUi() {
         applyFreeAnswerMode();
     });
 
-    $("#opponentLight").addEventListener("change", () => {
-        state.mode = "LIGHTWEIGHT";
-        updateOpponentHint();
-    });
-    $("#opponentPremium").addEventListener("change", () => {
-        state.mode = "PREMIUM";
-        updateOpponentHint();
-    });
+    // Select lists are interactive now, no change events from the container
+    // Logic handled in selectOpponent
 
     $("#freeText").addEventListener("keydown", (e) => {
         if ((e.ctrlKey || e.metaKey) && e.key === "Enter") submitAnswer();

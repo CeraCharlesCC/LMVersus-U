@@ -4,7 +4,9 @@
   "metadata": {
     "displayName": "Kimi K2 Thinking (Live)",
     "description": "Kimi K2 Thinking model accessed via Kimi's own API endpoint. This configuration is intended for live usage scenarios.",
-    "descriptionI18nKey": "model.premium.kimi-k2.description"
+    "descriptionI18nKey": "model.premium.kimi-k2.description",
+    "speed": 2,
+    "efficiency": 5
   },
   "llmProfile": {
     "modelName": "kimi-k2-thinking",

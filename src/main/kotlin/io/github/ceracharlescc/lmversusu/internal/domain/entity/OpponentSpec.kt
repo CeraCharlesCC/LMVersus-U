@@ -43,6 +43,8 @@ internal sealed interface OpponentSpec {
         val displayName: String,
         val description: String? = null,
         val descriptionI18nKey: String? = null,
+        val speed: Int? = null,
+        val efficiency: Int? = null,
     )
 
     @Serializable
