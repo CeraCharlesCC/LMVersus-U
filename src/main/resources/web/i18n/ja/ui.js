@@ -121,7 +121,7 @@ export default {
     lockReasonInt: "有効な整数を入力してください",
     lockReasonText: "回答を入力してください",
 
-    kbdHintMcq: "1–9 選択 · Enter 確定",
+    kbdHintMcq: "1–0 / Shift+1–0 選択 · Enter 確定",
     kbdHintText: "Ctrl+Enter 確定",
     kbdHintInt: "Enter 確定",
 };
