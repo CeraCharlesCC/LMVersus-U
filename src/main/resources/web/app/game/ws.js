@@ -1,9 +1,9 @@
-import {wsUrl} from "../core/net.js";
-import {state} from "../core/state.js";
-import {setNet} from "../ui/netIndicator.js";
-import {toast} from "../ui/toast.js";
-import {t} from "../core/i18n.js";
-import {handleServerEvent} from "./serverEvents.js";
+import { wsUrl } from "../core/net.js";
+import { state } from "../core/state.js";
+import { setNet } from "../ui/netIndicator.js";
+import { toast } from "../ui/toast.js";
+import { t } from "../core/i18n.js";
+import { handleServerEvent } from "./serverEvents.js";
 
 export function closeWs() {
     const ws = state.ws;
@@ -17,7 +17,14 @@ export function closeWs() {
     }
 }
 
-export function openWsAndJoin({sessionId = null, opponentSpecId, nickname, locale}) {
+export function openWsAndJoin({
+    sessionId = null,
+    opponentSpecId,
+    nickname,
+    locale,
+    toastOnOpen = true,
+    toastOnClose = true,
+} = {}) {
     closeWs();
 
     const ws = new WebSocket(wsUrl());
@@ -27,7 +34,9 @@ export function openWsAndJoin({sessionId = null, opponentSpecId, nickname, local
         if (state.ws !== ws) return;
         state.wsOpen = true;
         setNet(true);
-        toast(t("toastSession"), t("toastNetOk"));
+        if (toastOnOpen) {
+            toast(t("toastSession"), t("toastNetOk"));
+        }
 
         const joinFrame = {
             type: "join_session",
@@ -43,7 +52,9 @@ export function openWsAndJoin({sessionId = null, opponentSpecId, nickname, local
         if (state.ws !== ws) return;
         state.wsOpen = false;
         setNet(false);
-        toast(t("toastSession"), t("toastNetBad"));
+        if (toastOnClose) {
+            toast(t("toastSession"), t("toastNetBad"));
+        }
     });
 
     ws.addEventListener("error", () => {
@@ -61,7 +72,7 @@ export function openWsAndJoin({sessionId = null, opponentSpecId, nickname, local
             toast(t("toastError"), "invalid JSON from server");
             return;
         }
-        handleServerEvent(msg, {closeWs});
+        handleServerEvent(msg, { closeWs });
     });
 }
 
