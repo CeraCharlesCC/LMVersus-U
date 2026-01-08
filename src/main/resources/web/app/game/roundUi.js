@@ -16,6 +16,7 @@ import {
     updateKeyboardHint,
     resetWorkspace,
 } from "./workspace.js";
+import { renderModelBadgesHtml } from "../ui/badges.js";
 
 /** ---- Small UI helpers ---- */
 export function showBottomState(which /* "pre" | "answer" | "post" */) {
@@ -202,10 +203,19 @@ export function resetRoundUi() {
 
 export function updateMatchupUi() {
     $("#humanName").textContent = state.nickname || t("yourId");
-    // UX: don’t show internal IDs in the game header
     $("#humanSub").textContent = "";
 
     $("#llmName").textContent = state.opponentDisplayName || "LLM";
+
+    // badges in the chip subtitle
+    const llmSub = $("#llmChip .chip-sub");
+    if (llmSub) {
+        llmSub.innerHTML = renderModelBadgesHtml({
+            questionSetDisplayName: state.opponentQuestionSetDisplayName,
+            difficulty: state.opponentDifficulty,
+        });
+    }
+
     updateLlmStatusPill();
 }
 

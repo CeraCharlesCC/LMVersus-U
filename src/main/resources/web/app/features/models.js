@@ -3,6 +3,7 @@ import { httpGetJson } from "../core/net.js";
 import { escapeHtml } from "../core/utils.js";
 import { t } from "../core/i18n.js";
 import { state } from "../core/state.js";
+import { renderModelBadgesHtml } from "../ui/badges.js";
 
 // Icons
 const ICON_SPEED = `<svg class="opp-stat-icon" viewBox="0 0 24 24"><path fill="currentColor" d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg>`;
@@ -36,9 +37,12 @@ function updateTriggerUI(triggerEl, model) {
     const meta = model.metadata || {};
 
     const titleEl = triggerEl.querySelector(".trigger-title");
+    const badgesEl = triggerEl.querySelector(".trigger-badges");
     const descEl = triggerEl.querySelector(".trigger-desc");
 
     titleEl.textContent = meta.displayName || model.id;
+    if (badgesEl) badgesEl.innerHTML = renderModelBadgesHtml(meta);
+
     descEl.textContent = resolveModelDescription(model);
 }
 
@@ -75,6 +79,7 @@ function renderModelSelectorWidget(container, input, models, mode) {
     trigger.innerHTML = `
         <div class="trigger-content">
             <div class="trigger-title">Select Model</div>
+            <div class="trigger-badges"></div>
             <div class="trigger-desc">...</div>
         </div>
         <svg class="trigger-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
@@ -101,11 +106,12 @@ function renderModelSelectorWidget(container, input, models, mode) {
 
         opt.innerHTML = `
             <div class="opt-info">
-                <div class="opt-name">${escapeHtml(meta.displayName || m.id)}</div>
-                </div>
+                <div class="opt-name">${escapeHtml(meta.displayName)}</div>
+                <div class="opt-badges">${renderModelBadgesHtml(meta)}</div>
+            </div>
             <div class="opt-stats-row">
-                 ${renderStat(ICON_SPEED, "Speed", speed, 5, "speed")}
-                 ${renderStat(ICON_EFFICIENCY, "Efficiency", eff, 5, "efficiency")}
+                ${renderStat(ICON_SPEED, "Speed", speed, 5, "speed")}
+                ${renderStat(ICON_EFFICIENCY, "Efficiency", eff, 5, "efficiency")}
             </div>
         `;
 

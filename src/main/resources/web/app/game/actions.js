@@ -68,6 +68,8 @@ export function startMatch(mode) {
     state.nickname = nickname;
     state.opponentSpecId = opponentSpecId;
     state.opponentDisplayName = displayName;
+    state.opponentQuestionSetDisplayName = selectedModel?.metadata?.questionSetDisplayName || null;
+    state.opponentDifficulty = selectedModel?.metadata?.difficulty || null;
 
     safeLsSet(STORAGE_KEY_NICKNAME, nickname);
 

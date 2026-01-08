@@ -2194,6 +2194,24 @@ a:hover {
     color: var(--bad);
 }
 
+.gh-badges {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.gh-badge {
+    height: 18px;
+    vertical-align: middle;
+}
+
+/* spacing tweaks per placement */
+.trigger-badges,
+.opt-badges {
+    margin-top: 2px;
+}
+
 /* Mobile adjustments for workspace */
 @media (max-width: 760px) {
     .answer-summary {
@@ -2234,6 +2252,10 @@ a:hover {
         padding: 6px 8px;
         background: rgba(255,255,255,0.05);
         border-radius: 6px;
+    }
+
+    .gh-badge {
+        height: 16px;
     }
 }
 

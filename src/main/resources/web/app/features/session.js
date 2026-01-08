@@ -31,7 +31,7 @@ export async function tryRecoverActiveSession() {
         // Try to recover display name from opponent specs
         const models = [...(state.models.LIGHTWEIGHT || []), ...(state.models.PREMIUM || [])];
         const matchingModel = models.find((m) => m.id === data.opponentSpecId);
-        const displayName = matchingModel?.metadata?.displayName || data.opponentSpecId;
+        const displayName = matchingModel?.metadata.displayName || data.opponentSpecId
 
         // We have an active session, attempt to rejoin via WebSocket
         toast(t("toastSession"), t("recovering"));
@@ -39,6 +39,8 @@ export async function tryRecoverActiveSession() {
         state.sessionId = data.activeSessionId;
         state.opponentSpecId = data.opponentSpecId;
         state.opponentDisplayName = displayName;
+        state.opponentQuestionSetDisplayName = matchingModel?.metadata?.questionSetDisplayName || null;
+        state.opponentDifficulty = matchingModel?.metadata?.difficulty || null;
         // Nickname is not returned by this endpoint, so we use a placeholder
         state.nickname = state.nickname || t("yourId");
 

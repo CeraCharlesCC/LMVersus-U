@@ -17,7 +17,8 @@ export const state = {
     nickname: null,
     opponentSpecId: null,
     opponentDisplayName: null,
-
+    opponentQuestionSetDisplayName: null,
+    opponentDifficulty: null,
     players: { human: null, llm: null },
 
     // round
