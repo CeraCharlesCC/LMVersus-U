@@ -1087,7 +1087,7 @@ a:hover {
     background: rgba(255, 255, 255, .05);
     color: var(--text);
     border-radius: 8px;
-    padding: 10px 14px;
+    padding: 8px 8px;
     cursor: pointer;
     font-weight: 600;
     font-size: 16px;
@@ -1113,7 +1113,7 @@ a:hover {
     top: 72%;
     transform: translate(-50%, -50%);
     width: min(420px, calc(100% - 40px));
-    padding: 14px 18px;
+    padding: 8px 8px;
     font-size: 16px;
 }
 
@@ -1127,11 +1127,11 @@ a:hover {
 }
 
 .answer-box-head {
-    padding: 10px 14px;
+    padding: 8px 8px;
     border-bottom: 1px solid rgba(255, 255, 255, .05);
     display: flex;
     justify-content: space-between;
-    gap: 12px;
+    gap: 8px;
     align-items: center;
 }
 
@@ -1141,7 +1141,7 @@ a:hover {
 }
 
 .answer-box .md {
-    padding: 14px;
+    padding: 8px;
 }
 
 .error-box {
@@ -1149,7 +1149,7 @@ a:hover {
     border: 1px solid rgba(197, 112, 112, .3);
     background: rgba(197, 112, 112, .1);
     border-radius: var(--radius2);
-    padding: 12px 14px;
+    padding: 8px 8px;
     color: #e8c8c8;
     font-weight: 500;
     font-size: 16px;
@@ -1194,7 +1194,7 @@ a:hover {
     justify-content: center;
     text-align: center;
     font-size: 18px;
-    padding: 16px;
+    padding: 10px;
 }
 
 .bottom-content {
@@ -1205,7 +1205,7 @@ a:hover {
     display: flex;
     flex-direction: column;
     gap: 12px;
-    padding-right: 4px;
+    padding-right: 2px;
 }
 
 /* Segmented control */
@@ -1221,7 +1221,7 @@ a:hover {
     border: 0;
     background: rgba(255, 255, 255, .03);
     color: var(--muted);
-    padding: 8px 14px;
+    padding: 6px 6px;
     cursor: pointer;
     font-weight: 600;
     font-size: 12px;
@@ -1308,7 +1308,7 @@ a:hover {
 }
 
 .md pre {
-    padding: 12px 14px;
+    padding: 8px 8px;
     border-radius: 8px;
     background: rgba(0, 0, 0, .3);
     overflow: auto;
@@ -1322,13 +1322,13 @@ a:hover {
 
 .md :not(pre)>code {
     background: rgba(255, 255, 255, .06);
-    padding: 2px 6px;
+    padding: 2px 4px;
     border-radius: 4px;
 }
 
 .md blockquote {
     border-left: 3px solid var(--accent);
-    padding-left: 14px;
+    padding-left: 8px;
     margin-left: 0;
     color: var(--muted);
     opacity: 0.9;
@@ -1342,7 +1342,7 @@ a:hover {
 .md th,
 .md td {
     border: 1px solid var(--border);
-    padding: 8px 10px;
+    padding: 8px 8px;
 }
 
 .md th {
@@ -1393,6 +1393,13 @@ a:hover {
 
     .matchup {
         width: 100%;
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .vs {
+        text-align: center;
+        width: 100%;
     }
 
     .chip {
@@ -1412,8 +1419,8 @@ a:hover {
 
     /* Tighten vertical density on small phones */
     .arena {
-        padding: 10px 10px calc(env(safe-area-inset-bottom) + 2px);
-        gap: 8px;
+        padding: 6px 6px calc(env(safe-area-inset-bottom) + 2px);
+        gap: 6px;
     }
 
     .topbar {
@@ -1421,7 +1428,7 @@ a:hover {
     }
 
     .chip {
-        padding: 10px 12px;
+        padding: 6px 6px;
     }
 
     .chip-sub {
@@ -1429,24 +1436,24 @@ a:hover {
     }
 
     .status-pill {
-        padding: 4px 6px;
+        padding: 4px 4px;
     }
 
     .tab-btn2 {
-        padding: 8px 10px;
+        padding: 6px 6px;
     }
 
     /* Timer: inline "label: value" on one row, progress bar below */
     .timer {
-        padding: 8px 10px;
+        padding: 6px 8px;
         display: grid;
         grid-template-columns: 1fr auto;
         grid-template-rows: auto;
         grid-template-areas:
             "label value"
             "bar bar";
-        column-gap: 10px;
-        row-gap: 6px;
+        column-gap: 6px;
+        row-gap: 4px;
         align-items: baseline;
     }
 
@@ -1657,11 +1664,11 @@ a:hover {
         display: flex;
         align-items: center;
         justify-content: flex-end;
-        gap: 6px;
+        gap: 4px;
 
-        padding: 6px 8px;
+        padding: 4px 6px;
         border: 1px solid var(--border);
-        border-radius: 10px;
+        border-radius: 8px;
 
         background: rgba(18, 18, 18, 0.82);
         backdrop-filter: blur(6px);
@@ -1679,7 +1686,7 @@ a:hover {
         max-width: 220px;
 
         font-family: var(--mono);
-        padding: 8px 10px;
+        padding: 6px 8px;
     }
 
     .calc-input:focus {
@@ -1771,12 +1778,12 @@ a:hover {
     background: rgba(255, 255, 255, .03);
     border: 1px solid var(--border);
     border-radius: var(--radius2);
-    padding: 10px 12px;
+    padding: 8px 10px;
     cursor: pointer;
     transition: all 0.2s ease;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 4px;
     position: relative;
     user-select: none;
 }
@@ -1878,9 +1885,9 @@ a:hover {
 .selector-trigger {
     background: rgba(255, 255, 255, 0.04);
     border: 1px solid var(--border);
-    border-radius: 16px;
+    border-radius: 10px;
     /* Large rounded corners */
-    padding: 16px;
+    padding: 10px;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -1979,7 +1986,7 @@ a:hover {
 
 /* Individual Option */
 .selector-option {
-    padding: 12px 16px;
+    padding: 8px 10px;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -2049,7 +2056,7 @@ a:hover {
 .summary-chip {
     display: inline-flex;
     align-items: center;
-    padding: 6px 12px;
+    padding: 4px 8px;
     border-radius: 999px;
     border: 1px solid var(--border);
     background: rgba(255, 255, 255, .04);
@@ -2076,7 +2083,7 @@ a:hover {
 
 .copy-tools .btn {
     font-size: 11px;
-    padding: 5px 10px;
+    padding: 4px 6px;
 }
 
 /* Keyboard Hint (PC only) */
@@ -2138,7 +2145,7 @@ a:hover {
     display: flex;
     flex-direction: column;
     gap: 8px;
-    padding: 10px;
+    padding: 8px;
     border: 1px solid var(--border);
     border-radius: var(--radius2);
     background: rgba(0, 0, 0, .15);
@@ -2162,10 +2169,10 @@ a:hover {
 .calc-input {
     flex: 1 1 120px;
     min-width: 80px;
-    max-width: 200px;
+    max-width: 220px;
     font-family: var(--mono);
     font-size: 14px;
-    padding: 8px 10px;
+    padding: 8px 8px;
 }
 
 .calc-result {
@@ -2195,7 +2202,7 @@ a:hover {
 
     .summary-chip {
         font-size: 12px;
-        padding: 5px 10px;
+        padding: 5px 8px;
         max-width: 220px;
     }
 
@@ -2224,14 +2231,14 @@ a:hover {
 
     .scratchpad-toggle {
         margin-left: 4px;
-        padding: 6px 10px;
+        padding: 6px 8px;
         background: rgba(255,255,255,0.05);
         border-radius: 6px;
     }
 }
 
 /* --- Compact-height phones: merge the two timers into one shared block --- */
-@media (max-width: 760px) and (max-height: 800px) {
+@media (max-width: 760px) and (max-height: 896px) {
     .timers {
         gap: 0;
         flex-wrap: nowrap;
