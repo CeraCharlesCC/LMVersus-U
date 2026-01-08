@@ -131,8 +131,12 @@ Each file describes **one** opponent today (kept intentionally simple). The REST
 * `metadata`:
   * `displayName`: shown in the UI
   * `questionSetDisplayName`: question set name shown in the UI
-  * `description`: (optional) short description
-  * `speed`, `efficiency`: (optional) visual stats
+  * `questionSetDescription`: question set description
+  * `questionSetDescriptionI18nKey`: i18n key for question set description
+  * `description`: short description
+  * `descriptionI18nKey`: i18n key for description
+  * `speed`, `efficiency`: visual stats
+  * `difficulty`:visual difficulty badge
 * `llmProfile`: model name and decoding parameters
 * `questionSetPath`: which question set to use
 * `streaming`: how the reasoning stream is shaped
@@ -195,7 +199,7 @@ Each question file contains (simplified):
 * `questionId` (UUID)
 * `prompt` (Markdown supported in the UI; KaTeX rendering is enabled client-side)
 * `choices` (optional; when present, the round is multiple-choice)
-* `difficulty` (`EASY | MEDIUM | HARD`)
+* `difficulty` (`EASY | MEDIUM | HARD` | `VERY_HARD` | `IMPOSSIBLE`)
 * `verifierSpec`:
 
   * `multiple_choice` (correct index)
