@@ -101,7 +101,7 @@ export default {
 
     // Bottom panel workspace
     answerSummaryEmpty: "未選択",
-    answerSummaryMcq: "選択: #{n} {text}",
+    answerSummaryMcq: "選択: #{n}",
     answerSummaryInt: "整数: {v}",
     answerSummaryText: "テキスト: {v}",
     clearAnswer: "クリア",

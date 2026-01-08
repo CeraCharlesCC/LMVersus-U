@@ -1674,7 +1674,7 @@ a:hover {
         overflow: hidden;
     }
 
-    #answerForm .bottom-content > :not(#scratchpadSection) {
+    #answerForm .bottom-content> :not(#scratchpadSection) {
         grid-column: 1;
         min-width: 0;
     }
@@ -2298,7 +2298,7 @@ a:hover {
     .scratchpad-toggle {
         margin-left: 4px;
         padding: 6px 8px;
-        background: rgba(255,255,255,0.05);
+        background: rgba(255, 255, 255, 0.05);
         border-radius: 6px;
     }
 
@@ -2343,7 +2343,7 @@ a:hover {
         padding: 4px 4px;
     }
 
-    .timers .timer + .timer {
+    .timers .timer+.timer {
         border-left: 1px solid var(--border);
     }
 }

@@ -101,7 +101,7 @@ export default {
 
     // Bottom panel workspace
     answerSummaryEmpty: "No answer selected",
-    answerSummaryMcq: "Selected: #{n} {text}",
+    answerSummaryMcq: "Selected: #{n}",
     answerSummaryInt: "Integer: {v}",
     answerSummaryText: "Text: {v}",
     clearAnswer: "Clear",

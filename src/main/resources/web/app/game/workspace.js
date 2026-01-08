@@ -112,10 +112,7 @@ export function formatCurrentAnswerSummary() {
         if (idx == null) {
             return t("answerSummaryEmpty");
         }
-        const raw = state.choices[idx] || "";
-        const cleaned = normalizeChoiceForHeuristic(raw);
-        const display = cleaned.length > 40 ? cleaned.slice(0, 40) + "…" : cleaned;
-        return t("answerSummaryMcq", { n: idx + 1, text: display });
+        return t("answerSummaryMcq", { n: idx + 1 });
     } else {
         if (state.freeAnswerMode === "int") {
             const raw = ($("#intValue")?.value || "").trim();
@@ -274,7 +271,7 @@ function applyScratchpadPlacement() {
     const section = $("#scratchpadSection");
     const summary = $("#answerSummary");
 
-    if (!toggle || !panel || !section || !summary) return;
+    if (!toggle || !panel || !section) return;
 
     if (isMobileLayout()) {
         // MOBILE: Move toggle to Summary area

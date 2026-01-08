@@ -1,22 +1,11 @@
-import { $ } from "../core/dom.js";
-import { t } from "../core/i18n.js";
-import { renderMarkdownMath, escapeMarkdownInline } from "../core/markdown.js";
-import {
-    fmtMs,
-    isMobileLayout,
-    escapeHtml,
-    normalizeChoiceForHeuristic,
-    isChoiceCompact,
-    fmtScore,
-} from "../core/utils.js";
-import { state } from "../core/state.js";
-import {
     updateAnswerSummary,
-    applySubmitLockState,
-    updateKeyboardHint,
-    resetWorkspace,
-} from "./workspace.js";
-import { renderModelBadgesHtml } from "../ui/badges.js";
+import {$} from "../core/dom.js";
+import {t} from "../core/i18n.js";
+import {escapeMarkdownInline, renderMarkdownMath} from "../core/markdown.js";
+import {escapeHtml, fmtMs, isChoiceCompact, isMobileLayout,} from "../core/utils.js";
+import {state} from "../core/state.js";
+import {applySubmitLockState, resetWorkspace, updateAnswerSummary, updateKeyboardHint,} from "./workspace.js";
+import {renderModelBadgesHtml} from "../ui/badges.js";
 
 /** ---- Small UI helpers ---- */
 export function showBottomState(which /* "pre" | "answer" | "post" */) {
