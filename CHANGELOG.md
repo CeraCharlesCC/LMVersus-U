@@ -1,3 +1,15 @@
+## [v0.7.1] - 2026-01-08
+### Added
+- Add numbered index display to each choice button in the question UI.
+- Expand MCQ keyboard shortcuts to support 0 and Shift+1–0 for choice selection.
+
+### Changed
+- Refactor landing popup to show only on first visit until dismissed.
+- Update UI hints in English and Japanese to reflect new shortcut options.
+
+### Internal
+- Bump version to v0.7.1.
+
 ## [v0.7.0] - 2026-01-08
 ### Added
 - Add bottom panel workspace with answer summary, scratchpad, and calculator (#17)
