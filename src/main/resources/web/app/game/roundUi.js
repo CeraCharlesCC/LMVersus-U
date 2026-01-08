@@ -1,10 +1,10 @@
-import {$} from "../core/dom.js";
-import {t} from "../core/i18n.js";
-import {escapeMarkdownInline, renderMarkdownMath} from "../core/markdown.js";
-import {escapeHtml, fmtMs, isChoiceCompact, isMobileLayout,} from "../core/utils.js";
-import {state} from "../core/state.js";
-import {applySubmitLockState, resetWorkspace, updateAnswerSummary, updateKeyboardHint,} from "./workspace.js";
-import {renderModelBadgesHtml} from "../ui/badges.js";
+import { $ } from "../core/dom.js";
+import { t } from "../core/i18n.js";
+import { escapeMarkdownInline, renderMarkdownMath } from "../core/markdown.js";
+import { escapeHtml, fmtMs, isChoiceCompact, isMobileLayout, } from "../core/utils.js";
+import { state } from "../core/state.js";
+import { applySubmitLockState, resetWorkspace, updateAnswerSummary, updateKeyboardHint, } from "./workspace.js";
+import { renderModelBadgesHtml } from "../ui/badges.js";
 
 /** ---- Small UI helpers ---- */
 export function showBottomState(which /* "pre" | "answer" | "post" */) {
@@ -16,6 +16,13 @@ export function showBottomState(which /* "pre" | "answer" | "post" */) {
     const btnNext = $("#btnNext");
     const answerAction = $("#answerForm .bottom-action");
     const postAction = $("#postRound .bottom-action");
+
+    // Dynamic placement for result details (to show in answer form during post-round)
+    const resultDetails = $("#resultDetails");
+    const scratchToggle = $("#scratchpadToggle");
+    const answerSummary = $("#answerSummary");
+    const originalPostContent = $("#postRound .bottom-content");
+    const wbr = $("#answerSummaryBreak");
 
     const moveNextTo = (target) => {
         if (!btnNext || !target) return;
@@ -31,8 +38,29 @@ export function showBottomState(which /* "pre" | "answer" | "post" */) {
         answer?.classList.add("scratch-only");
 
         moveNextTo(answerAction);
+
+        // Move resultDetails to sit above the scratchpad expand button in the summary area
+        if (resultDetails && answerSummary) {
+            if (scratchToggle && scratchToggle.parentElement === answerSummary) {
+                answerSummary.insertBefore(resultDetails, scratchToggle);
+            } else {
+                answerSummary.appendChild(resultDetails);
+            }
+        }
+
+        wbr?.classList.add("hidden");
+
+        // Ensure kbdHint clears immediately when entering post state
+        updateKeyboardHint();
         return;
     }
+
+    // Reset resultDetails position for other states (so it doesn't appear in answer form)
+    if (resultDetails && originalPostContent && resultDetails.parentElement !== originalPostContent) {
+        originalPostContent.appendChild(resultDetails);
+    }
+
+    wbr?.classList.remove("hidden");
 
     answer?.classList.remove("scratch-only");
     moveNextTo(postAction);
@@ -41,7 +69,11 @@ export function showBottomState(which /* "pre" | "answer" | "post" */) {
     preHint?.classList.toggle("hidden", which !== "pre");
     answer?.classList.toggle("hidden", which !== "answer");
     post?.classList.toggle("hidden", which !== "post");
+
+    // Keep keyboard hint consistent when switching states
+    updateKeyboardHint();
 }
+
 
 function clearOutcomeGlows() {
     const remove = (el) => el?.classList.remove("glow-win", "glow-lose", "glow-tie");
@@ -124,7 +156,7 @@ export function renderResultDetails(note, detailLines) {
     const details = Array.isArray(detailLines) ? detailLines.map((x) => String(x || "")) : [];
 
     // cache so we can re-render on resize/orientation change
-    state.ui.lastResultDetails = {note: safeNote, details};
+    state.ui.lastResultDetails = { note: safeNote, details };
 
     if (isMobileLayout()) {
         const parts = [];

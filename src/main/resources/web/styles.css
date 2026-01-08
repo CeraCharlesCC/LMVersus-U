@@ -15,9 +15,12 @@
     --accent-soft: rgba(201, 168, 108, 0.15);
 
     /* Status */
-    --good: #7eb87e; /* Muted sage green */
-    --bad: #c57070;  /* Softer red */
-    --warn: #d4a84c; /* Warm amber */
+    --good: #7eb87e;
+    /* Muted sage green */
+    --bad: #c57070;
+    /* Softer red */
+    --warn: #d4a84c;
+    /* Warm amber */
 
     /* Effects */
     --shadow: 0 16px 48px rgba(0, 0, 0, 0.4);
@@ -27,9 +30,9 @@
 
     /* Fonts */
     --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
-    "Courier New", monospace;
+        "Courier New", monospace;
     --sans: "Inter", ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto,
-    "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
+        "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
 }
 
 /* ==========================================================================
@@ -52,9 +55,9 @@ body {
     font-family: var(--sans);
     /* Subtle gradient with very low saturation - clean and calm */
     background:
-            radial-gradient(ellipse 1000px 600px at 15% -10%, rgba(201, 168, 108, 0.04), transparent 60%),
-            radial-gradient(ellipse 800px 500px at 85% 5%, rgba(126, 184, 126, 0.03), transparent 60%),
-            var(--bg);
+        radial-gradient(ellipse 1000px 600px at 15% -10%, rgba(201, 168, 108, 0.04), transparent 60%),
+        radial-gradient(ellipse 800px 500px at 85% 5%, rgba(126, 184, 126, 0.03), transparent 60%),
+        var(--bg);
     color: var(--text);
     font-size: 18px;
     line-height: 1.5;
@@ -66,6 +69,7 @@ a {
     color: var(--accent);
     text-decoration: none;
 }
+
 a:hover {
     text-decoration: underline;
 }
@@ -80,6 +84,7 @@ a:hover {
 .screen {
     display: none;
 }
+
 .screen-active {
     display: block;
 }
@@ -102,6 +107,7 @@ a:hover {
     gap: 10px;
     align-items: center;
 }
+
 .between {
     justify-content: space-between;
 }
@@ -117,6 +123,8 @@ a:hover {
     font-size: 11px;
 }
 
+.wbr-pc-only { display: none; }
+
 /* ==========================================================================
    Shared Scrollbars (thin + subtle)
    ========================================================================== */
@@ -129,13 +137,16 @@ a:hover {
     width: 6px;
     height: 6px;
 }
+
 :where(.license-body, .detail-body, .panel-body, .modal-body, .table-wrap, .opponent-list, .selector-options)::-webkit-scrollbar-track {
     background: transparent;
 }
+
 :where(.license-body, .detail-body, .panel-body, .modal-body, .table-wrap, .opponent-list, .selector-options)::-webkit-scrollbar-thumb {
     background: rgba(255, 255, 255, 0.12);
     border-radius: 999px;
 }
+
 :where(.license-body, .detail-body, .panel-body, .modal-body, .table-wrap, .opponent-list, .selector-options)::-webkit-scrollbar-thumb:hover {
     background: rgba(255, 255, 255, 0.2);
 }
@@ -199,10 +210,12 @@ a:hover {
     background: rgba(255, 255, 255, 0.2);
     transition: background 0.2s ease;
 }
+
 .net-dot.ok {
     background: var(--good);
     box-shadow: 0 0 8px rgba(126, 184, 126, 0.4);
 }
+
 .net-dot.bad {
     background: var(--bad);
     box-shadow: 0 0 8px rgba(197, 112, 112, 0.4);
@@ -273,6 +286,7 @@ a:hover {
 .select {
     color-scheme: dark;
 }
+
 .select option,
 .select optgroup {
     background-color: var(--panel);
@@ -303,6 +317,7 @@ a:hover {
     background: rgba(201, 168, 108, 0.12);
     color: #e8dcc8;
 }
+
 .btn.primary:hover {
     background: rgba(201, 168, 108, 0.18);
     border-color: rgba(201, 168, 108, 0.5);
@@ -312,6 +327,7 @@ a:hover {
     background: transparent;
     border-color: transparent;
 }
+
 .btn.ghost:hover {
     background: rgba(255, 255, 255, 0.05);
 }
@@ -326,6 +342,7 @@ a:hover {
     background: rgba(197, 112, 112, 0.12);
     color: #e8c8c8;
 }
+
 .btn.danger:hover {
     background: rgba(197, 112, 112, 0.18);
 }
@@ -337,6 +354,7 @@ a:hover {
     color: rgba(232, 228, 223, 0.4) !important;
     cursor: not-allowed;
 }
+
 .btn.is-frozen:hover {
     background: rgba(255, 255, 255, 0.03) !important;
 }
@@ -344,24 +362,21 @@ a:hover {
 /* Submit "locked" (answer invalid / unselected) */
 .btn.is-locked {
     border-color: rgba(154, 148, 140, 0.25) !important;
-    background: repeating-linear-gradient(
-            -45deg,
+    background: repeating-linear-gradient(-45deg,
             rgba(154, 148, 140, 0.08),
             rgba(154, 148, 140, 0.08) 6px,
             rgba(154, 148, 140, 0.02) 6px,
-            rgba(154, 148, 140, 0.02) 12px
-    ) !important;
+            rgba(154, 148, 140, 0.02) 12px) !important;
     color: rgba(232, 228, 223, 0.45) !important;
     cursor: not-allowed;
 }
+
 .btn.is-locked:hover {
-    background: repeating-linear-gradient(
-            -45deg,
+    background: repeating-linear-gradient(-45deg,
             rgba(154, 148, 140, 0.1),
             rgba(154, 148, 140, 0.1) 6px,
             rgba(154, 148, 140, 0.03) 6px,
-            rgba(154, 148, 140, 0.03) 12px
-    ) !important;
+            rgba(154, 148, 140, 0.03) 12px) !important;
 }
 
 /* ==========================================================================
@@ -421,12 +436,27 @@ a:hover {
 }
 
 @keyframes toast-in {
-    from { opacity: 0; transform: translateX(100%); }
-    to   { opacity: 1; transform: translateX(0); }
+    from {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
 }
+
 @keyframes toast-out {
-    from { opacity: 1; transform: translateX(0); }
-    to   { opacity: 0; transform: translateX(100%); }
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+
+    to {
+        opacity: 0;
+        transform: translateX(100%);
+    }
 }
 
 .toast {
@@ -471,6 +501,7 @@ a:hover {
     font-size: 14px;
     transition: color 0.15s ease;
 }
+
 .t-close:hover {
     color: var(--text);
 }
@@ -540,9 +571,11 @@ a:hover {
     font-size: 16px;
     transition: color 0.15s ease, background 0.15s ease;
 }
+
 .tab-btn:hover {
     color: var(--text);
 }
+
 .tab-btn.is-active {
     color: var(--text);
     background: rgba(255, 255, 255, 0.03);
@@ -574,6 +607,7 @@ a:hover {
 .tab-panel {
     display: none;
 }
+
 .tab-panel.is-active {
     display: block;
 }
@@ -641,10 +675,21 @@ a:hover {
     width: min(600px, calc(100vw - 28px));
 }
 
-.end-modal.win  { border-color: rgba(126, 184, 126, 0.35); }
-.end-modal.lose { border-color: rgba(197, 112, 112, 0.35); }
-.end-modal.tie  { border-color: rgba(212, 168, 76, 0.35); }
-.end-modal.none { border-color: var(--border); }
+.end-modal.win {
+    border-color: rgba(126, 184, 126, 0.35);
+}
+
+.end-modal.lose {
+    border-color: rgba(197, 112, 112, 0.35);
+}
+
+.end-modal.tie {
+    border-color: rgba(212, 168, 76, 0.35);
+}
+
+.end-modal.none {
+    border-color: var(--border);
+}
 
 .end-top {
     position: relative;
@@ -738,6 +783,7 @@ a:hover {
     padding: 12px 14px;
     border-top: 1px solid var(--border);
 }
+
 .kv-row:first-child {
     border-top: 0;
 }
@@ -863,6 +909,7 @@ a:hover {
     font-size: 13px;
     margin-top: 3px;
 }
+
 .chip-sub:empty {
     display: none;
 }
@@ -954,6 +1001,7 @@ a:hover {
 .tab-btn2:first-child {
     border-radius: var(--radius2) 0 0 var(--radius2);
 }
+
 .tab-btn2:last-child {
     border-radius: 0 var(--radius2) var(--radius2) 0;
 }
@@ -1037,6 +1085,7 @@ a:hover {
 .panel-body {
     min-width: 0;
 }
+
 .chip,
 .timer {
     min-width: 0;
@@ -1069,6 +1118,7 @@ a:hover {
 #choiceHintTop {
     display: none;
 }
+
 #choiceHintBottom {
     display: block;
 }
@@ -1107,10 +1157,12 @@ a:hover {
     border-color: rgba(201, 168, 108, 0.45);
     background: rgba(201, 168, 108, 0.1);
 }
+
 .choice-btn.is-correct {
     border-color: rgba(126, 184, 126, 0.45);
     background: rgba(126, 184, 126, 0.1);
 }
+
 .choice-btn.is-wrong {
     border-color: rgba(197, 112, 112, 0.45);
     background: rgba(197, 112, 112, 0.1);
@@ -1123,15 +1175,18 @@ a:hover {
 .choices.dense .choice-btn {
     padding: 10px 12px;
 }
+
 .choices.dense .choice-inner {
     white-space: normal;
     overflow: visible;
     overflow-wrap: break-word;
 }
-.choices.dense .choice-inner > p {
+
+.choices.dense .choice-inner>p {
     display: inline;
     margin: 0;
 }
+
 .choices.dense .choice-inner br {
     display: none;
 }
@@ -1179,6 +1234,7 @@ a:hover {
     font-size: 16px;
     transition: background 0.15s ease;
 }
+
 .peek-btn:hover {
     background: rgba(255, 255, 255, 0.08);
 }
@@ -1298,9 +1354,11 @@ a:hover {
     font-size: 12px;
     transition: color 0.15s ease, background 0.15s ease;
 }
+
 .seg-btn:hover {
     background: rgba(255, 255, 255, 0.05);
 }
+
 .seg-btn.is-active {
     color: var(--text);
     background: rgba(201, 168, 108, 0.1);
@@ -1317,16 +1375,33 @@ a:hover {
    Outcome Glows
    ========================================================================== */
 @keyframes glowPulseGood {
-    0%   { box-shadow: 0 0 0 rgba(126, 184, 126, 0); }
-    100% { box-shadow: 0 0 24px rgba(126, 184, 126, 0.15); }
+    0% {
+        box-shadow: 0 0 0 rgba(126, 184, 126, 0);
+    }
+
+    100% {
+        box-shadow: 0 0 24px rgba(126, 184, 126, 0.15);
+    }
 }
+
 @keyframes glowPulseBad {
-    0%   { box-shadow: 0 0 0 rgba(197, 112, 112, 0); }
-    100% { box-shadow: 0 0 24px rgba(197, 112, 112, 0.15); }
+    0% {
+        box-shadow: 0 0 0 rgba(197, 112, 112, 0);
+    }
+
+    100% {
+        box-shadow: 0 0 24px rgba(197, 112, 112, 0.15);
+    }
 }
+
 @keyframes glowPulseTie {
-    0%   { box-shadow: 0 0 0 rgba(212, 168, 76, 0); }
-    100% { box-shadow: 0 0 24px rgba(212, 168, 76, 0.12); }
+    0% {
+        box-shadow: 0 0 0 rgba(212, 168, 76, 0);
+    }
+
+    100% {
+        box-shadow: 0 0 24px rgba(212, 168, 76, 0.12);
+    }
 }
 
 .glow-win {
@@ -1334,11 +1409,13 @@ a:hover {
     box-shadow: 0 0 0 1px rgba(126, 184, 126, 0.08), 0 0 20px rgba(126, 184, 126, 0.12);
     animation: glowPulseGood 800ms ease-out 1;
 }
+
 .glow-lose {
     border-color: rgba(197, 112, 112, 0.4) !important;
     box-shadow: 0 0 0 1px rgba(197, 112, 112, 0.08), 0 0 20px rgba(197, 112, 112, 0.12);
     animation: glowPulseBad 800ms ease-out 1;
 }
+
 .glow-tie {
     border-color: rgba(212, 168, 76, 0.35) !important;
     box-shadow: 0 0 0 1px rgba(212, 168, 76, 0.08), 0 0 20px rgba(212, 168, 76, 0.1);
@@ -1346,6 +1423,7 @@ a:hover {
 }
 
 @media (prefers-reduced-motion: reduce) {
+
     .glow-win,
     .glow-lose,
     .glow-tie {
@@ -1373,7 +1451,7 @@ a:hover {
     font-size: 0.9em;
 }
 
-.md :not(pre) > code {
+.md :not(pre)>code {
     background: rgba(255, 255, 255, 0.06);
     padding: 2px 4px;
     border-radius: 4px;
@@ -1411,8 +1489,8 @@ a:hover {
     gap: 8px;
     margin-top: 4px;
     max-height: 300px;
-    overflow-y: auto;
-    padding-right: 4px; /* for scrollbar */
+    padding-right: 4px;
+    /* for scrollbar */
 }
 
 /* Cards */
@@ -1494,15 +1572,60 @@ a:hover {
 
 /* Specific colors for stats if needed */
 .opp-stat.speed .pip.filled {
-    background: #eebb55; /* distinct yellow/gold */
+    background: #eebb55;
+    /* distinct yellow/gold */
 }
+
 .opp-stat.efficiency .pip.filled {
-    background: #55aacc; /* blueish */
+    background: #55aacc;
+    /* blueish */
+}
+
+/* ======================================================================
+   Rich Tooltip (Question Set badge in model picker - PC)
+   ====================================================================== */
+.qs-tooltip {
+    position: fixed;
+    z-index: 10000;
+    max-width: 340px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: rgba(26, 26, 26, 0.95);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    box-shadow: var(--shadow);
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(4px);
+    transition: opacity 0.12s ease, transform 0.12s ease;
+}
+
+.qs-tooltip.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.qs-tooltip .qs-tt-title {
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--text);
+    margin-bottom: 4px;
+    line-height: 1.25;
+}
+
+.qs-tooltip .qs-tt-body {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.45;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
 }
 
 /* ==========================================================================
    Custom Model Selector (ChatGPT-style)
    ========================================================================== */
+
 .model-selector {
     position: relative;
     width: 100%;
@@ -1513,8 +1636,10 @@ a:hover {
 /* IMPORTANT: this replaces the old duplicate `.opponent-list { display:block... }`
    by scoping it to the selector component only. */
 .model-selector .opponent-list {
-    display: block;     /* Override grid */
-    overflow: visible;  /* Allow dropdown to overflow */
+    display: block;
+    /* Override grid */
+    overflow: visible;
+    /* Allow dropdown to overflow */
     max-height: none;
     padding: 0;
     margin-top: 0;
@@ -1552,7 +1677,8 @@ a:hover {
     flex-direction: column;
     gap: 4px;
     flex: 1;
-    min-width: 0; /* Text truncation fix */
+    min-width: 0;
+    /* Text truncation fix */
 }
 
 .trigger-title {
@@ -1577,6 +1703,7 @@ a:hover {
     color: var(--muted);
     transition: transform 0.3s ease;
 }
+
 .selector-trigger.is-open .trigger-icon {
     transform: rotate(180deg);
 }
@@ -1628,16 +1755,20 @@ a:hover {
     border-top: 1px solid rgba(255, 255, 255, 0.03);
     transition: background 0.15s;
 }
+
 .selector-option:first-child {
     border-top: none;
 }
+
 .selector-option:hover {
     background: rgba(255, 255, 255, 0.05);
 }
+
 .selector-option.selected {
     background: rgba(201, 168, 108, 0.14);
     border-left: 3px solid var(--accent);
 }
+
 .selector-option:focus-visible {
     outline: 2px solid rgba(201, 168, 108, 0.6);
     outline-offset: -2px;
@@ -1650,6 +1781,7 @@ a:hover {
     gap: 2px;
     min-width: 0;
 }
+
 .opt-name {
     font-weight: 600;
     color: var(--text);
@@ -1657,6 +1789,7 @@ a:hover {
     text-overflow: ellipsis;
     white-space: nowrap;
 }
+
 .opt-stats-row {
     display: flex;
     align-items: center;
@@ -1720,8 +1853,15 @@ a:hover {
     opacity: 0.75;
     letter-spacing: 0.02em;
 }
+
 .kbd-hint:empty {
     display: none;
+}
+
+/* Let the hint sit beside and wrap nicely */
+#answerSummary #kbdHint {
+    flex: 1 1 140px;
+    min-width: 140px;
 }
 
 /* Scratchpad Section */
@@ -1808,9 +1948,11 @@ a:hover {
     background: rgba(255, 255, 255, 0.03);
     border-radius: 4px;
 }
+
 .calc-result:empty {
     display: none;
 }
+
 .calc-result.error {
     color: var(--bad);
 }
@@ -1836,13 +1978,20 @@ a:hover {
 #answerForm.scratch-only #btnSubmit {
     display: none !important;
 }
-#answerForm.scratch-only .bottom-content > :not(#answerSummary):not(#scratchpadSection) {
+
+#answerForm.scratch-only .bottom-content> :not(#answerSummary):not(#scratchpadSection) {
     display: none !important;
 }
+
 #answerForm.scratch-only #answerSummaryText,
 #answerForm.scratch-only #btnClearAnswer {
     display: none !important;
 }
+
+#answerForm.scratch-only #kbdHint {
+    display: none !important;
+}
+
 
 /* ==========================================================================
    Responsive
@@ -1851,6 +2000,7 @@ a:hover {
     .timer {
         width: min(300px, 58vw);
     }
+
     .chip {
         min-width: 170px;
     }
@@ -1876,6 +2026,7 @@ a:hover {
     .split-top.show-question #llmPanel {
         display: none;
     }
+
     .split-top.show-reasoning #questionPanel {
         display: none;
     }
@@ -1916,15 +2067,19 @@ a:hover {
         padding: 6px 6px calc(env(safe-area-inset-bottom) + 2px);
         gap: 6px;
     }
+
     .topbar {
         gap: 10px;
     }
+
     .chip {
         padding: 6px;
     }
+
     .chip-sub {
         margin-top: 2px;
     }
+
     .status-pill {
         padding: 4px;
     }
@@ -1938,15 +2093,17 @@ a:hover {
         display: grid;
         grid-template-columns: 1fr auto;
         grid-template-areas:
-      "label value"
-      "bar bar";
+            "label value"
+            "bar bar";
         column-gap: 6px;
         row-gap: 4px;
         align-items: baseline;
     }
+
     .timer-label {
         grid-area: label;
     }
+
     .bar {
         display: none;
     }
@@ -1955,9 +2112,11 @@ a:hover {
     .bottom-state {
         flex-direction: column;
     }
+
     .bottom-action {
         flex: 0 0 auto;
     }
+
     .action-btn {
         height: auto;
         min-height: 52px;
@@ -1978,6 +2137,7 @@ a:hover {
     #choiceHintTop {
         display: block;
     }
+
     #choiceHintBottom {
         display: none;
     }
@@ -1987,9 +2147,11 @@ a:hover {
         white-space: normal;
         overflow-wrap: anywhere;
     }
+
     .result-details .result-note {
         margin-bottom: 6px;
     }
+
     .result-details .result-inline {
         line-height: 1.55;
     }
@@ -2049,11 +2211,13 @@ a:hover {
     }
 
     .copy-tools {
-        display: none; /* Hide on mobile for cleaner UI */
+        display: none;
+        /* Hide on mobile for cleaner UI */
     }
 
     .kbd-hint {
-        display: none; /* No keyboard hints on mobile */
+        display: none;
+        /* No keyboard hints on mobile */
     }
 
     .scratchpad-text {
@@ -2118,6 +2282,8 @@ a:hover {
 
 /* PC/tablet */
 @media (min-width: 761px) {
+    .wbr-pc-only { display: inline; }
+
     .panel-hint,
     .choice-hint {
         font-size: 14px;
@@ -2151,18 +2317,20 @@ a:hover {
         display: block;
     }
 
+    /* Keep summary items beside each other on PC (kbdHint is now inside here) */
     #answerForm #answerSummary {
         display: flex;
-        flex-direction: column;
-        align-items: flex-start;
+        flex-direction: row;
+        align-items: center;
         gap: 8px;
-        flex-wrap: nowrap;
+        flex-wrap: wrap;
+        min-width: 0;
     }
 
     #answerForm #answerSummaryText {
         max-width: 240px;
-        white-space: normal;
     }
+
 
     #answerForm .bottom-content {
         display: grid;
@@ -2173,7 +2341,41 @@ a:hover {
         overflow: hidden;
     }
 
-    #answerForm .bottom-content > :not(#scratchpadSection) {
+    /* --------------------------------------------------
+       Post-round (scratch-only): prevent resultDetails clipping
+       -------------------------------------------------- */
+    #answerForm.scratch-only .bottom-content {
+        /* Give the left side a real height to work with */
+        grid-template-rows: 1fr;
+    }
+
+    #answerForm.scratch-only #answerSummary {
+        grid-row: 1 / -1;
+        height: 100%;
+        min-height: 0;
+        /* Now we want a vertical stack: resultDetails scrolls, toggle stays visible */
+        flex-direction: column;
+        align-items: stretch;
+        flex-wrap: nowrap;
+        gap: 10px;
+        overflow: hidden;
+    }
+
+    #answerForm.scratch-only #resultDetails {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow: auto;
+        padding-right: 2px;
+        /* avoid overlay scrollbars covering text */
+    }
+
+    #answerForm.scratch-only #scratchpadToggle {
+        flex: 0 0 auto;
+        align-self: flex-start;
+    }
+
+
+    #answerForm .bottom-content> :not(#scratchpadSection) {
         grid-column: 1;
         min-width: 0;
     }
@@ -2203,8 +2405,8 @@ a:hover {
     /* Calculator overlay (PC) */
     .calc-row {
         position: absolute;
-        right: 10px;
-        bottom: 10px;
+        right: 32px;
+        bottom: 17px;
         left: auto;
 
         width: auto;
@@ -2266,7 +2468,7 @@ a:hover {
         padding: 4px;
     }
 
-    .timers .timer + .timer {
+    .timers .timer+.timer {
         border-left: 1px solid var(--border);
     }
 }
