@@ -1,4 +1,3 @@
-    updateAnswerSummary,
 import {$} from "../core/dom.js";
 import {t} from "../core/i18n.js";
 import {escapeMarkdownInline, renderMarkdownMath} from "../core/markdown.js";
@@ -9,10 +8,39 @@ import {renderModelBadgesHtml} from "../ui/badges.js";
 
 /** ---- Small UI helpers ---- */
 export function showBottomState(which /* "pre" | "answer" | "post" */) {
-    $("#preRound")?.classList.toggle("hidden", which !== "pre");
-    $("#preRoundHint")?.classList.toggle("hidden", which !== "pre");
-    $("#answerForm")?.classList.toggle("hidden", which !== "answer");
-    $("#postRound")?.classList.toggle("hidden", which !== "post");
+    const pre = $("#preRound");
+    const preHint = $("#preRoundHint");
+    const answer = $("#answerForm");
+    const post = $("#postRound");
+
+    const btnNext = $("#btnNext");
+    const answerAction = $("#answerForm .bottom-action");
+    const postAction = $("#postRound .bottom-action");
+
+    const moveNextTo = (target) => {
+        if (!btnNext || !target) return;
+        if (btnNext.parentElement !== target) target.appendChild(btnNext);
+    };
+
+    if (which === "post") {
+        pre?.classList.add("hidden");
+        preHint?.classList.add("hidden");
+        post?.classList.add("hidden");
+
+        answer?.classList.remove("hidden");
+        answer?.classList.add("scratch-only");
+
+        moveNextTo(answerAction);
+        return;
+    }
+
+    answer?.classList.remove("scratch-only");
+    moveNextTo(postAction);
+
+    pre?.classList.toggle("hidden", which !== "pre");
+    preHint?.classList.toggle("hidden", which !== "pre");
+    answer?.classList.toggle("hidden", which !== "answer");
+    post?.classList.toggle("hidden", which !== "post");
 }
 
 function clearOutcomeGlows() {
@@ -96,7 +124,7 @@ export function renderResultDetails(note, detailLines) {
     const details = Array.isArray(detailLines) ? detailLines.map((x) => String(x || "")) : [];
 
     // cache so we can re-render on resize/orientation change
-    state.ui.lastResultDetails = { note: safeNote, details };
+    state.ui.lastResultDetails = {note: safeNote, details};
 
     if (isMobileLayout()) {
         const parts = [];
@@ -381,11 +409,6 @@ export function formatAnswerDisplay(ans, choicesMaybe) {
     if (!ans) return t("noAnswer");
     if (ans.type === "multiple_choice") {
         const idx = ans.choiceIndex;
-        const choices = choicesMaybe;
-        if (Array.isArray(choices) && choices[idx] != null) {
-            const cleaned = normalizeChoiceForHeuristic(choices[idx]);
-            if (cleaned) return `#${idx + 1} ${cleaned.length > 64 ? cleaned.slice(0, 64) + "…" : cleaned}`;
-        }
         return `#${idx + 1}`;
     }
     if (ans.type === "integer") return String(ans.value);

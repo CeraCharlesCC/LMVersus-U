@@ -65,6 +65,7 @@ export const state = {
         reasoningPinnedToTop: true,
         programmaticScroll: false,
         matchEndVisible: false,
+        sessionEnded: false,
         lastResultDetails: null,
     },
 };

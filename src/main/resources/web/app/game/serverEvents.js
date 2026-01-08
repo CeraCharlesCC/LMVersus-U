@@ -62,6 +62,9 @@ export function handleServerEvent(msg, { closeWs }) {
         $("#btnStartRound").disabled = true;
         $("#btnNext").disabled = true;
 
+        state.ui.sessionEnded = true;
+        showBottomState("post");
+
         showMatchEndModal({
             sessionId: msg.sessionId,
             state: msg.state,
@@ -79,6 +82,8 @@ export function handleServerEvent(msg, { closeWs }) {
     if (type === "session_joined") {
         state.sessionId = msg.sessionId;
         location.hash = `session=${encodeURIComponent(state.sessionId)}`;
+
+        state.ui.sessionEnded = false;
 
         showGame();
         resetRoundUi();
@@ -275,7 +280,7 @@ export function handleServerEvent(msg, { closeWs }) {
     }
 
     if (type === "session_terminated") {
-        if (isMatchEndVisible()) {
+        if (state.ui.sessionEnded || isMatchEndVisible()) {
             closeWs();
         } else {
             const line = sessionEndLine(msg.reason || "");

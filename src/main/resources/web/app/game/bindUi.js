@@ -3,7 +3,7 @@ import { state, STORAGE_KEY_LANDING } from "../core/state.js";
 import { t } from "../core/i18n.js";
 import { refreshLeaderboard } from "../features/leaderboard.js";
 import { showNetError, toast } from "../ui/toast.js";
-import { hideMatchEndModal, showLicenseModal, hideLicenseModal } from "../ui/modals.js";
+import { hideMatchEndModal, showLicenseModal, hideLicenseModal, isMatchEndVisible } from "../ui/modals.js";
 import { closeWs } from "./ws.js";
 import { showLobby } from "./uiScreens.js";
 import { setTopMobileTab, renderResultDetails, getLlmScrollEl } from "./roundUi.js";
@@ -43,6 +43,8 @@ export function bindUi() {
         closeWs();
         showLobby();
         import("./roundUi.js").then((m) => m.resetRoundUi());
+        state.ui.sessionEnded = false;
+        state.sessionId = null;
     });
     $("#btnEndLb").addEventListener("click", () => {
         hideMatchEndModal();
@@ -50,6 +52,18 @@ export function bindUi() {
         showLobby();
         setLobbyTab("LEADERBOARD");
         import("./roundUi.js").then((m) => m.resetRoundUi());
+        state.ui.sessionEnded = false;
+        state.sessionId = null;
+    });
+
+    $("#btnEndClose")?.addEventListener("click", () => {
+        hideMatchEndModal();
+    });
+
+    window.addEventListener("keydown", (e) => {
+        if (e.key !== "Escape") return;
+        if (!isMatchEndVisible()) return;
+        hideMatchEndModal();
     });
 
     $("#btnStartRound").addEventListener("click", startRound);
@@ -65,7 +79,7 @@ export function bindUi() {
 
     $("#matchEndOverlay").addEventListener("click", (e) => {
         if (e.target && e.target.id === "matchEndOverlay") {
-            // no-op
+            hideMatchEndModal();
         }
     });
 
