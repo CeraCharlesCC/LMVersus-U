@@ -11,13 +11,6 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlin.reflect.full.memberProperties
 
-@Serializable
-internal data class OpponentMetadata(
-    val displayName: String,
-    val description: String? = null,
-    val descriptionI18nKey: String? = null,
-)
-
 @Serializable(with = OpponentSpecModeSerializer::class)
 internal sealed interface OpponentSpec {
     val id: String
@@ -49,59 +42,66 @@ internal sealed interface OpponentSpec {
         val questionSetDisplayName: String,
         val provider: ProviderConfig,
     ) : OpponentSpec
-}
 
-@Serializable
-internal data class ProviderConfig(
-    val providerName: String,
-    val apiUrl: String,
-    val apiKey: String,
-    val compat: ProviderCompat = ProviderCompat(),
-    val extraBody: Map<String, JsonElement>? = null,
-) {
-    private fun toSafeString(): String {
-        val kClass = ProviderConfig::class
-        val props = kClass.memberProperties
-        val parts = props.joinToString(", ") { prop ->
-            val value = when (prop.name) {
-                "apiKey" -> "****"
-                else -> prop.get(this)
+    @Serializable
+    data class OpponentMetadata(
+        val displayName: String,
+        val description: String? = null,
+        val descriptionI18nKey: String? = null,
+    )
+
+    @Serializable
+    data class ProviderConfig(
+        val providerName: String,
+        val apiUrl: String,
+        val apiKey: String,
+        val compat: ProviderCompat = ProviderCompat(),
+        val extraBody: Map<String, JsonElement>? = null,
+    ) {
+        @Serializable
+        data class ProviderCompat(
+            val apiProtocol: ProviderApiProtocol = ProviderApiProtocol.AUTO,
+            val structuredOutput: ProviderStructuredOutput = ProviderStructuredOutput.JSON_OBJECT,
+            val reasoning: ProviderReasoning = ProviderReasoning.AUTO,
+        ) {
+            @Serializable
+            internal enum class ProviderApiProtocol {
+                AUTO,
+                RESPONSES,
+                CHAT_COMPLETIONS,
             }
-            "${prop.name}=$value"
+
+            @Serializable
+            internal enum class ProviderStructuredOutput {
+                JSON_SCHEMA,
+                JSON_OBJECT,
+                NONE,
+            }
+
+            @Serializable
+            internal enum class ProviderReasoning {
+                AUTO,
+                SUMMARY_ONLY,
+                RAW_REASONING_FIELD,
+                NONE,
+            }
         }
-        return "${kClass.simpleName}($parts)"
+
+        private fun toSafeString(): String {
+            val kClass = ProviderConfig::class
+            val props = kClass.memberProperties
+            val parts = props.joinToString(", ") { prop ->
+                val value = when (prop.name) {
+                    "apiKey" -> "****"
+                    else -> prop.get(this)
+                }
+                "${prop.name}=$value"
+            }
+            return "${kClass.simpleName}($parts)"
+        }
+
+        override fun toString(): String = toSafeString()
     }
-
-    override fun toString(): String = toSafeString()
-}
-
-@Serializable
-internal data class ProviderCompat(
-    val apiProtocol: ProviderApiProtocol = ProviderApiProtocol.AUTO,
-    val structuredOutput: ProviderStructuredOutput = ProviderStructuredOutput.JSON_OBJECT,
-    val reasoning: ProviderReasoning = ProviderReasoning.AUTO,
-)
-
-@Serializable
-internal enum class ProviderApiProtocol {
-    AUTO,
-    RESPONSES,
-    CHAT_COMPLETIONS,
-}
-
-@Serializable
-internal enum class ProviderStructuredOutput {
-    JSON_SCHEMA,
-    JSON_OBJECT,
-    NONE,
-}
-
-@Serializable
-internal enum class ProviderReasoning {
-    AUTO,
-    SUMMARY_ONLY,
-    RAW_REASONING_FIELD,
-    NONE,
 }
 
 internal object OpponentSpecModeSerializer : JsonContentPolymorphicSerializer<OpponentSpec>(OpponentSpec::class) {
