@@ -10,7 +10,7 @@
     "questionSetDescriptionI18nKey": "model.questionset.mmlu-pro.description",
     "speed": 2,
     "efficiency": 5,
-    "Difficulty": "HARD"
+    "difficulty": "HARD"
   },
   "llmProfile": {
     "modelName": "kimi-k2-thinking",
