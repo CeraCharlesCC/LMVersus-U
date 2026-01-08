@@ -1,7 +1,7 @@
-import {$} from "../core/dom.js";
-import {t} from "../core/i18n.js";
-import {fmtMs, fmtPoints, safeLsGet, safeLsSet} from "../core/utils.js";
-import {state, STORAGE_KEY_LANDING} from "../core/state.js";
+import { $ } from "../core/dom.js";
+import { t } from "../core/i18n.js";
+import { fmtMs, fmtPoints, safeLsGet, safeLsSet } from "../core/utils.js";
+import { state, STORAGE_KEY_LANDING } from "../core/state.js";
 
 function matchEndSubtitle(reason) {
     const r = String(reason || "");
@@ -16,12 +16,12 @@ function matchEndTitleAndBadge(winner, reason) {
     const r = String(reason || "");
 
     if (r !== "completed") {
-        return {title: t("matchEndNone"), badge: "🏁", klass: "none"};
+        return { title: t("matchEndNone"), badge: "🏁", klass: "none" };
     }
-    if (w === "HUMAN") return {title: t("matchEndWin"), badge: "🏆", klass: "win"};
-    if (w === "LLM") return {title: t("matchEndLose"), badge: "😵", klass: "lose"};
-    if (w === "TIE") return {title: t("matchEndTie"), badge: "🤝", klass: "tie"};
-    return {title: t("matchEndNone"), badge: "🏁", klass: "none"};
+    if (w === "HUMAN") return { title: t("matchEndWin"), badge: "🏆", klass: "win" };
+    if (w === "LLM") return { title: t("matchEndLose"), badge: "😵", klass: "lose" };
+    if (w === "TIE") return { title: t("matchEndTie"), badge: "🤝", klass: "tie" };
+    return { title: t("matchEndNone"), badge: "🏁", klass: "none" };
 }
 
 export function isMatchEndVisible() {
@@ -32,7 +32,7 @@ export function showMatchEndModal(payload) {
     const overlay = $("#matchEndOverlay");
     const modal = overlay.querySelector(".end-modal");
 
-    const {title, badge, klass} = matchEndTitleAndBadge(payload.winner, payload.reason);
+    const { title, badge, klass } = matchEndTitleAndBadge(payload.winner, payload.reason);
 
     modal.classList.remove("win", "lose", "tie", "none");
     modal.classList.add(klass);
@@ -112,7 +112,7 @@ function ensureDetailOverlay() {
     return overlay;
 }
 
-export function showDetailModal({title = "", body = ""} = {}) {
+export function showDetailModal({ title = "", body = "" } = {}) {
     const overlay = ensureDetailOverlay();
     if (!overlay) return;
 
@@ -181,8 +181,8 @@ export async function loadLicenseHtml() {
 
     try {
         const [resDs, resFe] = await Promise.all([
-            fetch("./license-dataset.html", {cache: "no-cache"}),
-            fetch("./license-frontend.html", {cache: "no-cache"}),
+            fetch("./license-dataset.html", { cache: "no-cache" }),
+            fetch("./license-frontend.html", { cache: "no-cache" }),
         ]);
 
         const parts = [];
@@ -201,15 +201,15 @@ export async function loadLicenseHtml() {
 }
 
 export function checkLandingPopup() {
-    // Preserve existing behavior exactly
-    safeLsSet(STORAGE_KEY_LANDING, "true");
+    // Show only on first visit (until user dismisses)
     const ack = safeLsGet(STORAGE_KEY_LANDING);
-    if (!ack) {
-        const overlay = $("#landingOverlay");
-        if (overlay) {
-            overlay.classList.remove("hidden");
-            overlay.setAttribute("aria-hidden", "false");
-            setTimeout(() => $("#btnLandingDismiss")?.focus(), 100);
-        }
-    }
+    if (ack) return;
+
+    const overlay = $("#landingOverlay");
+    if (!overlay) return;
+
+    overlay.classList.remove("hidden");
+    overlay.setAttribute("aria-hidden", "false");
+    setTimeout(() => $("#btnLandingDismiss")?.focus(), 100);
 }
+
