@@ -339,7 +339,8 @@ export function evalCalc(expr) {
 
     // Strict validation: only allow safe characters
     // Allow: digits, ., +, -, *, /, (, ), Math, and comma for function args
-    const safePattern = /^[\d\.\+\-\*\/\(\),Math\.sqrtpowlogsincoatanabe]+$/;
+    const safePattern =
+        /^(?:\d+(?:\.\d+)?|[+\-*/(),]|\bMath\.(?:sqrt|pow|log|sin|cos|tan|abs)\b)+$/;
     if (!safePattern.test(sanitized)) {
         return { value: null, error: "Invalid expression" };
     }
