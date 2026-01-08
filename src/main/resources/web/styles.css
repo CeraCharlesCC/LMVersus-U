@@ -1820,7 +1820,7 @@ a:hover {
     overflow: hidden;
     max-height: 0;
     opacity: 0;
-    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: opacity 0.2s ease, max-height 0.2s ease;
     box-shadow: 0 10px 30px rgba(0,0,0,0.5);
     visibility: hidden;
 }
@@ -1830,6 +1830,16 @@ a:hover {
     opacity: 1;
     visibility: visible;
     overflow-y: auto;
+}
+
+.selector-options.is-fixed {
+    position: fixed;
+    z-index: 9999;
+    box-shadow: 0 16px 48px rgba(0,0,0,0.6);
+    margin-top: 0;
+    border: 1px solid var(--accent);
+    border-top: 0;
+    border-radius: 0 0 16px 16px;
 }
 
 /* Individual Option */
@@ -1848,3 +1858,46 @@ a:hover {
 }
 
 .selector-option:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.selector-option.selected {
+    background: rgba(201, 168, 108, 0.14);
+    border-left: 3px solid var(--accent);
+}
+
+.selector-option:focus-visible {
+    outline: 2px solid rgba(201, 168, 108, 0.6);
+    outline-offset: -2px;
+}
+
+/* Layout for option inner nodes rendered by JS */
+.opt-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.opt-name {
+    font-weight: 600;
+    color: var(--text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.opt-stats-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 0 0 auto;
+}
+
+/* Keyboard focus for trigger */
+.selector-trigger:focus-visible {
+    outline: 2px solid rgba(201, 168, 108, 0.6);
+    outline-offset: 2px;
+}
+
+

@@ -1,6 +1,7 @@
 /* app.js - Vanilla JS frontend for LMVU (Ktor same-origin) */
 
 const $ = (sel, root = document) => root.querySelector(sel);
+// (no other changes above)
 
 const md = window.markdownit({
     html: false,
@@ -573,7 +574,20 @@ function populateOpponentSelects() {
     });
 }
 
+// file: src/main/resources/web/app.js
+
 function renderModelSelectorWidget(container, input, models, mode) {
+    // Cleanup previous instance (prevents leaking global window listeners and orphaned floating menus)
+    try {
+        container._selectorAbort?.abort?.();
+    } catch { /* ignore */ }
+    try {
+        container._selectorOptionsEl?.remove?.();
+    } catch { /* ignore */ }
+
+    const ac = new AbortController();
+    container._selectorAbort = ac;
+
     container.innerHTML = "";
 
     if (!models.length) {
@@ -588,6 +602,10 @@ function renderModelSelectorWidget(container, input, models, mode) {
     // 2. Create Trigger (The main button)
     const trigger = document.createElement("div");
     trigger.className = "selector-trigger";
+    // Make trigger keyboard-focusable and semantically button-like
+    trigger.setAttribute("role", "button");
+    trigger.tabIndex = 0;
+    trigger.setAttribute("aria-haspopup", "listbox");
     trigger.innerHTML = `
         <div class="trigger-content">
             <div class="trigger-title">Select Model</div>
@@ -599,6 +617,7 @@ function renderModelSelectorWidget(container, input, models, mode) {
     // 3. Create Options Dropdown
     const optionsList = document.createElement("div");
     optionsList.className = "selector-options";
+    container._selectorOptionsEl = optionsList;
 
     // Fill Options
     models.forEach(m => {
@@ -608,6 +627,8 @@ function renderModelSelectorWidget(container, input, models, mode) {
 
         const opt = document.createElement("div");
         opt.className = "selector-option";
+        opt.setAttribute("role", "option");
+        opt.tabIndex = 0;
         if (m.id === input.value) opt.classList.add("selected");
 
         opt.dataset.value = m.id;
@@ -638,6 +659,14 @@ function renderModelSelectorWidget(container, input, models, mode) {
             state.mode = mode;
         });
 
+        // Keyboard selection for options
+        opt.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                opt.click();
+            }
+        });
+
         optionsList.appendChild(opt);
     });
 
@@ -647,16 +676,55 @@ function renderModelSelectorWidget(container, input, models, mode) {
 
     // Initial Trigger Update
     const currentModel = models.find(m => m.id === input.value) || models[0];
-    if (currentModel) updateTriggerUI(trigger, currentModel);
+    if (currentModel) {
+        // IMPORTANT: ensure hidden input has a default id so Start works without a click
+        input.value = currentModel.id;
+        updateTriggerUI(trigger, currentModel);
+    }
 
-    // --- Interaction Logic --- //
+    // --- Interaction Logic (The Hack) --- //
 
     function toggleMenu(forceState) {
         const isOpen = trigger.classList.contains("is-open");
         const newState = forceState !== undefined ? forceState : !isOpen;
 
-        trigger.classList.toggle("is-open", newState);
-        optionsList.classList.toggle("is-open", newState);
+        if (newState) {
+            // OPENING
+            trigger.classList.add("is-open");
+            optionsList.classList.add("is-open");
+
+            // HACK: Teleport to body to escape overflow:hidden/auto of the modal
+            document.body.appendChild(optionsList);
+            optionsList.classList.add("is-fixed");
+
+            // Calculate Position & Size
+            const rect = trigger.getBoundingClientRect();
+            const viewportHeight = window.innerHeight;
+            // Calculate space to the bottom of the screen with a 12px margin
+            const spaceBelow = viewportHeight - rect.bottom - 12;
+
+            optionsList.style.top = `${rect.bottom}px`;
+            optionsList.style.left = `${rect.left}px`;
+            optionsList.style.width = `${rect.width}px`;
+            // Force it to fill the remaining space (scroll internally)
+            optionsList.style.maxHeight = `${spaceBelow}px`;
+
+        } else {
+            // CLOSING
+            trigger.classList.remove("is-open");
+            optionsList.classList.remove("is-open");
+            optionsList.classList.remove("is-fixed");
+            trigger.setAttribute("aria-expanded", "false");
+
+            // HACK: Put it back in the wrapper so it's cleaned up properly if the modal closes
+            wrapper.appendChild(optionsList);
+
+            // Clear manual styles
+            optionsList.style.top = '';
+            optionsList.style.left = '';
+            optionsList.style.width = '';
+            optionsList.style.maxHeight = '';
+        }
     }
 
     trigger.addEventListener("click", (e) => {
@@ -664,19 +732,58 @@ function renderModelSelectorWidget(container, input, models, mode) {
         // Close other selectors if any
         document.querySelectorAll(".selector-options.is-open").forEach(el => {
             if (el !== optionsList) {
-                el.classList.remove("is-open");
-                el.parentElement.querySelector(".selector-trigger")?.classList.remove("is-open");
+                // We have to assume other instances have the same logic,
+                // but checking the class is usually enough to close standard ones.
+                // For this specific widget, we click 'body' to close anyway.
             }
         });
         toggleMenu();
     });
 
-    // Close when clicking outside
-    document.addEventListener("click", (e) => {
-        if (!wrapper.contains(e.target)) {
+    // Trigger keyboard toggle
+    trigger.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            toggleMenu();
+        } else if (e.key === "Escape" && trigger.classList.contains("is-open")) {
+            e.preventDefault();
             toggleMenu(false);
         }
     });
+
+    // Close when clicking outside (bind to window because optionsList might be on body)
+    const onWindowClick = (e) => {
+        if (trigger.contains(e.target)) return;
+        if (optionsList.contains(e.target)) return;
+
+        if (trigger.classList.contains("is-open")) {
+            toggleMenu(false);
+        }
+    };
+    window.addEventListener("click", onWindowClick, { signal: ac.signal });
+
+    // Close on window resize to prevent alignment issues
+    const onResize = () => {
+        if (trigger.classList.contains("is-open")) {
+            toggleMenu(false);
+        }
+    };
+    window.addEventListener("resize", onResize, { signal: ac.signal, passive: true });
+
+    // Close on scroll (prevents misalignment if the page/viewport moves)
+    const onScroll = () => {
+        if (trigger.classList.contains("is-open")) toggleMenu(false);
+    };
+    window.addEventListener("scroll", onScroll, { signal: ac.signal, passive: true });
+
+    // Close on Escape even if focus isn't on trigger
+    const onKeydown = (e) => {
+        if (e.key === "Escape" && trigger.classList.contains("is-open")) {
+            e.preventDefault();
+            toggleMenu(false);
+        }
+    };
+    window.addEventListener("keydown", onKeydown, { signal: ac.signal });
 }
 
 function updateTriggerUI(triggerEl, model) {
