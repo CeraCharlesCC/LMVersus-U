@@ -100,6 +100,8 @@ class SessionActorIntegrityTest {
                 questionSetDisplayName = "TestSet",
                 description = "A test bot",
                 descriptionI18nKey = "opponent.test_bot.description",
+                questionSetDescription = "A set of test questions",
+                questionSetDescriptionI18nKey = "opponent.test_bot.question_set_description",
                 speed = 5,
                 efficiency = 5,
                 difficulty = "Easy",
@@ -188,8 +190,7 @@ class SessionActorIntegrityTest {
             )
         }
     }
-
-
+    
     @Test
     fun `Adversarial - Invalid Nonce Token Rejection`() = runTest {
         every { llmGateway.streamAnswer(any()) } returns emptyFlow()

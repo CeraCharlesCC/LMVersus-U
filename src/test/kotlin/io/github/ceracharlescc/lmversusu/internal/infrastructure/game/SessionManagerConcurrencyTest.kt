@@ -45,9 +45,11 @@ class SessionManagerConcurrencyTest {
             every { mode } returns GameMode.LIGHTWEIGHT
             every { metadata } returns OpponentSpec.OpponentMetadata(
                 displayName = "Bot",
-                questionSetDisplayName = "TestSet",
                 description = "Test Bot",
                 descriptionI18nKey = "opponent.bot.test",
+                questionSetDisplayName = "TestSet",
+                questionSetDescription = "A set of test questions",
+                questionSetDescriptionI18nKey = "questionset.test.description",
                 speed = 5,
                 efficiency = 5,
                 difficulty = "medium"

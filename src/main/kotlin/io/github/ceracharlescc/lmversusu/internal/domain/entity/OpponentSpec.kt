@@ -40,6 +40,8 @@ internal sealed interface OpponentSpec {
     data class OpponentMetadata(
         val displayName: String,
         val questionSetDisplayName: String,
+        val questionSetDescription: String,
+        val questionSetDescriptionI18nKey: String,
         val description: String,
         val descriptionI18nKey: String,
         val speed: Int,
