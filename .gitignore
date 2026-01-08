@@ -38,7 +38,8 @@ out/
 ### Working Files ###
 /replay_output
 
-### Testintg ###
+### Testing ###
+/web/
 /LLM-Configs/
 /config.test.toml
 /config.toml
