@@ -7,7 +7,7 @@ export default {
         "Lightweight is a match against a pre-prepared replay. After the question appears, the LLM has a small handicap delay before it starts answering. ",
     descPremium:
         "Premium is a real-time match against an LLM via API.",
-    nickname: "Nickname",
+    nickname: "Nickname (required)",
     opponent: "Opponent",
     startMatch: "Start match",
     health: "Heartbeat",

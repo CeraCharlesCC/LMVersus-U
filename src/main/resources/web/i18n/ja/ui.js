@@ -7,7 +7,7 @@ export default {
         "Lightweightは事前に準備されたリプレイファイルとの対戦です。\n 問題が表示されてからLLMが回答するまでには少しハンディキャップ時間があります。",
     descPremium:
         "PremiumはAPI経由で実際にLLMとリアルタイムで対戦します。 \n 問題が表示されてからLLMが回答するまでには少しハンディキャップ時間があります。",
-    nickname: "ニックネーム",
+    nickname: "ニックネーム (必須)",
     opponent: "対戦相手",
     startMatch: "対戦開始",
     health: "Heartbeat",
