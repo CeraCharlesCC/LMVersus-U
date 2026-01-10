@@ -2687,7 +2687,7 @@ a:hover {
 #resultDetails,
 .qs-tt-body,
 #detailBody,
-th {
+th:not(.th-select-cell) {
     white-space: pre-line;
 }
 
