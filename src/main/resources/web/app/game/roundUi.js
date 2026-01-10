@@ -249,8 +249,11 @@ export function resetRoundUi() {
     $("#reasoningBody").innerHTML = "";
     $("#llmAnswerBody").innerHTML = "";
 
-    $("#roundDisplay").textContent = "";
-    $("#roundDisplay").classList.add("hidden");
+    const roundDisplay = $("#roundDisplay");
+    if (roundDisplay) {
+        roundDisplay.textContent = "";
+        roundDisplay.classList.add("hidden");
+    }
 
     $("#questionBody").innerHTML = "";
     $("#qSep")?.classList.add("hidden");
