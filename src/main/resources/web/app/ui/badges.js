@@ -87,7 +87,7 @@ export function renderModelBadgesHtml(meta) {
 
         const tooltip = setDesc ? `Set: ${setName} — ${setDesc}` : `Set: ${setName}`;
         const dataAttrs =
-            `<img class="gh-badge" loading="lazy" src="${src}" ` +
+            `<img class="gh-badge" tabindex="0" role="img" loading="lazy" src="${src}" ` +
             `data-kind="questionset" ` +
             `data-qs-name="${escapeHtml(setName)}" ` +
             `data-qs-desc="${escapeHtml(setDesc || "")}"`;
@@ -105,7 +105,7 @@ export function renderModelBadgesHtml(meta) {
             color: difficultyColor(diffEnum),
         });
         parts.push(
-            `<img class="gh-badge" loading="lazy" src="${src}" ` +
+            `<img class="gh-badge" tabindex="0" role="img" loading="lazy" src="${src}" ` +
             `data-kind="difficulty" ` +
             `data-diff-name="${escapeHtml(diffPretty || diffEnum)}" ` +
             `alt="${escapeHtml(`Difficulty: ${diffPretty || diffEnum}`)}" title="${escapeHtml(`Difficulty: ${diffPretty || diffEnum}`)}">`

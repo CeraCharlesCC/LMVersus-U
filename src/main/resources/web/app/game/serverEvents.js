@@ -1,9 +1,10 @@
-import {$} from "../core/dom.js";
-import {t} from "../core/i18n.js";
-import {toast} from "../ui/toast.js";
-import {state} from "../core/state.js";
-import {isMatchEndVisible, showMatchEndModal} from "../ui/modals.js";
-import {setGiveUpVisible, showGame, showLobby} from "./uiScreens.js";
+import { $ } from "../core/dom.js";
+import { t } from "../core/i18n.js";
+import { toast } from "../ui/toast.js";
+import { state } from "../core/state.js";
+import { setNet } from "../ui/netIndicator.js";
+import { isMatchEndVisible, showMatchEndModal } from "../ui/modals.js";
+import { setGiveUpVisible, showGame, showLobby } from "./uiScreens.js";
 import {
     applyOutcomeGlows,
     enforceDeadline,
@@ -23,7 +24,7 @@ import {
     updateTimers,
 } from "./roundUi.js";
 // local helper used above to preserve exact formatting
-import {fmtScore as formatScore} from "../core/utils.js";
+import { fmtScore as formatScore } from "../core/utils.js";
 
 function roundResolveLine(reason) {
     const r = String(reason || "");
@@ -42,7 +43,7 @@ function sessionEndLine(reason) {
 }
 
 /** ---- Server event handler ---- */
-export function handleServerEvent(msg, {closeWs}) {
+export function handleServerEvent(msg, { closeWs }) {
     const type = msg.type;
 
     if (type === "session_error") {
@@ -54,6 +55,7 @@ export function handleServerEvent(msg, {closeWs}) {
         } else {
             toast(t("toastError"), `${code}: ${msg.message || ""}`, "error");
         }
+        setNet(false);
         return;
     }
 
@@ -85,6 +87,11 @@ export function handleServerEvent(msg, {closeWs}) {
     }
 
     if (type === "session_joined") {
+        setNet(true);
+        if (state.ws?.__toastOnJoin) {
+            toast(t("toastSession"), t("toastNetOk"));
+            state.ws.__toastOnJoin = false;
+        }
         state.sessionId = msg.sessionId;
         location.hash = `session=${encodeURIComponent(state.sessionId)}`;
 
@@ -98,9 +105,9 @@ export function handleServerEvent(msg, {closeWs}) {
 
     if (type === "player_joined") {
         if (msg.playerId === state.playerId) {
-            state.players.human = {playerId: msg.playerId, nickname: msg.nickname};
+            state.players.human = { playerId: msg.playerId, nickname: msg.nickname };
         } else {
-            state.players.llm = {playerId: msg.playerId, nickname: msg.nickname};
+            state.players.llm = { playerId: msg.playerId, nickname: msg.nickname };
         }
         updateMatchupUi();
         return;
@@ -262,12 +269,11 @@ export function handleServerEvent(msg, {closeWs}) {
         lines.push(`${t("correctAnswerLabel")}: ${formatAnswerDisplay(msg.correctAnswer, state.choices)}`);
         lines.push(`${t("yourAnswerLabel")}${hMark}: ${state.humanAnswer ? formatAnswerDisplay(state.humanAnswer, state.choices) : t("noAnswer")}`);
         lines.push(
-            `${t("oppAnswerLabel")}${lMark}: ${
-                state.finalAnswer
-                    ? formatAnswerDisplay(state.finalAnswer, state.choices)
-                    : msg.reason === "TIMEOVER_LLM"
-                        ? t("noAnswer")
-                        : t("oppPending")
+            `${t("oppAnswerLabel")}${lMark}: ${state.finalAnswer
+                ? formatAnswerDisplay(state.finalAnswer, state.choices)
+                : msg.reason === "TIMEOVER_LLM"
+                    ? t("noAnswer")
+                    : t("oppPending")
             }`
         );
 
