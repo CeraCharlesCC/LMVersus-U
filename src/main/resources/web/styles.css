@@ -2656,3 +2656,55 @@ a:hover {
 th {
     white-space: pre-line;
 }
+
+/* ==========================================================================
+   Start Button Special Styling
+   ========================================================================== */
+#panel-LIGHTWEIGHT .actions,
+#panel-PREMIUM .actions {
+    justify-content: center;
+    margin-top: 24px;
+    padding-bottom: 8px;
+}
+
+#btnStartLight,
+#btnStartPremium {
+    background: linear-gradient(135deg, rgba(220, 50, 60, 0.25), rgba(180, 40, 50, 0.2));
+    border-color: rgba(220, 60, 70, 0.5);
+    color: #ffdde0;
+    font-size: 19px;
+    font-weight: 700;
+    padding: 14px 56px;
+    min-width: 220px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    box-shadow: 0 4px 20px rgba(220, 50, 50, 0.15);
+    transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    letter-spacing: 0.02em;
+}
+
+#btnStartLight::before,
+#btnStartPremium::before {
+    content: "▷";
+    font-size: 1.3em;
+    line-height: 1;
+    position: relative;
+    top: -1px;
+}
+
+#btnStartLight:hover,
+#btnStartPremium:hover {
+    background: linear-gradient(135deg, rgba(220, 60, 70, 0.35), rgba(180, 40, 50, 0.3));
+    border-color: rgba(220, 60, 70, 0.7);
+    box-shadow: 0 8px 32px rgba(220, 50, 50, 0.3);
+    transform: translateY(-2px) scale(1.02);
+    color: #fff;
+}
+
+#btnStartLight:active,
+#btnStartPremium:active {
+    transform: translateY(1px) scale(0.98);
+    box-shadow: 0 2px 10px rgba(220, 50, 50, 0.1);
+}
