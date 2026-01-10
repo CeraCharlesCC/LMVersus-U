@@ -289,11 +289,11 @@ export function handleServerEvent(msg, { closeWs }) {
         const lMark = msg.llmCorrect === true ? " ✅" : msg.llmCorrect === false ? " ❌" : "";
 
         if (msg.humanScore != null || msg.llmScore != null) {
-            lines.push(`${t("roundScore")}: ${String(msg.humanScore ?? "-")} - ${String(msg.llmScore ?? "-")}`.replace(/-?(\d+(\.\d+)?)/g, (m) => m));
+            lines.push(`${t("roundScore", { n: state.roundNumber })}: ${String(msg.humanScore ?? "-")} - ${String(msg.llmScore ?? "-")}`.replace(/-?(\d+(\.\d+)?)/g, (m) => m));
             // keep exact display logic elsewhere; resultDetails already uses fmtScore in your original,
             // but leaving this line as-is would be a regression. So we keep original formatting below:
             lines.pop();
-            lines.push(`${t("roundScore")}: ${formatScore(msg.humanScore)} - ${formatScore(msg.llmScore)}`);
+            lines.push(`${t("roundScore", { n: state.roundNumber })}: ${formatScore(msg.humanScore)} - ${formatScore(msg.llmScore)}`);
         }
 
         lines.push(`${t("correctAnswerLabel")}: ${formatAnswerDisplay(msg.correctAnswer, state.choices)}`);

@@ -60,7 +60,7 @@ export default {
     resolveTimeUpOpp: "Time’s up — your opponent missed the timer.",
     resolveTimeUpBoth: "Time’s up — no one answered.",
 
-    roundScore: "Round score",
+    roundScore: "Score for Round {n}",
     correctAnswerLabel: "Correct",
     yourAnswerLabel: "You",
     oppAnswerLabel: "Opponent",

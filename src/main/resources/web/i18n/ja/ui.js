@@ -60,7 +60,7 @@ export default {
     resolveTimeUpOpp: "相手の回答は間に合いませんでした。",
     resolveTimeUpBoth: "時間切れ…誰も回答できませんでした。",
 
-    roundScore: "このラウンドのスコア",
+    roundScore: "第{n}ラウンドのスコア",
     correctAnswerLabel: "正解",
     yourAnswerLabel: "あなた",
     oppAnswerLabel: "相手",
