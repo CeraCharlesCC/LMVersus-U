@@ -2759,9 +2759,10 @@ th:not(.th-select-cell) {
     --vs-left: #4aa8ff;
     --vs-right: #ff4a6a;
 
-    --vs-ink: #000000;
-    --vs-ink2: #080808;
-    --vs-line: rgba(255, 255, 255, 0.15);
+    --vs-ink: rgba(10, 10, 14, 0.96);
+    --vs-ink2: rgba(18, 18, 26, 0.94);
+    --vs-line: rgba(255, 255, 255, 0.10);
+    --vs-glow: rgba(255, 255, 255, 0.18);
 }
 
 .vs-overlay {
@@ -2808,11 +2809,14 @@ th:not(.th-select-cell) {
     transform: translate3d(var(--vs-open-x), var(--vs-open-y), 0);
     will-change: transform;
 
-    background: var(--vs-ink);
+    background:
+        linear-gradient(135deg, var(--vs-ink), var(--vs-ink2)),
+        repeating-linear-gradient(90deg,
+            rgba(255, 255, 255, 0.035) 0 2px,
+            rgba(0, 0, 0, 0) 2px 7px);
 
-    /* Matte black look */
-    border: 0;
-    box-shadow: none;
+    box-shadow: 0 25px 80px rgba(0, 0, 0, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.06);
 
     transition: transform var(--vs-close-ms) var(--vs-ease-close);
 }
@@ -2840,9 +2844,23 @@ th:not(.th-select-cell) {
     transform: translate3d(var(--vs-open-x), var(--vs-open-y), 0);
 }
 
-/* Center seam line */
+/* Center seam glow while closed */
 .vs-overlay.is-closed::after {
-    display: none;
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+
+    background:
+        linear-gradient(90deg,
+            transparent 0%,
+            transparent 49.2%,
+            rgba(255, 255, 255, 0.16) 50%,
+            transparent 50.8%,
+            transparent 100%);
+
+    opacity: 0.85;
+    filter: drop-shadow(0 0 14px rgba(255, 255, 255, 0.22));
 }
 
 /* Mobile: shutters become top/bottom using same DOM nodes */
