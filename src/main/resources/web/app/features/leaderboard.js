@@ -100,7 +100,7 @@ function renderLeaderboard() {
     body.innerHTML = "";
     if (pageEntries.length === 0) {
         renderEmptyState(body);
-        pageInfo.textContent = ""
+        pageInfo.textContent = "";
         prevButton.disabled = true;
         nextButton.disabled = true;
         return;
