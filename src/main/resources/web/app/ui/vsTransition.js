@@ -1,101 +1,161 @@
-/**
- * Fighting-game-style VS Transition Overlay
- * 
- * Displays a dramatic "VS" screen when a new match starts,
- * featuring player names sliding in from left/right with
- * a pulsing "V.S." in the center.
- */
-
 import { $ } from "../core/dom.js";
 
-const TRANSITION_DURATION_MS = 2000;
+const CLOSE_TIMEOUT_MS = 1600;
+const OPEN_TIMEOUT_MS = 1800;
+
+const DEFAULT_HOLD_MS = 6400;
+
 let transitionActive = false;
 let pendingTransition = false;
 
-/**
- * Mark that a VS transition should play on the next session_joined event.
- * This is set when the user initiates a new match from the lobby.
- */
+let runToken = 0;
+
 export function setVsTransitionPending(pending) {
-    pendingTransition = pending;
+    pendingTransition = !!pending;
 }
 
-/**
- * Check if a VS transition is pending.
- */
 export function isVsTransitionPending() {
     return pendingTransition;
 }
 
-/**
- * Check if a VS transition is currently active.
- */
 export function isVsTransitionActive() {
     return transitionActive;
+}
+
+function sleep(ms) {
+    return new Promise((r) => setTimeout(r, ms));
+}
+
+function waitForTransformTransition(el, timeoutMs) {
+    return new Promise((resolve) => {
+        if (!el) return resolve();
+
+        let done = false;
+        const finish = () => {
+            if (done) return;
+            done = true;
+            cleanup();
+            resolve();
+        };
+
+        const onEnd = (e) => {
+            if (e.target !== el) return;
+            if (e.propertyName !== "transform") return;
+            finish();
+        };
+
+        const cleanup = () => {
+            clearTimeout(t);
+            el.removeEventListener("transitionend", onEnd);
+        };
+
+        el.addEventListener("transitionend", onEnd);
+        const t = setTimeout(finish, timeoutMs);
+    });
+}
+
+function hardResetOverlay(overlay) {
+    if (!overlay) return;
+    overlay.classList.add("hidden");
+    overlay.classList.remove("is-entering", "is-closed", "is-opening");
+    overlay.setAttribute("aria-hidden", "true");
 }
 
 /**
  * Play the VS transition animation.
  * @param {Object} opts
- * @param {string} opts.humanName - The human player's name
- * @param {string} opts.llmName - The LLM opponent's name
- * @returns {Promise<void>} Resolves when the transition completes
+ * @param {string} opts.humanName
+ * @param {string} opts.llmName
+ * @param {() => void | Promise<void>} [opts.onSwitch] Called AFTER shutters fully close.
+ * @param {number} [opts.holdMs] How long to hold the VS screen before opening.
  */
-export function playVsTransition({ humanName, llmName }) {
-    return new Promise((resolve) => {
-        pendingTransition = false;
+export async function playVsTransition({
+                                           humanName,
+                                           llmName,
+                                           onSwitch,
+                                           holdMs = DEFAULT_HOLD_MS,
+                                       } = {}) {
+    pendingTransition = false;
 
-        /*
-        const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-        if (reducedMotion) {
-            resolve();
-            return;
-        }
-         */
+    const overlay = $("#vsOverlay");
+    if (!overlay) return;
 
-        const overlay = $("#vsOverlay");
-        if (!overlay) {
-            resolve();
-            return;
-        }
+    // Cancel any existing run and start a new token
+    cancelVsTransition();
+    const myToken = ++runToken;
 
-        transitionActive = true;
+    transitionActive = true;
 
-        // Set player names
-        const humanEl = $("#vsHumanName");
-        const llmEl = $("#vsLlmName");
-        if (humanEl) humanEl.textContent = humanName || "You";
-        if (llmEl) llmEl.textContent = llmName || "LLM";
+    // Set names
+    const humanEl = $("#vsHumanName");
+    const llmEl = $("#vsLlmName");
+    if (humanEl) humanEl.textContent = humanName || "You";
+    if (llmEl) llmEl.textContent = llmName || "LLM";
 
-        // Show the overlay and trigger animations
-        overlay.classList.remove("hidden");
-        overlay.classList.add("is-active");
+    const left = overlay.querySelector(".vs-shutter-left");
+    const right = overlay.querySelector(".vs-shutter-right");
 
-        // Wait for animation to complete
-        setTimeout(() => {
-            overlay.classList.remove("is-active");
-            overlay.classList.add("is-exiting");
+    // Show overlay in a known baseline state (shutters are "open"/offscreen by default CSS)
+    overlay.classList.remove("hidden");
+    overlay.setAttribute("aria-hidden", "false");
+    overlay.classList.remove("is-entering", "is-closed", "is-opening");
 
-            // Wait for exit animation
-            setTimeout(() => {
-                overlay.classList.remove("is-exiting");
-                overlay.classList.add("hidden");
-                transitionActive = false;
-                resolve();
-            }, 400);
-        }, TRANSITION_DURATION_MS);
-    });
+    // Force style flush so the next class change transitions reliably
+    // eslint-disable-next-line no-unused-expressions
+    overlay.offsetHeight;
+
+    // 1) CLOSE shutters
+    overlay.classList.add("is-entering");
+
+    await Promise.all([
+        waitForTransformTransition(left, CLOSE_TIMEOUT_MS),
+        waitForTransformTransition(right, CLOSE_TIMEOUT_MS),
+    ]);
+
+    if (myToken !== runToken) return; // canceled mid-run
+
+    overlay.classList.remove("is-entering");
+    overlay.classList.add("is-closed");
+
+    // 2) Switch screens behind the closed shutters
+    try {
+        await onSwitch?.();
+    } catch (e) {
+        console.error(e);
+    }
+
+    if (myToken !== runToken) return; // canceled mid-run
+
+    // 3) Hold the VS screen a bit (so it feels intentional)
+    await sleep(Math.max(0, holdMs | 0));
+
+    if (myToken !== runToken) return; // canceled mid-run
+
+    // 4) OPEN shutters and hide
+    overlay.classList.remove("is-closed");
+    overlay.classList.add("is-opening");
+
+    await Promise.all([
+        waitForTransformTransition(left, OPEN_TIMEOUT_MS),
+        waitForTransformTransition(right, OPEN_TIMEOUT_MS),
+    ]);
+
+    if (myToken !== runToken) return; // canceled mid-run
+
+    overlay.classList.remove("is-opening");
+    overlay.classList.add("hidden");
+    overlay.setAttribute("aria-hidden", "true");
+
+    transitionActive = false;
 }
 
-/**
- * Immediately cancel any active transition (e.g., on error).
- */
 export function cancelVsTransition() {
     pendingTransition = false;
     transitionActive = false;
+
+    // invalidate any in-flight playVsTransition()
+    runToken++;
+
     const overlay = $("#vsOverlay");
-    if (overlay) {
-        overlay.classList.remove("is-active", "is-exiting");
-        overlay.classList.add("hidden");
-    }
+    if (overlay) hardResetOverlay(overlay);
 }

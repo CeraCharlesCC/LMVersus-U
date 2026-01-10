@@ -1450,15 +1450,6 @@ a:hover {
     animation: glowPulseTie 800ms ease-out 1;
 }
 
-@media (prefers-reduced-motion: reduce) {
-
-    .glow-win,
-    .glow-lose,
-    .glow-tie {
-        animation: none !important;
-    }
-}
-
 /* ==========================================================================
    Markdown
    ========================================================================== */
@@ -2752,506 +2743,365 @@ th:not(.th-select-cell) {
     box-shadow: 0 2px 10px rgba(220, 50, 50, 0.1);
 }
 
-/* ==========================================================================
-   VS Transition Overlay (Fighting Game Style)
-   ========================================================================== */
+/* =========================================================
+   VS TRANSITION OVERLAY
+   ========================================================= */
+
+:root {
+    --vs-z: 5000;
+
+    --vs-close-ms: 420ms;
+    --vs-open-ms: 520ms;
+
+    --vs-ease-close: cubic-bezier(.18, .92, .18, 1);
+    --vs-ease-open: cubic-bezier(.22, .7, .22, 1);
+
+    --vs-left: #4aa8ff;
+    --vs-right: #ff4a6a;
+
+    --vs-ink: #000000;
+    --vs-ink2: #080808;
+    --vs-line: rgba(255, 255, 255, 0.15);
+}
 
 .vs-overlay {
     position: fixed;
     inset: 0;
-    z-index: 100;
+    z-index: var(--vs-z);
+
+    display: grid;
+    place-items: center;
     overflow: hidden;
+
+    /* IMPORTANT: the overlay itself is transparent;
+       the shutters are what actually cover the screen. */
+    background: transparent;
+
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+
+    /* Only block interactions while visible */
     pointer-events: none;
 }
 
-.vs-overlay.hidden {
-    display: none;
+.vs-overlay:not(.hidden) {
+    pointer-events: auto;
 }
 
-/* Diagonal shutters */
+/* Safety in case your global .hidden differs */
+.vs-overlay.hidden {
+    display: none !important;
+}
+
+/* ---- Shutters ---- */
+
 .vs-shutter {
     position: absolute;
-    width: 150%;
-    height: 150%;
-    transform-origin: center center;
+    inset-block: 0;
+    width: 50%;
+
+    /* Per-shutter open offsets (desktop default) */
+    --vs-open-x: 0%;
+    --vs-open-y: 0%;
+
+    transform: translate3d(var(--vs-open-x), var(--vs-open-y), 0);
+    will-change: transform;
+
+    background: var(--vs-ink);
+
+    /* Matte black look */
+    border: 0;
+    box-shadow: none;
+
+    transition: transform var(--vs-close-ms) var(--vs-ease-close);
 }
 
 .vs-shutter-left {
-    top: -25%;
-    left: -75%;
-    background: linear-gradient(135deg,
-            rgba(30, 80, 140, 0.97) 0%,
-            rgba(20, 55, 100, 0.98) 50%,
-            rgba(10, 30, 60, 0.99) 100%);
-    transform: skewX(-15deg) translateX(-100%);
+    left: 0;
+    --vs-open-x: -100%;
 }
 
 .vs-shutter-right {
-    top: -25%;
-    right: -75%;
-    background: linear-gradient(-45deg,
-            rgba(140, 40, 50, 0.97) 0%,
-            rgba(100, 25, 35, 0.98) 50%,
-            rgba(60, 15, 20, 0.99) 100%);
-    transform: skewX(-15deg) translateX(100%);
+    right: 0;
+    --vs-open-x: 100%;
 }
 
-/* Shutter entry animation */
-.vs-overlay.is-active .vs-shutter-left {
-    animation: vs-shutter-left-in 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+/* Closed state: shutters meet in the center */
+.vs-overlay.is-entering .vs-shutter,
+.vs-overlay.is-closed .vs-shutter {
+    transform: translate3d(0, 0, 0);
 }
 
-.vs-overlay.is-active .vs-shutter-right {
-    animation: vs-shutter-right-in 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+/* Opening: shutters go back out (use open timing) */
+.vs-overlay.is-opening .vs-shutter {
+    transition-duration: var(--vs-open-ms);
+    transition-timing-function: var(--vs-ease-open);
+    transform: translate3d(var(--vs-open-x), var(--vs-open-y), 0);
 }
 
-@keyframes vs-shutter-left-in {
-    0% {
-        transform: skewX(-15deg) translateX(-100%);
+/* Center seam line */
+.vs-overlay.is-closed::after {
+    display: none;
+}
+
+/* Mobile: shutters become top/bottom using same DOM nodes */
+@media (max-width: 760px) {
+    .vs-shutter {
+        width: 100%;
+        height: 50%;
+        inset-inline: 0;
+        inset-block: auto;
+
+        /* reset desktop offsets */
+        --vs-open-x: 0%;
+        --vs-open-y: 0%;
     }
 
-    100% {
-        transform: skewX(-15deg) translateX(-12%);
-    }
-}
-
-@keyframes vs-shutter-right-in {
-    0% {
-        transform: skewX(-15deg) translateX(100%);
+    .vs-shutter-left {
+        top: 0;
+        bottom: auto;
+        --vs-open-y: -100%;
     }
 
-    100% {
-        transform: skewX(-15deg) translateX(12%);
-    }
-}
-
-/* Shutter exit animation */
-.vs-overlay.is-exiting .vs-shutter-left {
-    animation: vs-shutter-left-out 0.35s cubic-bezier(0.7, 0, 0.84, 0) forwards;
-}
-
-.vs-overlay.is-exiting .vs-shutter-right {
-    animation: vs-shutter-right-out 0.35s cubic-bezier(0.7, 0, 0.84, 0) forwards;
-}
-
-@keyframes vs-shutter-left-out {
-    0% {
-        transform: skewX(-15deg) translateX(-12%);
+    .vs-shutter-right {
+        bottom: 0;
+        top: auto;
+        --vs-open-y: 100%;
     }
 
-    100% {
-        transform: skewX(-15deg) translateX(-100%);
+    /* For mobile we don’t want a vertical seam */
+    .vs-overlay.is-closed::after {
+        opacity: 0;
     }
 }
 
-@keyframes vs-shutter-right-out {
-    0% {
-        transform: skewX(-15deg) translateX(12%);
-    }
+/* ---- Content ---- */
 
-    100% {
-        transform: skewX(-15deg) translateX(100%);
-    }
-}
-
-/* VS Content container */
 .vs-content {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0;
-    opacity: 0;
-}
-
-.vs-overlay.is-active .vs-content {
-    animation: vs-content-in 0.3s 0.35s ease-out forwards;
-}
-
-.vs-overlay.is-exiting .vs-content {
-    animation: vs-content-out 0.2s ease-in forwards;
-}
-
-@keyframes vs-content-in {
-    0% {
-        opacity: 0;
-    }
-
-    100% {
-        opacity: 1;
-    }
-}
-
-@keyframes vs-content-out {
-    0% {
-        opacity: 1;
-    }
-
-    100% {
-        opacity: 0;
-    }
-}
-
-/* Player panels */
-.vs-player {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 40px;
     position: relative;
-    min-width: 0;
-}
+    z-index: 3;
 
-.vs-player-left {
-    transform: translateX(-150%);
-}
-
-.vs-player-right {
-    transform: translateX(150%);
-}
-
-.vs-overlay.is-active .vs-player-left {
-    animation: vs-player-slide-left 0.5s 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-.vs-overlay.is-active .vs-player-right {
-    animation: vs-player-slide-right 0.5s 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-@keyframes vs-player-slide-left {
-    0% {
-        transform: translateX(-150%);
-    }
-
-    100% {
-        transform: translateX(0);
-    }
-}
-
-@keyframes vs-player-slide-right {
-    0% {
-        transform: translateX(150%);
-    }
-
-    100% {
-        transform: translateX(0);
-    }
-}
-
-.vs-player-label {
-    font-size: clamp(11px, 2.5vw, 14px);
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.2em;
-    color: rgba(255, 255, 255, 0.6);
-    margin-bottom: 8px;
-}
-
-.vs-player-name {
-    font-size: clamp(24px, 8vw, 56px);
-    font-weight: 800;
-    color: #fff;
-    text-shadow:
-        0 0 20px rgba(255, 255, 255, 0.5),
-        0 4px 12px rgba(0, 0, 0, 0.5);
-    letter-spacing: 0.02em;
-    text-align: center;
-    word-break: break-all;
-    line-height: 1.1;
-    max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.vs-player-left .vs-player-name {
-    color: #a8d4ff;
-    text-shadow:
-        0 0 30px rgba(100, 180, 255, 0.7),
-        0 0 60px rgba(50, 130, 220, 0.4),
-        0 4px 12px rgba(0, 0, 0, 0.5);
-}
-
-.vs-player-right .vs-player-name {
-    color: #ffb8b8;
-    text-shadow:
-        0 0 30px rgba(255, 120, 120, 0.7),
-        0 0 60px rgba(220, 80, 80, 0.4),
-        0 4px 12px rgba(0, 0, 0, 0.5);
-}
-
-.vs-player-accent {
-    width: 60%;
-    height: 3px;
-    margin-top: 16px;
-    border-radius: 2px;
-    opacity: 0;
-}
-
-.vs-player-left .vs-player-accent {
-    background: linear-gradient(90deg, transparent, rgba(100, 180, 255, 0.8), transparent);
-}
-
-.vs-player-right .vs-player-accent {
-    background: linear-gradient(90deg, transparent, rgba(255, 120, 120, 0.8), transparent);
-}
-
-.vs-overlay.is-active .vs-player-accent {
-    animation: vs-accent-in 0.4s 0.7s ease-out forwards;
-}
-
-@keyframes vs-accent-in {
-    0% {
-        opacity: 0;
-        width: 0;
-    }
-
-    100% {
-        opacity: 1;
-        width: 60%;
-    }
-}
-
-/* VS Center text */
-.vs-center {
-    position: relative;
-    display: flex;
+    width: min(1120px, 92vw);
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
     align-items: center;
-    justify-content: center;
-    min-width: 120px;
-    z-index: 10;
-}
+    gap: clamp(14px, 2.6vw, 36px);
 
-.vs-text {
-    font-size: clamp(32px, 12vw, 80px);
-    font-weight: 900;
-    color: #fff;
-    text-shadow:
-        0 0 40px rgba(255, 220, 100, 0.9),
-        0 0 80px rgba(255, 180, 50, 0.6),
-        0 0 120px rgba(255, 150, 0, 0.4),
-        0 6px 20px rgba(0, 0, 0, 0.6);
-    letter-spacing: 0.05em;
-    transform: scale(0);
     opacity: 0;
-    position: relative;
-    z-index: 2;
-}
+    transform: translateY(10px) scale(0.985);
+    transition:
+        opacity 220ms ease,
+        transform 260ms ease;
 
-.vs-overlay.is-active .vs-text {
-    animation:
-        vs-text-pop 0.4s 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) forwards,
-        vs-text-pulse 0.8s 1s ease-in-out infinite alternate;
-}
-
-@keyframes vs-text-pop {
-    0% {
-        transform: scale(0) rotate(-10deg);
-        opacity: 0;
-    }
-
-    50% {
-        transform: scale(1.3) rotate(5deg);
-    }
-
-    100% {
-        transform: scale(1) rotate(0deg);
-        opacity: 1;
-    }
-}
-
-@keyframes vs-text-pulse {
-    0% {
-        text-shadow:
-            0 0 40px rgba(255, 220, 100, 0.9),
-            0 0 80px rgba(255, 180, 50, 0.6),
-            0 0 120px rgba(255, 150, 0, 0.4),
-            0 6px 20px rgba(0, 0, 0, 0.6);
-    }
-
-    100% {
-        text-shadow:
-            0 0 60px rgba(255, 220, 100, 1),
-            0 0 100px rgba(255, 180, 50, 0.8),
-            0 0 140px rgba(255, 150, 0, 0.6),
-            0 6px 20px rgba(0, 0, 0, 0.6);
-        transform: scale(1.05);
-    }
-}
-
-/* Spark effects around VS */
-.vs-spark {
-    position: absolute;
-    width: 4px;
-    height: 4px;
-    background: #fff;
-    border-radius: 50%;
-    opacity: 0;
-    box-shadow: 0 0 10px 4px rgba(255, 220, 100, 0.8);
-}
-
-.vs-spark-1 {
-    top: -20px;
-    left: 20px;
-}
-
-.vs-spark-2 {
-    top: 10px;
-    left: -25px;
-}
-
-.vs-spark-3 {
-    bottom: 10px;
-    right: -25px;
-}
-
-.vs-spark-4 {
-    bottom: -20px;
-    right: 20px;
-}
-
-.vs-overlay.is-active .vs-spark {
-    animation: vs-spark-flash 0.6s 0.6s ease-out forwards;
-}
-
-.vs-overlay.is-active .vs-spark-2 {
-    animation-delay: 0.65s;
-}
-
-.vs-overlay.is-active .vs-spark-3 {
-    animation-delay: 0.7s;
-}
-
-.vs-overlay.is-active .vs-spark-4 {
-    animation-delay: 0.75s;
-}
-
-@keyframes vs-spark-flash {
-    0% {
-        opacity: 0;
-        transform: scale(0);
-    }
-
-    30% {
-        opacity: 1;
-        transform: scale(2);
-    }
-
-    100% {
-        opacity: 0;
-        transform: scale(0.5) translateY(10px);
-    }
-}
-
-/* Camera flash effect */
-.vs-flash {
-    position: absolute;
-    inset: 0;
-    background: #fff;
-    opacity: 0;
     pointer-events: none;
 }
 
-.vs-overlay.is-active .vs-flash {
-    animation: vs-camera-flash 0.4s 0.5s ease-out forwards;
+/* Show content only after shutters are fully closed */
+.vs-overlay.is-closed .vs-content {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    transition-delay: 70ms;
 }
 
-@keyframes vs-camera-flash {
-    0% {
-        opacity: 0;
+/* Fade content out as we open */
+.vs-overlay.is-opening .vs-content {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.985);
+    transition-duration: 160ms;
+    transition-delay: 0ms;
+}
+
+.vs-player {
+    padding: clamp(14px, 2.2vw, 22px);
+    border-radius: 16px;
+
+    background: rgba(0, 0, 0, 0.32);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    box-shadow: 0 16px 42px rgba(0, 0, 0, 0.45);
+
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+.vs-player-label {
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    opacity: 0.78;
+}
+
+.vs-player-name {
+    margin-top: 6px;
+    font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    font-weight: 800;
+    line-height: 1.05;
+    font-size: clamp(22px, 4vw, 44px);
+    text-shadow: 0 6px 24px rgba(0, 0, 0, 0.55);
+    word-break: break-word;
+}
+
+.vs-player-accent {
+    margin-top: 12px;
+    height: 6px;
+    border-radius: 999px;
+    opacity: 0.95;
+    background: linear-gradient(90deg, transparent, var(--vs-accent), transparent);
+}
+
+.vs-player-left {
+    --vs-accent: var(--vs-left);
+    text-align: left;
+}
+
+.vs-player-right {
+    --vs-accent: var(--vs-right);
+    text-align: right;
+}
+
+.vs-center {
+    position: relative;
+    z-index: 4;
+    display: grid;
+    place-items: center;
+    padding-inline: 8px;
+}
+
+.vs-text {
+    font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    font-size: clamp(46px, 6.2vw, 86px);
+
+    color: rgba(255, 255, 255, 0.95);
+    text-shadow:
+        0 0 26px rgba(255, 255, 255, 0.16),
+        0 10px 44px rgba(0, 0, 0, 0.65);
+
+    transform: translateZ(0);
+}
+
+.vs-overlay.is-closed .vs-text {
+    animation: vsPulse 820ms ease-in-out infinite;
+}
+
+/* Mobile layout: stack */
+@media (max-width: 760px) {
+    .vs-content {
+        width: min(620px, 92vw);
+        grid-template-columns: 1fr;
+        gap: 14px;
+        text-align: center;
     }
 
-    15% {
-        opacity: 0.7;
+    .vs-player-right {
+        text-align: left;
+        /* reads better stacked */
+    }
+
+    .vs-center {
+        padding-block: 4px;
+    }
+}
+
+/* ---- Sparks ---- */
+
+.vs-spark {
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    border-radius: 999px;
+
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0) 68%);
+    opacity: 0;
+    filter: drop-shadow(0 0 14px rgba(255, 255, 255, 0.22));
+}
+
+.vs-overlay.is-closed .vs-spark {
+    animation: vsSpark 900ms ease-out infinite;
+}
+
+.vs-spark-1 {
+    left: -16px;
+    top: 18%;
+    animation-delay: 0ms;
+}
+
+.vs-spark-2 {
+    right: -14px;
+    top: 30%;
+    animation-delay: 120ms;
+}
+
+.vs-spark-3 {
+    left: -10px;
+    bottom: 22%;
+    animation-delay: 240ms;
+}
+
+.vs-spark-4 {
+    right: -18px;
+    bottom: 16%;
+    animation-delay: 360ms;
+}
+
+/* ---- Flash ---- */
+
+.vs-flash {
+    position: absolute;
+    inset: 0;
+    z-index: 10;
+    pointer-events: none;
+
+    background: white;
+    opacity: 0;
+}
+
+.vs-overlay.is-opening .vs-flash {
+    animation: vsFlash 240ms ease-out 1;
+}
+
+/* ---- Keyframes ---- */
+
+@keyframes vsPulse {
+
+    0%,
+    100% {
+        transform: scale(1);
+        filter: drop-shadow(0 0 0 rgba(255, 255, 255, 0));
+    }
+
+    50% {
+        transform: scale(1.045);
+        filter: drop-shadow(0 0 18px rgba(255, 255, 255, 0.22));
+    }
+}
+
+@keyframes vsSpark {
+    0% {
+        opacity: 0;
+        transform: translateY(8px) scale(0.65);
+    }
+
+    22% {
+        opacity: 0.9;
     }
 
     100% {
         opacity: 0;
+        transform: translateY(-10px) scale(1.15);
     }
 }
 
-/* Reduced motion support */
-@media (prefers-reduced-motion: reduce) {
-
-    .vs-overlay,
-    .vs-overlay * {
-        animation: none !important;
-        transition: none !important;
+@keyframes vsFlash {
+    0% {
+        opacity: 0;
     }
 
-    .vs-overlay.is-active .vs-shutter-left {
-        transform: skewX(-15deg) translateX(-12%);
+    12% {
+        opacity: 0.85;
     }
 
-    .vs-overlay.is-active .vs-shutter-right {
-        transform: skewX(-15deg) translateX(12%);
-    }
-
-    .vs-overlay.is-active .vs-content {
-        opacity: 1;
-    }
-
-    .vs-overlay.is-active .vs-player-left,
-    .vs-overlay.is-active .vs-player-right {
-        transform: translateX(0);
-    }
-
-    .vs-overlay.is-active .vs-text {
-        transform: scale(1);
-        opacity: 1;
-    }
-}
-
-/* Mobile adjustments */
-@media (max-width: 600px) {
-    .vs-content {
-        flex-direction: column;
-        gap: 20px;
-    }
-
-    .vs-player {
-        padding: 20px;
-    }
-
-    .vs-player-left {
-        transform: translateY(-100%);
-    }
-
-    .vs-player-right {
-        transform: translateY(100%);
-    }
-
-    .vs-overlay.is-active .vs-player-left {
-        animation-name: vs-player-slide-down;
-    }
-
-    .vs-overlay.is-active .vs-player-right {
-        animation-name: vs-player-slide-up;
-    }
-
-    @keyframes vs-player-slide-down {
-        0% {
-            transform: translateY(-100%);
-        }
-
-        100% {
-            transform: translateY(0);
-        }
-    }
-
-    @keyframes vs-player-slide-up {
-        0% {
-            transform: translateY(100%);
-        }
-
-        100% {
-            transform: translateY(0);
-        }
-    }
-
-    .vs-center {
-        min-width: auto;
+    100% {
+        opacity: 0;
     }
 }

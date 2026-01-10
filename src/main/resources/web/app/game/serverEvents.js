@@ -104,10 +104,12 @@ export function handleServerEvent(msg, { closeWs }) {
             playVsTransition({
                 humanName: state.nickname || "You",
                 llmName: state.opponentDisplayName || "LLM",
-            }).then(() => {
-                showGame();
-                resetRoundUi();
-                updateMatchupUi();
+                onSwitch: () => {
+                    showGame();
+                    resetRoundUi();
+                    updateMatchupUi();
+                },
+                holdMs: 3000,
             });
         } else {
             // Session recovery or other case - show game immediately
