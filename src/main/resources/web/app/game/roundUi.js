@@ -249,6 +249,9 @@ export function resetRoundUi() {
     $("#reasoningBody").innerHTML = "";
     $("#llmAnswerBody").innerHTML = "";
 
+    $("#roundDisplay").textContent = "";
+    $("#roundDisplay").classList.add("hidden");
+
     $("#questionBody").innerHTML = "";
     $("#qSep")?.classList.add("hidden");
     $("#qSep2")?.classList.add("hidden");
@@ -381,6 +384,12 @@ export function renderQuestion() {
 
     const rn = state.roundNumber ? `#${state.roundNumber}` : "";
     $("#qMeta").textContent = [rn, state.questionId || ""].filter(Boolean).join("  ");
+
+    const rd = $("#roundDisplay");
+    if (rd) {
+        rd.textContent = `${state.roundNumber || 0}/5`;
+        rd.classList.remove("hidden");
+    }
 
     const hasChoices = Array.isArray(state.choices) && state.choices.length;
     $("#qSep")?.classList.toggle("hidden", !hasChoices);

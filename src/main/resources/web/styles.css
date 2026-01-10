@@ -205,6 +205,14 @@ a:hover {
     gap: 12px;
 }
 
+.round-display {
+    font-family: var(--mono);
+    font-size: 14px;
+    color: var(--muted);
+    font-weight: 600;
+    letter-spacing: -0.02em;
+}
+
 .net-dot {
     width: 8px;
     height: 8px;
@@ -3044,6 +3052,7 @@ th:not(.th-select-cell) {
 }
 
 @media (prefers-reduced-motion: reduce) {
+
     .vs-player,
     .vs-shutter,
     .vs-text {
