@@ -1,28 +1,186 @@
-import {$} from "../core/dom.js";
-import {httpGetJson} from "../core/net.js";
-import {fmtPoints} from "../core/utils.js";
+import { $ } from "../core/dom.js";
+import { httpGetJson } from "../core/net.js";
+import { fmtPoints } from "../core/utils.js";
+import { t } from "../core/i18n.js";
+
+const PAGE_LIMIT = 50;
+const TABLE_COLUMNS = 7;
+
+let cachedEntries = [];
+let currentPageIndex = 0;
+let listenersAttached = false;
 
 function lbRow(entry) {
     const tr = document.createElement("tr");
     const cells = [
         entry.rank ?? "",
         entry.nickname ?? "",
-        fmtPoints(entry.bestScore ?? 0),
+        fmtPoints(entry.humanFinalScore ?? 0),
+        fmtPoints(entry.llmFinalScore ?? 0),
         entry.questionSetDisplayName ?? "",
         entry.opponentLlmName ?? "",
         entry.gameMode ?? "",
     ];
-    for (const c of cells) {
+    cells.forEach((c, i) => {
         const td = document.createElement("td");
         td.textContent = String(c);
+        if (i === 0) td.classList.add("rank-cell");
         tr.appendChild(td);
-    }
+    });
     return tr;
 }
 
-export async function refreshLeaderboard() {
-    const data = await httpGetJson("/api/v1/leaderboard?limit=10");
+function getPageSize() {
+    const width = window.innerWidth || 0;
+    if (width >= 1200) return 12;
+    if (width >= 1000) return 10;
+    if (width >= 820) return 8;
+    if (width >= 680) return 6;
+    return 4;
+}
+
+function getOpponentFilter() {
+    return $("#lbOpponentFilter").value || "all";
+}
+
+function isHideLosersEnabled() {
+    return $("#lbHideLosers").checked;
+}
+
+function applyFilters(entries) {
+    const opponentFilter = getOpponentFilter();
+    const hideLosers = isHideLosersEnabled();
+    return entries.filter((entry) => {
+        if (opponentFilter !== "all" && entry.opponentLlmName !== opponentFilter) {
+            return false;
+        }
+        if (hideLosers) {
+            const humanFinalScore = entry.humanFinalScore ?? 0;
+            const llmFinalScore = entry.llmFinalScore ?? 0;
+            return humanFinalScore >= llmFinalScore;
+        }
+        return true;
+    });
+}
+
+function renderEmptyState(body) {
+    const tr = document.createElement("tr");
+    const td = document.createElement("td");
+    td.colSpan = TABLE_COLUMNS;
+    const emptyCell = [
+        "0",
+        "👻",
+        0,
+        0,
+        "👻",
+        "👻",
+        "👻",
+    ];
+    emptyCell.forEach((c, i) => {
+        const td = document.createElement("td");
+        td.textContent = String(c);
+        if (i === 0) td.classList.add("rank-cell");
+        tr.appendChild(td);
+    });
+    body.appendChild(tr);
+}
+
+function renderLeaderboard() {
     const body = $("#lbBody");
+    const pageInfo = $("#lbPageInfo");
+    const prevButton = $("#lbPrev");
+    const nextButton = $("#lbNext");
+    const filtered = applyFilters(cachedEntries);
+    const pageSize = getPageSize();
+    const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
+
+    currentPageIndex = Math.min(currentPageIndex, pageCount - 1);
+    const startIndex = currentPageIndex * pageSize;
+    const pageEntries = filtered.slice(startIndex, startIndex + pageSize);
+
     body.innerHTML = "";
-    for (const e of data.entries || []) body.appendChild(lbRow(e));
+    if (pageEntries.length === 0) {
+        renderEmptyState(body);
+        pageInfo.textContent = ""
+        prevButton.disabled = true;
+        nextButton.disabled = true;
+        return;
+    }
+
+    for (const entry of pageEntries) body.appendChild(lbRow(entry));
+
+    pageInfo.textContent = t("lbPageInfo", {
+        page: currentPageIndex + 1,
+        pages: pageCount,
+        total: filtered.length,
+    });
+
+    prevButton.disabled = currentPageIndex === 0;
+    nextButton.disabled = currentPageIndex >= pageCount - 1;
+}
+
+function updateOpponentOptions() {
+    const select = $("#lbOpponentFilter");
+    const currentValue = select.value || "all";
+    const opponentNames = Array.from(
+        new Set(cachedEntries.map((entry) => entry.opponentLlmName).filter(Boolean))
+    ).sort((a, b) => a.localeCompare(b));
+
+    select.innerHTML = "";
+
+    const allOption = document.createElement("option");
+    allOption.value = "all";
+    allOption.textContent = t("lbAllOpponents");
+    select.appendChild(allOption);
+
+    for (const name of opponentNames) {
+        const option = document.createElement("option");
+        option.value = name;
+        option.textContent = name;
+        select.appendChild(option);
+    }
+
+    if (currentValue !== "all" && !opponentNames.includes(currentValue)) {
+        select.value = "all";
+    } else {
+        select.value = currentValue;
+    }
+}
+
+function ensureLeaderboardListeners() {
+    if (listenersAttached) return;
+    listenersAttached = true;
+
+    $("#lbOpponentFilter").addEventListener("change", () => {
+        currentPageIndex = 0;
+        renderLeaderboard();
+    });
+
+    $("#lbHideLosers").addEventListener("change", () => {
+        currentPageIndex = 0;
+        renderLeaderboard();
+    });
+
+    $("#lbPrev").addEventListener("click", () => {
+        currentPageIndex = Math.max(0, currentPageIndex - 1);
+        renderLeaderboard();
+    });
+
+    $("#lbNext").addEventListener("click", () => {
+        currentPageIndex += 1;
+        renderLeaderboard();
+    });
+
+    window.addEventListener("resize", () => {
+        renderLeaderboard();
+    });
+}
+
+export async function refreshLeaderboard() {
+    const data = await httpGetJson(`/api/v1/leaderboard?limit=${PAGE_LIMIT}`);
+    cachedEntries = data.entries || [];
+    currentPageIndex = 0;
+    ensureLeaderboardListeners();
+    updateOpponentOptions();
+    renderLeaderboard();
 }

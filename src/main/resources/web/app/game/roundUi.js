@@ -1,11 +1,11 @@
-import { $ } from "../core/dom.js";
-import { t } from "../core/i18n.js";
-import { escapeMarkdownInline, renderMarkdownMath } from "../core/markdown.js";
-import { escapeHtml, fmtMs, isChoiceCompact, isMobileLayout, } from "../core/utils.js";
-import { state } from "../core/state.js";
-import { applySubmitLockState, resetWorkspace, updateAnswerSummary, updateKeyboardHint, } from "./workspace.js";
-import { renderModelBadgesHtml } from "../ui/badges.js";
-import { installRichTooltip } from "../ui/tooltips.js";
+import {$} from "../core/dom.js";
+import {t} from "../core/i18n.js";
+import {escapeMarkdownInline, renderMarkdownMath} from "../core/markdown.js";
+import {escapeHtml, fmtMs, isChoiceCompact, isMobileLayout,} from "../core/utils.js";
+import {state} from "../core/state.js";
+import {applySubmitLockState, resetWorkspace, updateAnswerSummary, updateKeyboardHint,} from "./workspace.js";
+import {renderModelBadgesHtml} from "../ui/badges.js";
+import {installRichTooltip} from "../ui/tooltips.js";
 
 // Initialize rich tooltips for the LLM chip area (where badges appear)
 const llmChipAcc = $("#llmChip");
@@ -165,7 +165,7 @@ export function renderResultDetails(note, detailLines) {
     const details = Array.isArray(detailLines) ? detailLines.map((x) => String(x || "")) : [];
 
     // cache so we can re-render on resize/orientation change
-    state.ui.lastResultDetails = { note: safeNote, details };
+    state.ui.lastResultDetails = {note: safeNote, details};
 
     if (isMobileLayout()) {
         const parts = [];

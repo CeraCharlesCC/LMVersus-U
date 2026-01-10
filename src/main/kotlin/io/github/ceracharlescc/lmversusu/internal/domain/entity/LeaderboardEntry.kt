@@ -14,7 +14,8 @@ internal data class LeaderboardEntry(
     val rank: Int,
     val userId: Uuid,
     val nickname: String,
-    val bestScore: Double,
+    val humanFinalScore: Double,
+    val llmFinalScore: Double,
     val bestTimeMs: Long,
 )
 

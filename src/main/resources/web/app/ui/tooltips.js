@@ -1,4 +1,4 @@
-import { isMobileLayout } from "../core/utils.js";
+import {isMobileLayout} from "../core/utils.js";
 
 let _tooltipEl = null;
 
@@ -112,14 +112,14 @@ export function installRichTooltip(container, signal) {
         positionTooltip(activeImg, tooltipEl);
     };
 
-    const opts = { signal };
+    const opts = {signal};
     container.addEventListener("mouseover", onOver, opts);
     container.addEventListener("mouseout", onOut, opts);
     container.addEventListener("focusin", onOver, opts);
     container.addEventListener("focusout", hide, opts);
 
-    window.addEventListener("resize", onResize, { signal, passive: true });
-    window.addEventListener("scroll", hide, { signal, passive: true });
+    window.addEventListener("resize", onResize, {signal, passive: true});
+    window.addEventListener("scroll", hide, {signal, passive: true});
 
-    return { hide };
+    return {hide};
 }

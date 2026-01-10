@@ -2531,3 +2531,119 @@ a:hover {
         border-left: 1px solid var(--border);
     }
 }
+
+/* ==========================================================================
+   Leaderboard Improvements
+   ========================================================================== */
+
+/* 1. Header Background Fix: Ensure sticky headers have solid background and border line extends */
+.table thead th {
+    background: #1e1e1e;
+    /* Solid color to prevent transparency issues */
+    border-bottom: 1px solid var(--border);
+    z-index: 5;
+    /* Ensure it stays above scrolling rows */
+}
+
+/* 2. Rank Column Styling */
+.rank-cell {
+    color: rgba(255, 255, 255, 0.3);
+    font-family: var(--mono);
+    font-size: 13px;
+    text-align: center;
+    width: 40px;
+}
+
+/* 3. Opponent Header Filter */
+.table th.th-select-cell {
+    padding: 0;
+    position: relative;
+    width: 140px;
+    /* Ensure enough width for the dropdown */
+}
+
+.header-select {
+    appearance: none;
+    -webkit-appearance: none;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    color: var(--muted);
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    width: 100%;
+    height: 100%;
+    padding: 10px 12px;
+    padding-right: 24px;
+    /* Space for arrow */
+    cursor: pointer;
+    outline: none;
+    transition: color 0.15s ease, background 0.15s ease;
+}
+
+.header-select:hover {
+    color: var(--text);
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.header-select:focus {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.header-select option {
+    background: #2a2a2a;
+    /* Solid background for options */
+    color: var(--text);
+    padding: 4px;
+    text-transform: none;
+}
+
+/* Custom dropdown arrow for the header */
+.th-select-cell::after {
+    content: "▼";
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 8px;
+    color: var(--muted);
+    pointer-events: none;
+}
+
+/* 4. Pagination Button Styling */
+#lbPrev,
+#lbNext {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    font-size: 20px;
+    line-height: 1;
+    background: rgba(255, 255, 255, 0.03);
+    border-color: transparent;
+    color: var(--muted);
+}
+
+#lbPrev:hover,
+#lbNext:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text);
+}
+
+#lbPrev:disabled,
+#lbNext:disabled {
+    opacity: 0.3;
+    pointer-events: none;
+}
+
+/* Footer checkbox tweaks */
+#lbHideLosers {
+    accent-color: rgba(201, 168, 108, 0.5);
+    cursor: pointer;
+}

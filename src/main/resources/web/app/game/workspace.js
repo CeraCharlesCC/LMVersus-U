@@ -9,11 +9,11 @@
  * - Keyboard shortcuts (PC only)
  */
 
-import { $ } from "../core/dom.js";
-import { t } from "../core/i18n.js";
-import { state } from "../core/state.js";
-import { isMobileLayout } from "../core/utils.js";
-import { toast } from "../ui/toast.js";
+import {$} from "../core/dom.js";
+import {t} from "../core/i18n.js";
+import {state} from "../core/state.js";
+import {isMobileLayout} from "../core/utils.js";
+import {toast} from "../ui/toast.js";
 
 // ---- State extensions (add to global state.ui) ----
 const initWorkspaceState = () => {
@@ -33,32 +33,32 @@ const initWorkspaceState = () => {
  * @returns {{ valid: boolean, reason: string | null }}
  */
 export function deriveAnswerValidity() {
-    if (!state.inRound) return { valid: false, reason: null };
-    if (state.submitted) return { valid: true, reason: null }; // already submitted
+    if (!state.inRound) return {valid: false, reason: null};
+    if (state.submitted) return {valid: true, reason: null}; // already submitted
 
     const hasChoices = Array.isArray(state.choices) && state.choices.length > 0;
 
     if (hasChoices) {
         // MCQ mode
         if (state.selectedChoiceIndex == null) {
-            return { valid: false, reason: t("lockReasonMcq") };
+            return {valid: false, reason: t("lockReasonMcq")};
         }
-        return { valid: true, reason: null };
+        return {valid: true, reason: null};
     } else {
         // Free response mode
         if (state.freeAnswerMode === "int") {
             const raw = ($("#intValue")?.value || "").trim();
             if (!raw || !/^-?\d+$/.test(raw)) {
-                return { valid: false, reason: t("lockReasonInt") };
+                return {valid: false, reason: t("lockReasonInt")};
             }
-            return { valid: true, reason: null };
+            return {valid: true, reason: null};
         } else {
             // text mode
             const text = ($("#freeText")?.value || "").trim();
             if (!text) {
-                return { valid: false, reason: t("lockReasonText") };
+                return {valid: false, reason: t("lockReasonText")};
             }
-            return { valid: true, reason: null };
+            return {valid: true, reason: null};
         }
     }
 }
@@ -85,7 +85,7 @@ export function applySubmitLockState() {
         return;
     }
 
-    const { valid, reason } = deriveAnswerValidity();
+    const {valid, reason} = deriveAnswerValidity();
 
     if (!valid) {
         btn.disabled = true;
@@ -112,17 +112,17 @@ export function formatCurrentAnswerSummary() {
         if (idx == null) {
             return t("answerSummaryEmpty");
         }
-        return t("answerSummaryMcq", { n: idx + 1 });
+        return t("answerSummaryMcq", {n: idx + 1});
     } else {
         if (state.freeAnswerMode === "int") {
             const raw = ($("#intValue")?.value || "").trim();
             if (!raw) return t("answerSummaryEmpty");
-            return t("answerSummaryInt", { v: raw });
+            return t("answerSummaryInt", {v: raw});
         } else {
             const text = ($("#freeText")?.value || "").trim();
             if (!text) return t("answerSummaryEmpty");
             const display = text.length > 50 ? text.slice(0, 50) + "…" : text;
-            return t("answerSummaryText", { v: display });
+            return t("answerSummaryText", {v: display});
         }
     }
 }
@@ -317,7 +317,7 @@ export function updateScratchpadText(text) {
  */
 export function evalCalc(expr) {
     if (!expr || !expr.trim()) {
-        return { value: null, error: null };
+        return {value: null, error: null};
     }
 
     // Tokenize and validate
@@ -342,7 +342,7 @@ export function evalCalc(expr) {
     const safePattern =
         /^(?:\d+(?:\.\d+)?|[+\-*/(),]|\bMath\.(?:sqrt|pow|log|sin|cos|tan|abs)\b)+$/;
     if (!safePattern.test(sanitized)) {
-        return { value: null, error: "Invalid expression" };
+        return {value: null, error: "Invalid expression"};
     }
 
     // Check for balanced parentheses
@@ -351,11 +351,11 @@ export function evalCalc(expr) {
         if (ch === "(") depth++;
         if (ch === ")") depth--;
         if (depth < 0) {
-            return { value: null, error: "Unbalanced parentheses" };
+            return {value: null, error: "Unbalanced parentheses"};
         }
     }
     if (depth !== 0) {
-        return { value: null, error: "Unbalanced parentheses" };
+        return {value: null, error: "Unbalanced parentheses"};
     }
 
     try {
@@ -364,14 +364,14 @@ export function evalCalc(expr) {
         const result = fn();
 
         if (typeof result !== "number" || !Number.isFinite(result)) {
-            return { value: null, error: "Invalid result" };
+            return {value: null, error: "Invalid result"};
         }
 
         // Round to avoid floating point weirdness in display
         const rounded = Math.round(result * 1e10) / 1e10;
-        return { value: rounded, error: null };
+        return {value: rounded, error: null};
     } catch (e) {
-        return { value: null, error: "Eval error" };
+        return {value: null, error: "Eval error"};
     }
 }
 
@@ -382,7 +382,7 @@ export function runCalc() {
     if (!input || !resultEl) return;
 
     const expr = input.value || "";
-    const { value, error } = evalCalc(expr);
+    const {value, error} = evalCalc(expr);
 
     if (error) {
         resultEl.textContent = error;
@@ -608,5 +608,5 @@ export function bindWorkspaceEvents(submitFn) {
             raf = 0;
             applyScratchpadPlacement();
         });
-    }, { passive: true });
+    }, {passive: true});
 }
