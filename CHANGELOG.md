@@ -1,3 +1,16 @@
+## [v0.8.1] - 2026-01-10
+### Added
+- Add Open Graph meta tags to index.html for better social sharing.
+
+### Changed
+- Improve network status handling by moving logic from ws.js to serverEvents.js.
+- Enhance badge accessibility with tabindex and role attributes.
+- Allow Math.log10 in evalCalc expression validation.
+- Remove box-shadow from #btnStartPremium for a cleaner appearance.
+
+### Internal
+- Update gradle.properties.
+
 ## [v0.8.0] - 2026-01-10
 ### Added
 - Add opponent filter, pagination, and hide losers option to the leaderboard (#19)
