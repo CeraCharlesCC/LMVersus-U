@@ -23,6 +23,7 @@ import {
     updateMatchupUi,
     updateTimers,
 } from "./roundUi.js";
+import { isVsTransitionPending, playVsTransition, cancelVsTransition } from "../ui/vsTransition.js";
 // local helper used above to preserve exact formatting
 import { fmtScore as formatScore } from "../core/utils.js";
 
@@ -55,6 +56,7 @@ export function handleServerEvent(msg, { closeWs }) {
         } else {
             toast(t("toastError"), `${code}: ${msg.message || ""}`, "error");
         }
+        cancelVsTransition();
         setNet(false);
         return;
     }
@@ -97,9 +99,22 @@ export function handleServerEvent(msg, { closeWs }) {
 
         state.ui.sessionEnded = false;
 
-        showGame();
-        resetRoundUi();
-        updateMatchupUi();
+        // Play VS transition if pending (new match from lobby)
+        if (isVsTransitionPending()) {
+            playVsTransition({
+                humanName: state.nickname || "You",
+                llmName: state.opponentDisplayName || "LLM",
+            }).then(() => {
+                showGame();
+                resetRoundUi();
+                updateMatchupUi();
+            });
+        } else {
+            // Session recovery or other case - show game immediately
+            showGame();
+            resetRoundUi();
+            updateMatchupUi();
+        }
         return;
     }
 

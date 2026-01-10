@@ -1,13 +1,14 @@
-import {$} from "../core/dom.js";
-import {LANG, t} from "../core/i18n.js";
-import {MAX_NICKNAME_LEN, state, STORAGE_KEY_NICKNAME} from "../core/state.js";
-import {toast} from "../ui/toast.js";
-import {newCommandId, safeLsSet} from "../core/utils.js";
-import {closeWs, openWsAndJoin, wsSend} from "./ws.js";
-import {applyFreeAnswerMode, enforceDeadline, resetRoundUi, setSubmitFrozen, updateMatchupUi} from "./roundUi.js";
-import {updateClearButtonState} from "./workspace.js";
-import {showLobby} from "./uiScreens.js";
-import {readErrorBody} from "../core/net.js";
+import { $ } from "../core/dom.js";
+import { LANG, t } from "../core/i18n.js";
+import { MAX_NICKNAME_LEN, state, STORAGE_KEY_NICKNAME } from "../core/state.js";
+import { toast } from "../ui/toast.js";
+import { newCommandId, safeLsSet } from "../core/utils.js";
+import { closeWs, openWsAndJoin, wsSend } from "./ws.js";
+import { applyFreeAnswerMode, enforceDeadline, resetRoundUi, setSubmitFrozen, updateMatchupUi } from "./roundUi.js";
+import { updateClearButtonState } from "./workspace.js";
+import { showLobby } from "./uiScreens.js";
+import { readErrorBody } from "../core/net.js";
+import { setVsTransitionPending, cancelVsTransition } from "../ui/vsTransition.js";
 
 /** ---- Give Up (Terminate Active Session) ---- */
 export async function giveUp() {
@@ -27,6 +28,7 @@ export async function giveUp() {
         }
 
         // Close websocket and return to lobby
+        cancelVsTransition();
         closeWs();
         showLobby();
         resetRoundUi();
@@ -47,7 +49,7 @@ export function startMatch(mode) {
         return;
     }
     if (nickname.length > MAX_NICKNAME_LEN) {
-        toast(t("toastError"), t("nicknameTooLong", {n: MAX_NICKNAME_LEN}), "error");
+        toast(t("toastError"), t("nicknameTooLong", { n: MAX_NICKNAME_LEN }), "error");
         return;
     }
     for (const ch of nickname) {
@@ -77,6 +79,9 @@ export function startMatch(mode) {
     safeLsSet(STORAGE_KEY_NICKNAME, nickname);
 
     updateMatchupUi();
+
+    // Mark VS transition as pending - will play on session_joined
+    setVsTransitionPending(true);
 
     openWsAndJoin({
         sessionId: null,
@@ -116,7 +121,7 @@ export function submitAnswer() {
             toast(t("toastError"), "choose one option");
             return;
         }
-        answer = {type: "multiple_choice", choiceIndex: state.selectedChoiceIndex};
+        answer = { type: "multiple_choice", choiceIndex: state.selectedChoiceIndex };
     } else {
         if (state.freeAnswerMode === "int") {
             const raw = $("#intValue").value.trim();
@@ -124,14 +129,14 @@ export function submitAnswer() {
                 toast(t("toastError"), "enter an integer");
                 return;
             }
-            answer = {type: "integer", value: parseInt(raw, 10)};
+            answer = { type: "integer", value: parseInt(raw, 10) };
         } else {
             const text = $("#freeText").value.trim();
             if (!text) {
                 toast(t("toastError"), "enter text");
                 return;
             }
-            answer = {type: "free_text", text};
+            answer = { type: "free_text", text };
         }
     }
 
@@ -170,4 +175,4 @@ export function goNext() {
 }
 
 // re-export for bindUi convenience
-export {applyFreeAnswerMode};
+export { applyFreeAnswerMode };
