@@ -2535,49 +2535,6 @@ a:hover {
    Leaderboard Improvements
    ========================================================================== */
 
-#panel-LEADERBOARD .table {
-    font-size: clamp(11px, 3.2vw, 14px);
-
-    table-layout: fixed;
-}
-
-#panel-LEADERBOARD .table td {
-    padding: clamp(6px, 1.8vw, 10px) clamp(8px, 2.2vw, 12px);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-#panel-LEADERBOARD .table td:nth-child(3),
-#panel-LEADERBOARD .table td:nth-child(4) {
-    text-align: right;
-    font-family: var(--mono);
-    font-variant-numeric: tabular-nums;
-}
-
-#panel-LEADERBOARD .rank-cell {
-    width: 32px;
-    font-size: clamp(10px, 2.8vw, 13px);
-}
-
-@media (max-width: 520px) {
-    #panel-LEADERBOARD .table th.th-select-cell {
-        width: 96px;
-    }
-    #panel-LEADERBOARD .th-select-cell .header-select {
-        padding-right: 18px;
-        font-size: 10px;
-    }
-    #panel-LEADERBOARD .th-select-cell::after {
-        right: 6px;
-    }
-
-    #panel-LEADERBOARD .table th:nth-child(7),
-    #panel-LEADERBOARD .table td:nth-child(7) {
-        display: none;
-    }
-}
-
 .table thead th {
     background: #1e1e1e;
     border-bottom: 1px solid var(--border);
