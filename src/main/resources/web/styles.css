@@ -2756,13 +2756,16 @@ th:not(.th-select-cell) {
     --vs-ease-close: cubic-bezier(.18, .92, .18, 1);
     --vs-ease-open: cubic-bezier(.22, .7, .22, 1);
 
-    --vs-left: #4aa8ff;
-    --vs-right: #ff4a6a;
+    /* Warm gold from theme instead of blue/red */
+    --vs-gold: #c9a86c;
+    --vs-gold-dim: rgba(201, 168, 108, 0.5);
+    --vs-gold-glow: rgba(201, 168, 108, 0.25);
 
-    --vs-ink: rgba(10, 10, 14, 0.96);
-    --vs-ink2: rgba(18, 18, 26, 0.94);
-    --vs-line: rgba(255, 255, 255, 0.10);
-    --vs-glow: rgba(255, 255, 255, 0.18);
+    /* Solid matte blacks - no transparency */
+    --vs-ink: #0a0a0a;
+    --vs-ink2: #0e0e0e;
+    --vs-panel: #141414;
+    --vs-line: rgba(201, 168, 108, 0.12);
 }
 
 .vs-overlay {
@@ -2774,8 +2777,8 @@ th:not(.th-select-cell) {
     place-items: center;
     overflow: hidden;
 
-    /* IMPORTANT: the overlay itself is transparent;
-       the shutters are what actually cover the screen. */
+    /* Transparent so the game screen shows through during animation;
+       the shutters themselves provide the solid cover. */
     background: transparent;
 
     user-select: none;
@@ -2809,14 +2812,21 @@ th:not(.th-select-cell) {
     transform: translate3d(var(--vs-open-x), var(--vs-open-y), 0);
     will-change: transform;
 
-    background:
-        linear-gradient(135deg, var(--vs-ink), var(--vs-ink2)),
-        repeating-linear-gradient(90deg,
-            rgba(255, 255, 255, 0.035) 0 2px,
-            rgba(0, 0, 0, 0) 2px 7px);
+    /* Solid matte black base */
+    background-color: var(--vs-ink);
 
-    box-shadow: 0 25px 80px rgba(0, 0, 0, 0.55);
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    /* Subtle vertical scan lines overlay */
+    background-image: repeating-linear-gradient(90deg,
+            rgba(201, 168, 108, 0.02) 0 1px,
+            transparent 1px 6px);
+
+    /* Subtle inset shadow for depth, no glow */
+    box-shadow:
+        inset 0 0 80px rgba(0, 0, 0, 0.4),
+        0 0 40px rgba(0, 0, 0, 0.8);
+
+    /* Thin gold accent line on the inner edge */
+    border: none;
 
     transition: transform var(--vs-close-ms) var(--vs-ease-close);
 }
@@ -2824,11 +2834,13 @@ th:not(.th-select-cell) {
 .vs-shutter-left {
     left: 0;
     --vs-open-x: -100%;
+    border-right: 1px solid var(--vs-line);
 }
 
 .vs-shutter-right {
     right: 0;
     --vs-open-x: 100%;
+    border-left: 1px solid var(--vs-line);
 }
 
 /* Closed state: shutters meet in the center */
@@ -2844,7 +2856,7 @@ th:not(.th-select-cell) {
     transform: translate3d(var(--vs-open-x), var(--vs-open-y), 0);
 }
 
-/* Center seam glow while closed */
+/* Center seam accent line while closed (thin gold instead of glow) */
 .vs-overlay.is-closed::after {
     content: "";
     position: absolute;
@@ -2854,13 +2866,12 @@ th:not(.th-select-cell) {
     background:
         linear-gradient(90deg,
             transparent 0%,
-            transparent 49.2%,
-            rgba(255, 255, 255, 0.16) 50%,
-            transparent 50.8%,
+            transparent 49.6%,
+            var(--vs-gold-dim) 50%,
+            transparent 50.4%,
             transparent 100%);
 
-    opacity: 0.85;
-    filter: drop-shadow(0 0 14px rgba(255, 255, 255, 0.22));
+    opacity: 1;
 }
 
 /* Mobile: shutters become top/bottom using same DOM nodes */
@@ -2874,23 +2885,36 @@ th:not(.th-select-cell) {
         /* reset desktop offsets */
         --vs-open-x: 0%;
         --vs-open-y: 0%;
+
+        /* Reset border for mobile */
+        border-left: none;
+        border-right: none;
     }
 
     .vs-shutter-left {
         top: 0;
         bottom: auto;
         --vs-open-y: -100%;
+        border-bottom: 1px solid var(--vs-line);
     }
 
     .vs-shutter-right {
         bottom: 0;
         top: auto;
         --vs-open-y: 100%;
+        border-top: 1px solid var(--vs-line);
     }
 
-    /* For mobile we don’t want a vertical seam */
+    /* Horizontal seam for mobile */
     .vs-overlay.is-closed::after {
-        opacity: 0;
+        background:
+            linear-gradient(180deg,
+                transparent 0%,
+                transparent 49.6%,
+                var(--vs-gold-dim) 50%,
+                transparent 50.4%,
+                transparent 100%);
+        opacity: 1;
     }
 }
 
@@ -2932,20 +2956,22 @@ th:not(.th-select-cell) {
 
 .vs-player {
     padding: clamp(14px, 2.2vw, 22px);
-    border-radius: 16px;
+    border-radius: 12px;
 
-    background: rgba(0, 0, 0, 0.32);
-    border: 1px solid rgba(255, 255, 255, 0.10);
-    box-shadow: 0 16px 42px rgba(0, 0, 0, 0.45);
-
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
+    /* Solid panel background - no transparency/blur */
+    background: var(--vs-panel);
+    border: 1px solid rgba(201, 168, 108, 0.15);
+    box-shadow:
+        0 8px 32px rgba(0, 0, 0, 0.5),
+        inset 0 1px 0 rgba(255, 255, 255, 0.03);
 }
 
 .vs-player-label {
     font-size: 11px;
     letter-spacing: 0.12em;
-    opacity: 0.78;
+    color: var(--vs-gold);
+    opacity: 0.85;
+    text-transform: uppercase;
 }
 
 .vs-player-name {
@@ -2954,26 +2980,31 @@ th:not(.th-select-cell) {
     font-weight: 800;
     line-height: 1.05;
     font-size: clamp(22px, 4vw, 44px);
-    text-shadow: 0 6px 24px rgba(0, 0, 0, 0.55);
+    color: #e8e4df;
     word-break: break-word;
 }
 
 .vs-player-accent {
     margin-top: 12px;
-    height: 6px;
-    border-radius: 999px;
-    opacity: 0.95;
-    background: linear-gradient(90deg, transparent, var(--vs-accent), transparent);
+    height: 3px;
+    border-radius: 2px;
+    background: linear-gradient(90deg, transparent, var(--vs-gold), transparent);
 }
 
 .vs-player-left {
-    --vs-accent: var(--vs-left);
     text-align: left;
 }
 
+.vs-player-left .vs-player-accent {
+    background: linear-gradient(90deg, var(--vs-gold), transparent);
+}
+
 .vs-player-right {
-    --vs-accent: var(--vs-right);
     text-align: right;
+}
+
+.vs-player-right .vs-player-accent {
+    background: linear-gradient(90deg, transparent, var(--vs-gold));
 }
 
 .vs-center {
@@ -2990,10 +3021,11 @@ th:not(.th-select-cell) {
     letter-spacing: 0.08em;
     font-size: clamp(46px, 6.2vw, 86px);
 
-    color: rgba(255, 255, 255, 0.95);
+    /* Warm gold VS text */
+    color: var(--vs-gold);
     text-shadow:
-        0 0 26px rgba(255, 255, 255, 0.16),
-        0 10px 44px rgba(0, 0, 0, 0.65);
+        0 0 40px var(--vs-gold-glow),
+        0 4px 20px rgba(0, 0, 0, 0.6);
 
     transform: translateZ(0);
 }
@@ -3016,53 +3048,57 @@ th:not(.th-select-cell) {
         /* reads better stacked */
     }
 
+    .vs-player-left .vs-player-accent,
+    .vs-player-right .vs-player-accent {
+        background: linear-gradient(90deg, transparent, var(--vs-gold), transparent);
+    }
+
     .vs-center {
         padding-block: 4px;
     }
 }
 
-/* ---- Sparks ---- */
+/* ---- Sparks (now gold) ---- */
 
 .vs-spark {
     position: absolute;
-    width: 14px;
-    height: 14px;
+    width: 10px;
+    height: 10px;
     border-radius: 999px;
 
-    background: radial-gradient(circle, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0) 68%);
+    background: radial-gradient(circle, var(--vs-gold) 0%, transparent 70%);
     opacity: 0;
-    filter: drop-shadow(0 0 14px rgba(255, 255, 255, 0.22));
 }
 
 .vs-overlay.is-closed .vs-spark {
-    animation: vsSpark 900ms ease-out infinite;
+    animation: vsSpark 1100ms ease-out infinite;
 }
 
 .vs-spark-1 {
-    left: -16px;
+    left: -12px;
     top: 18%;
     animation-delay: 0ms;
 }
 
 .vs-spark-2 {
-    right: -14px;
+    right: -10px;
     top: 30%;
-    animation-delay: 120ms;
+    animation-delay: 180ms;
 }
 
 .vs-spark-3 {
-    left: -10px;
+    left: -8px;
     bottom: 22%;
-    animation-delay: 240ms;
-}
-
-.vs-spark-4 {
-    right: -18px;
-    bottom: 16%;
     animation-delay: 360ms;
 }
 
-/* ---- Flash ---- */
+.vs-spark-4 {
+    right: -14px;
+    bottom: 16%;
+    animation-delay: 540ms;
+}
+
+/* ---- Flash (warm gold tint) ---- */
 
 .vs-flash {
     position: absolute;
@@ -3070,12 +3106,12 @@ th:not(.th-select-cell) {
     z-index: 10;
     pointer-events: none;
 
-    background: white;
+    background: linear-gradient(135deg, rgba(201, 168, 108, 0.3), rgba(255, 255, 255, 0.8));
     opacity: 0;
 }
 
 .vs-overlay.is-opening .vs-flash {
-    animation: vsFlash 240ms ease-out 1;
+    animation: vsFlash 200ms ease-out 1;
 }
 
 /* ---- Keyframes ---- */
@@ -3085,28 +3121,32 @@ th:not(.th-select-cell) {
     0%,
     100% {
         transform: scale(1);
-        filter: drop-shadow(0 0 0 rgba(255, 255, 255, 0));
+        text-shadow:
+            0 0 40px var(--vs-gold-glow),
+            0 4px 20px rgba(0, 0, 0, 0.6);
     }
 
     50% {
-        transform: scale(1.045);
-        filter: drop-shadow(0 0 18px rgba(255, 255, 255, 0.22));
+        transform: scale(1.03);
+        text-shadow:
+            0 0 60px rgba(201, 168, 108, 0.4),
+            0 4px 20px rgba(0, 0, 0, 0.6);
     }
 }
 
 @keyframes vsSpark {
     0% {
         opacity: 0;
-        transform: translateY(8px) scale(0.65);
+        transform: translateY(6px) scale(0.5);
     }
 
-    22% {
-        opacity: 0.9;
+    20% {
+        opacity: 0.8;
     }
 
     100% {
         opacity: 0;
-        transform: translateY(-10px) scale(1.15);
+        transform: translateY(-8px) scale(1);
     }
 }
 
@@ -3115,8 +3155,8 @@ th:not(.th-select-cell) {
         opacity: 0;
     }
 
-    12% {
-        opacity: 0.85;
+    15% {
+        opacity: 0.7;
     }
 
     100% {
