@@ -1,9 +1,9 @@
-import { wsUrl } from "../core/net.js";
-import { state } from "../core/state.js";
-import { setNet } from "../ui/netIndicator.js";
-import { toast } from "../ui/toast.js";
-import { t } from "../core/i18n.js";
-import { handleServerEvent } from "./serverEvents.js";
+import {wsUrl} from "../core/net.js";
+import {state} from "../core/state.js";
+import {setNet} from "../ui/netIndicator.js";
+import {toast} from "../ui/toast.js";
+import {t} from "../core/i18n.js";
+import {handleServerEvent} from "./serverEvents.js";
 
 export function closeWs() {
     const ws = state.ws;
@@ -18,13 +18,13 @@ export function closeWs() {
 }
 
 export function openWsAndJoin({
-    sessionId = null,
-    opponentSpecId,
-    nickname,
-    locale,
-    toastOnOpen = true,
-    toastOnClose = true,
-} = {}) {
+                                  sessionId = null,
+                                  opponentSpecId,
+                                  nickname,
+                                  locale,
+                                  toastOnOpen = true,
+                                  toastOnClose = true,
+                              } = {}) {
     closeWs();
 
     const ws = new WebSocket(wsUrl());
@@ -72,7 +72,7 @@ export function openWsAndJoin({
             toast(t("toastError"), "invalid JSON from server");
             return;
         }
-        handleServerEvent(msg, { closeWs });
+        handleServerEvent(msg, {closeWs});
     });
 }
 

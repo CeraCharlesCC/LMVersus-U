@@ -1,15 +1,15 @@
-import { $ } from "../core/dom.js";
-import { httpGetJson } from "../core/net.js";
-import { escapeHtml, isMobileLayout } from "../core/utils.js";
-import { t } from "../core/i18n.js";
-import { state } from "../core/state.js";
-import { renderModelBadgesHtml } from "../ui/badges.js";
-import { showDetailModal } from "../ui/modals.js";
+import {$} from "../core/dom.js";
+import {httpGetJson} from "../core/net.js";
+import {escapeHtml, isMobileLayout} from "../core/utils.js";
+import {t} from "../core/i18n.js";
+import {state} from "../core/state.js";
+import {renderModelBadgesHtml} from "../ui/badges.js";
+import {showDetailModal} from "../ui/modals.js";
 
-import { installRichTooltip } from "../ui/tooltips.js";
+import {installRichTooltip} from "../ui/tooltips.js";
 
 // ----- Rich tooltip for Question Set badges (PC only, scoped to model picker) -----
-function installQsRichTooltip({ wrapper, optionsList, ac }) {
+function installQsRichTooltip({wrapper, optionsList, ac}) {
     const t1 = installRichTooltip(wrapper, ac.signal);
     const t2 = installRichTooltip(optionsList, ac.signal);
 
@@ -151,8 +151,6 @@ function renderModelSelectorWidget(container, input, models, mode) {
         `;
 
 
-
-
         // Click Option Event
         opt.addEventListener("click", (e) => {
             e.stopPropagation();
@@ -193,7 +191,7 @@ function renderModelSelectorWidget(container, input, models, mode) {
     }
 
     // Rich tooltip for Question Set badges (PC only)
-    const qsTooltip = installQsRichTooltip({ wrapper, optionsList, ac });
+    const qsTooltip = installQsRichTooltip({wrapper, optionsList, ac});
 
 
     // --- Interaction Logic (The Hack) --- //
@@ -276,7 +274,7 @@ function renderModelSelectorWidget(container, input, models, mode) {
             body: desc || "",
         });
     };
-    window.addEventListener("click", onQuestionSetBadgeTap, { signal: ac.signal, capture: true });
+    window.addEventListener("click", onQuestionSetBadgeTap, {signal: ac.signal, capture: true});
 
     // Trigger keyboard toggle
     trigger.addEventListener("keydown", (e) => {
@@ -298,7 +296,7 @@ function renderModelSelectorWidget(container, input, models, mode) {
             toggleMenu(false);
         }
     };
-    window.addEventListener("click", onWindowClick, { signal: ac.signal });
+    window.addEventListener("click", onWindowClick, {signal: ac.signal});
 
     // Close on window resize to prevent alignment issues
     const onResize = () => {
@@ -306,13 +304,13 @@ function renderModelSelectorWidget(container, input, models, mode) {
             toggleMenu(false);
         }
     };
-    window.addEventListener("resize", onResize, { signal: ac.signal, passive: true });
+    window.addEventListener("resize", onResize, {signal: ac.signal, passive: true});
 
     // Close on scroll (prevents misalignment if the page/viewport moves)
     const onScroll = () => {
         if (trigger.classList.contains("is-open")) toggleMenu(false);
     };
-    window.addEventListener("scroll", onScroll, { signal: ac.signal, passive: true });
+    window.addEventListener("scroll", onScroll, {signal: ac.signal, passive: true});
 
     // Close on Escape even if focus isn't on trigger
     const onKeydown = (e) => {
@@ -321,7 +319,7 @@ function renderModelSelectorWidget(container, input, models, mode) {
             toggleMenu(false);
         }
     };
-    window.addEventListener("keydown", onKeydown, { signal: ac.signal });
+    window.addEventListener("keydown", onKeydown, {signal: ac.signal});
 }
 
 export function populateOpponentSelects() {

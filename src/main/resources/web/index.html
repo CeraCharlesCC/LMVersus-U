@@ -50,7 +50,7 @@
                         <div class="form">
                             <label class="field">
                                 <span class="label" id="lblNicknameLight"></span>
-                                <input id="nicknameLight" class="input" maxlength="16" autocomplete="nickname" />
+                                <input id="nicknameLight" class="input" maxlength="5" autocomplete="nickname" />
                             </label>
 
                             <label class="field">
@@ -72,7 +72,7 @@
                         <div class="form">
                             <label class="field">
                                 <span class="label" id="lblNicknamePremium"></span>
-                                <input id="nicknamePremium" class="input" maxlength="16" autocomplete="nickname" />
+                                <input id="nicknamePremium" class="input" maxlength="5" autocomplete="nickname" />
                             </label>
 
                             <label class="field">
@@ -103,14 +103,33 @@
                                     <tr>
                                         <th id="thRank"></th>
                                         <th id="thName"></th>
-                                        <th id="thScore"></th>
+                                        <th id="thHumanFinalScore"></th>
+                                        <th id="thLlmFinalScore"></th>
                                         <th id="thSet"></th>
-                                        <th id="thOpponent"></th>
+                                        <th id="thOpponent" class="th-select-cell">
+                                            <span id="lbOpponentText" class="header-select-text"></span>
+                                            <select id="lbOpponentFilter" class="header-select"></select>
+                                        </th>
                                         <th id="thMode"></th>
                                     </tr>
                                 </thead>
                                 <tbody id="lbBody"></tbody>
                             </table>
+                        </div>
+
+                        <div class="row between small" id="lbPager">
+                            <div class="row">
+                                <button id="lbPrev" class="btn ghost small" type="button">‹</button>
+                                <button id="lbNext" class="btn ghost small" type="button">›</button>
+                            </div>
+                            <div class="row" style="gap: 16px;">
+                                <label class="row" style="gap: 6px; cursor: pointer;">
+                                    <input type="checkbox" id="lbHideLosers" />
+                                    <span class="label" id="lbHideLosersLabel"
+                                        style="margin: 0; font-size: 11px;"></span>
+                                </label>
+                                <div id="lbPageInfo" class="muted small"></div>
+                            </div>
                         </div>
                     </div>
                 </div>

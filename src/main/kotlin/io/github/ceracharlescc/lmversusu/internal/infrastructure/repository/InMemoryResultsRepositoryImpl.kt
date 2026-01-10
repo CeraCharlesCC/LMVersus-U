@@ -30,7 +30,8 @@ internal class InMemoryResultsRepositoryImpl @Inject constructor() : ResultsRepo
             questionSetDisplayName = result.questionSetDisplayName,
             userId = result.humanUserId,
             nickname = result.humanNickname,
-            bestScore = result.humanScore,
+            humanFinalScore = result.humanScore,
+            llmFinalScore = result.llmScore,
             bestTimeMs = result.durationMs,
         )
 
@@ -42,8 +43,8 @@ internal class InMemoryResultsRepositoryImpl @Inject constructor() : ResultsRepo
 
         bestByKey.merge(key, candidate) { existing, incoming ->
             val better = when {
-                incoming.bestScore > existing.bestScore -> incoming
-                incoming.bestScore < existing.bestScore -> existing
+                incoming.humanFinalScore > existing.humanFinalScore -> incoming
+                incoming.humanFinalScore < existing.humanFinalScore -> existing
                 else -> if (incoming.bestTimeMs < existing.bestTimeMs) incoming else existing
             }
             better.copy()
@@ -52,7 +53,7 @@ internal class InMemoryResultsRepositoryImpl @Inject constructor() : ResultsRepo
 
     override suspend fun getLeaderboard(limit: Int): List<LeaderboardEntry> {
         return bestByKey.values
-            .sortedWith(compareByDescending<LeaderboardEntry> { it.bestScore }.thenBy { it.bestTimeMs })
+            .sortedWith(compareByDescending<LeaderboardEntry> { it.humanFinalScore }.thenBy { it.bestTimeMs })
             .take(limit)
             .mapIndexed { index, entry -> entry.copy(rank = index + 1) }
     }

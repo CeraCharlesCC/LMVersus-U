@@ -6,6 +6,7 @@ import { refreshLeaderboard } from "../features/leaderboard.js";
 
 import { showNetError, toast } from "../ui/toast.js";
 import { hideLicenseModal, hideMatchEndModal, isMatchEndVisible, showLicenseModal } from "../ui/modals.js";
+import { initPeekButtonFollower } from "../ui/peekButtonFollower.js";
 import { closeWs } from "./ws.js";
 import { showLobby } from "./uiScreens.js";
 import { getLlmScrollEl, renderResultDetails, setTopMobileTab } from "./roundUi.js";
@@ -145,4 +146,7 @@ export function bindUi() {
     // Initialize workspace features (answer summary, copy tools, scratchpad, etc.)
     initWorkspaceText();
     bindWorkspaceEvents(submitAnswer);
+
+    // Initialize peek button follower for scroll-following behavior
+    initPeekButtonFollower();
 }

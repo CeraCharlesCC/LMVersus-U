@@ -1,5 +1,5 @@
-import {$} from "../core/dom.js";
-import {t} from "../core/i18n.js";
+import { $ } from "../core/dom.js";
+import { t } from "../core/i18n.js";
 
 export function initStaticText() {
     $("#btnGiveUp").textContent = t("giveUp");
@@ -15,10 +15,12 @@ export function initStaticText() {
     $("#modeDescPremium").textContent = t("descPremium");
 
     $("#lblNicknameLight").textContent = t("nickname");
+    $("#nicknameLight").placeholder = t("nicknamePlaceholder");
     $("#lblOpponentLight").textContent = t("opponent");
     $("#btnStartLight").textContent = t("startMatch");
 
     $("#lblNicknamePremium").textContent = t("nickname");
+    $("#nicknamePremium").placeholder = t("nicknamePlaceholder");
     $("#lblOpponentPremium").textContent = t("opponent");
     $("#btnStartPremium").textContent = t("startMatch");
 
@@ -27,10 +29,11 @@ export function initStaticText() {
     $("#btnRefreshLb").textContent = t("refresh");
     $("#thRank").textContent = t("thRank");
     $("#thName").textContent = t("thName");
-    $("#thScore").textContent = t("thScore");
+    $("#thHumanFinalScore").textContent = t("thHumanFinalScore");
+    $("#thLlmFinalScore").textContent = t("thLlmFinalScore");
     $("#thSet").textContent = t("thSet");
-    $("#thOpponent").textContent = t("thOpponent");
     $("#thMode").textContent = t("thMode");
+    $("#lbHideLosersLabel").textContent = t("lbHideLosers");
 
     $("#lblDeadline").textContent = t("deadline");
     $("#lblHandicap").textContent = t("handicap");

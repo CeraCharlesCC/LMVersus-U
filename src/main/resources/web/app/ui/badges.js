@@ -1,5 +1,5 @@
-import { escapeHtml } from "../core/utils.js";
-import { t } from "../core/i18n.js";
+import {escapeHtml} from "../core/utils.js";
+import {t} from "../core/i18n.js";
 
 /** GitHub-ish dark label background */
 const LABEL_COLOR = "30363d";
@@ -46,7 +46,7 @@ function resolveQuestionSetDescription(meta) {
 }
 
 /** shields.io static endpoint (avoids path escaping issues) */
-export function shieldsStaticUrl({ label, message, color, labelColor = LABEL_COLOR }) {
+export function shieldsStaticUrl({label, message, color, labelColor = LABEL_COLOR}) {
     const qs = new URLSearchParams({
         label: String(label ?? ""),
         message: String(message ?? ""),

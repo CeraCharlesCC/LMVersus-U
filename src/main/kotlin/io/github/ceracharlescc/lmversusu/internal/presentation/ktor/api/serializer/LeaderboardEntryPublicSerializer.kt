@@ -18,7 +18,8 @@ internal object LeaderboardEntryPublicSerializer : KSerializer<LeaderboardEntry>
             element<String>("opponentLlmName")
             element<String>("questionSetDisplayName")
             element<String>("nickname")
-            element<Double>("bestScore")
+            element<Double>("humanFinalScore")
+            element<Double>("llmFinalScore")
         }
 
     override fun serialize(encoder: Encoder, value: LeaderboardEntry) {
@@ -28,7 +29,8 @@ internal object LeaderboardEntryPublicSerializer : KSerializer<LeaderboardEntry>
             encodeStringElement(descriptor, 2, value.opponentLlmName)
             encodeStringElement(descriptor, 3, value.questionSetDisplayName)
             encodeStringElement(descriptor, 4, value.nickname)
-            encodeDoubleElement(descriptor, 5, value.bestScore)
+            encodeDoubleElement(descriptor, 5, value.humanFinalScore)
+            encodeDoubleElement(descriptor, 6, value.llmFinalScore)
         }
     }
 
