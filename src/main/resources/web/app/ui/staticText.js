@@ -15,10 +15,12 @@ export function initStaticText() {
     $("#modeDescPremium").textContent = t("descPremium");
 
     $("#lblNicknameLight").textContent = t("nickname");
+    $("#nicknameLight").placeholder = t("nicknamePlaceholder");
     $("#lblOpponentLight").textContent = t("opponent");
     $("#btnStartLight").textContent = t("startMatch");
 
     $("#lblNicknamePremium").textContent = t("nickname");
+    $("#nicknamePremium").placeholder = t("nicknamePlaceholder");
     $("#lblOpponentPremium").textContent = t("opponent");
     $("#btnStartPremium").textContent = t("startMatch");
 

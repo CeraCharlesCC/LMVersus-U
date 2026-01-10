@@ -8,6 +8,7 @@ export default {
     descPremium:
         "PremiumはAPI経由で実際にLLMとリアルタイムで対戦します。 \n 問題が表示されてからLLMが回答するまでには少しハンディキャップ時間があります。",
     nickname: "ニックネーム (必須)",
+    nicknamePlaceholder: "5文字以内",
     opponent: "対戦相手",
     startMatch: "対戦開始",
     health: "Heartbeat",

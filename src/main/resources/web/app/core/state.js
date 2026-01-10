@@ -1,4 +1,4 @@
-export const MAX_NICKNAME_LEN = 16;
+export const MAX_NICKNAME_LEN = 5;
 export const STORAGE_KEY_NICKNAME = "lmvu_nickname";
 export const STORAGE_KEY_LANDING = "lmvu_landing_acked";
 
@@ -8,7 +8,7 @@ export const state = {
     issuedAt: null,
 
     mode: "LIGHTWEIGHT",
-    models: {LIGHTWEIGHT: [], PREMIUM: []},
+    models: { LIGHTWEIGHT: [], PREMIUM: [] },
 
     ws: null,
     wsOpen: false,
@@ -21,7 +21,7 @@ export const state = {
     opponentQuestionSetDescription: null,
     opponentQuestionSetDescriptionI18nKey: null,
     opponentDifficulty: null,
-    players: {human: null, llm: null},
+    players: { human: null, llm: null },
 
     // round
     inRound: false,

@@ -4,13 +4,13 @@ package io.github.ceracharlescc.lmversusu.internal.utils
  * Validates nicknames to prevent bandwidth/memory griefing attacks.
  *
  * Rules:
- * - Maximum 16 characters (Unicode-aware)
+ * - Maximum 5 characters (Unicode-aware)
  * - Minimum 1 character (after trimming)
  * - Allowed: letters, digits, spaces, basic punctuation (-_.), emoji
  * - Disallowed: control characters, excessive whitespace
  */
 internal object NicknameValidator {
-    private const val MAX_LENGTH = 16
+    private const val MAX_LENGTH = 5
     private const val MIN_LENGTH = 1
 
     sealed interface ValidationResult {

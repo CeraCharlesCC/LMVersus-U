@@ -8,6 +8,7 @@ export default {
     descPremium:
         "Premium is a real-time match against an LLM via API.",
     nickname: "Nickname (required)",
+    nicknamePlaceholder: "Up to 5 characters",
     opponent: "Opponent",
     startMatch: "Start match",
     health: "Heartbeat",
