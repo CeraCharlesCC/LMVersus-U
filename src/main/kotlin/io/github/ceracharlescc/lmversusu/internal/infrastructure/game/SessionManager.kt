@@ -6,6 +6,7 @@ import io.github.ceracharlescc.lmversusu.internal.AppConfig
 import io.github.ceracharlescc.lmversusu.internal.application.port.AnswerVerifier
 import io.github.ceracharlescc.lmversusu.internal.application.port.GameEventBus
 import io.github.ceracharlescc.lmversusu.internal.application.port.LlmPlayerGateway
+import io.github.ceracharlescc.lmversusu.internal.application.port.WebhookNotifier
 import io.github.ceracharlescc.lmversusu.internal.application.service.LlmStreamOrchestrator
 import io.github.ceracharlescc.lmversusu.internal.application.usecase.StartRoundUseCase
 import io.github.ceracharlescc.lmversusu.internal.application.usecase.SubmitAnswerUseCase
@@ -34,6 +35,7 @@ internal class SessionManager @Inject constructor(
     private val answerVerifier: AnswerVerifier,
     private val llmPlayerGateway: LlmPlayerGateway,
     private val llmStreamOrchestrator: LlmStreamOrchestrator,
+    private val webhookNotifier: WebhookNotifier,
     private val resultsRepository: ResultsRepository,
     private val clock: Clock,
     private val playerActiveSessionRepository: PlayerActiveSessionRepository,
@@ -322,6 +324,7 @@ internal class SessionManager @Inject constructor(
                 answerVerifier = answerVerifier,
                 llmPlayerGateway = llmPlayerGateway,
                 llmStreamOrchestrator = llmStreamOrchestrator,
+                webhookNotifier = webhookNotifier,
                 resultsRepository = resultsRepository,
                 clock = clock,
                 mailboxCapacity = mailboxCapacity,

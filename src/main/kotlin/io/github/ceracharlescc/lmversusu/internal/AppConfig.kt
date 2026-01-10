@@ -9,6 +9,7 @@ internal data class AppConfig(
     val rateLimitConfig: RateLimitConfig = RateLimitConfig(),
     val sessionLimitConfig: SessionLimitConfig = SessionLimitConfig(),
     val sessionCrypto: SessionCryptoConfig = SessionCryptoConfig(),
+    val webhookConfig: WebhookConfig = WebhookConfig(),
 ) {
 
     @Serializable
@@ -166,6 +167,19 @@ internal data class AppConfig(
             require(this.isNotBlank()) { "$field is blank" }
             require(length % 2 == 0) { "$field hex length must be even" }
             return chunked(2).map { it.toInt(16).toByte() }.toByteArray()
+        }
+    }
+
+    @Serializable
+    data class WebhookConfig(
+        val enabled: Boolean = false,
+        val url: String = "",
+        val format: io.github.ceracharlescc.lmversusu.internal.domain.vo.WebhookFormat =
+            io.github.ceracharlescc.lmversusu.internal.domain.vo.WebhookFormat.DETAILED,
+        val timeoutMillis: Long = DEFAULT_TIMEOUT_MILLIS,
+    ) {
+        companion object {
+            const val DEFAULT_TIMEOUT_MILLIS = 2_000L
         }
     }
 }

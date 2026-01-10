@@ -14,6 +14,7 @@ import io.github.ceracharlescc.lmversusu.internal.infrastructure.repository.InMe
 import io.github.ceracharlescc.lmversusu.internal.infrastructure.repository.InMemoryResultsRepositoryImpl
 import io.github.ceracharlescc.lmversusu.internal.infrastructure.repository.JsonOpponentSpecRepositoryImpl
 import io.github.ceracharlescc.lmversusu.internal.infrastructure.verification.AnswerVerifierImpl
+import io.github.ceracharlescc.lmversusu.internal.infrastructure.webhook.WebhookNotifierImpl
 import javax.inject.Singleton
 
 @Module
@@ -49,4 +50,8 @@ internal interface InfrastructureModule {
     @Binds
     @Singleton
     fun bindPlayerActiveSessionRepository(impl: InMemoryPlayerActiveSessionRepository): PlayerActiveSessionRepository
+
+    @Binds
+    @Singleton
+    fun bindWebhookNotifier(impl: WebhookNotifierImpl): WebhookNotifier
 }

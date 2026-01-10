@@ -72,3 +72,12 @@ maxActiveSessions = 200
 enableSecureCookie = true
 encryptionKeyHex = ""
 signKeyHex = ""
+
+# ------------------------------------------------------------
+# Webhook Notification Configuration
+# ------------------------------------------------------------
+[webhookConfig]
+enabled = false
+url = ""
+format = "DETAILED"
+timeoutMillis = 2000
