@@ -118,6 +118,17 @@ function renderLeaderboard() {
     nextButton.disabled = currentPageIndex >= pageCount - 1;
 }
 
+function syncOpponentFilterLabel() {
+    const select = document.getElementById("lbOpponentFilter");
+    const label = document.getElementById("lbOpponentText");
+    if (!select || !label) return;
+
+    const opt = select.options[select.selectedIndex];
+    const text = opt ? (opt.textContent || "") : "";
+    label.textContent = text;
+    label.title = text;
+}
+
 function updateOpponentOptions() {
     const select = $("#lbOpponentFilter");
     const currentValue = select.value || "all";
@@ -145,6 +156,8 @@ function updateOpponentOptions() {
     } else {
         select.value = currentValue;
     }
+
+    syncOpponentFilterLabel();
 }
 
 function ensureLeaderboardListeners() {
@@ -152,6 +165,7 @@ function ensureLeaderboardListeners() {
     listenersAttached = true;
 
     $("#lbOpponentFilter").addEventListener("change", () => {
+        syncOpponentFilterLabel()
         currentPageIndex = 0;
         renderLeaderboard();
     });
