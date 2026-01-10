@@ -101,7 +101,7 @@ export function handleServerEvent(msg, { closeWs }) {
 
         // Play VS transition if pending (new match from lobby)
         if (isVsTransitionPending()) {
-            playVsTransition({
+            const p = playVsTransition({
                 humanName: state.nickname || "You",
                 llmName: state.opponentDisplayName || "LLM",
                 onSwitch: () => {
@@ -110,6 +110,19 @@ export function handleServerEvent(msg, { closeWs }) {
                     updateMatchupUi();
                 },
                 holdMs: 3000,
+            });
+
+            // Auto-start ONLY the first round, AFTER the transition fully finishes.
+            // Use dynamic import to avoid circular deps.
+            p?.then?.(() => {
+                // Guard: session might have ended / changed / been cancelled
+                if (!state.sessionId || state.sessionId !== msg.sessionId) return;
+                if (state.ui.sessionEnded) return;
+                if (state.inRound || state.roundId) return;
+
+                import("./actions.js")
+                    .then((m) => m.startRound?.())
+                    .catch(() => {/* ignore */ });
             });
         } else {
             // Session recovery or other case - show game immediately

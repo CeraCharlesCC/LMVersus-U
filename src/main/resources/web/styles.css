@@ -591,12 +591,12 @@ a:hover {
 }
 
 .modal-footer {
-    padding: 14px 18px;
+    padding: 2px 18px;
     border-top: 1px solid var(--border);
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
+    gap: 8px;
     background: rgba(0, 0, 0, 0.08);
 }
 

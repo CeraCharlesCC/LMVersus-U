@@ -4,7 +4,14 @@ import { MAX_NICKNAME_LEN, state, STORAGE_KEY_NICKNAME } from "../core/state.js"
 import { toast } from "../ui/toast.js";
 import { newCommandId, safeLsSet } from "../core/utils.js";
 import { closeWs, openWsAndJoin, wsSend } from "./ws.js";
-import { applyFreeAnswerMode, enforceDeadline, resetRoundUi, setSubmitFrozen, updateMatchupUi } from "./roundUi.js";
+import {
+    applyFreeAnswerMode,
+    enforceDeadline,
+    resetRoundUi,
+    setSubmitFrozen,
+    setStartRoundPending,
+    updateMatchupUi
+} from "./roundUi.js";
 import { updateClearButtonState } from "./workspace.js";
 import { showLobby } from "./uiScreens.js";
 import { readErrorBody } from "../core/net.js";
@@ -96,6 +103,13 @@ export function startRound() {
         toast(t("toastError"), "no sessionId");
         return;
     }
+    if (state.ui.roundStartPending) return; // prevent double start (auto/manual)
+    if (!state.wsOpen || !state.ws) {
+        toast(t("toastError"), "websocket not connected");
+        return;
+    }
+
+    setStartRoundPending(true);
     wsSend({
         type: "start_round_request",
         sessionId: state.sessionId,
