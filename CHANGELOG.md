@@ -1,3 +1,14 @@
+## [v0.8.3] - 2026-01-10
+### Added
+- Add round display to the app header (#23)
+
+### Changed
+- Update round score translations to include the round number (#23)
+- Enhance UI logic to show/hide round information appropriately (#23)
+
+### Documentation
+- Update Japanese and English UI translations for new round display (#23)
+
 ## [v0.8.2] - 2026-01-10
 ### Added
 - Add reduced motion styles to respect user accessibility preferences (#21)
