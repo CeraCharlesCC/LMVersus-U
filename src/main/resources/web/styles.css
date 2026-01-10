@@ -2328,6 +2328,40 @@ a:hover {
     .q-sep {
         margin: -15px;
     }
+
+    .table th.th-select-cell {
+        width: auto;
+        min-width: 90px;
+        padding: 6px 10px 8px;
+    }
+
+    .table th.th-select-cell::before {
+        content: attr(data-label);
+        display: block;
+        margin-bottom: 4px;
+
+        white-space: normal;
+        overflow-wrap: anywhere;
+        line-height: 1.15;
+
+        pointer-events: none;
+    }
+
+    .th-select-cell .header-select {
+        position: relative;
+        inset: auto;
+        height: auto;
+        width: 100%;
+        display: block;
+
+        padding: 6px 24px 6px 0;
+    }
+
+    .th-select-cell::after {
+        top: auto;
+        bottom: 12px;
+        transform: none;
+    }
 }
 
 @media (max-width: 520px) {

@@ -4,11 +4,12 @@ import { fmtPoints } from "../core/utils.js";
 import { t } from "../core/i18n.js";
 
 const PAGE_LIMIT = 50;
-const TABLE_COLUMNS = 7;
 
 let cachedEntries = [];
 let currentPageIndex = 0;
 let listenersAttached = false;
+let resizeRaf = 0;
+let lastPageSize = getPageSize();
 
 function lbRow(entry) {
     const tr = document.createElement("tr");
@@ -65,8 +66,6 @@ function applyFilters(entries) {
 
 function renderEmptyState(body) {
     const tr = document.createElement("tr");
-    const td = document.createElement("td");
-    td.colSpan = TABLE_COLUMNS;
     const emptyCell = [
         "0",
         "👻",
@@ -122,6 +121,7 @@ function renderLeaderboard() {
 function updateOpponentOptions() {
     const select = $("#lbOpponentFilter");
     const currentValue = select.value || "all";
+
     const opponentNames = Array.from(
         new Set(cachedEntries.map((entry) => entry.opponentLlmName).filter(Boolean))
     ).sort((a, b) => a.localeCompare(b));
@@ -130,7 +130,7 @@ function updateOpponentOptions() {
 
     const allOption = document.createElement("option");
     allOption.value = "all";
-    allOption.textContent = t("lbAllOpponents");
+    allOption.textContent = t("lbOpponentHeader");
     select.appendChild(allOption);
 
     for (const name of opponentNames) {
@@ -171,9 +171,24 @@ function ensureLeaderboardListeners() {
         renderLeaderboard();
     });
 
-    window.addEventListener("resize", () => {
-        renderLeaderboard();
-    });
+    window.addEventListener(
+        "resize",
+        () => {
+            if (resizeRaf) cancelAnimationFrame(resizeRaf);
+            resizeRaf = requestAnimationFrame(() => {
+                resizeRaf = 0;
+                onResize();
+            });
+        },
+        { passive: true }
+    );
+}
+
+function onResize() {
+    const nextSize = getPageSize();
+    if (nextSize === lastPageSize) return; // nothing to do
+    lastPageSize = nextSize;
+    renderLeaderboard();
 }
 
 export async function refreshLeaderboard() {
