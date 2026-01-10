@@ -122,7 +122,7 @@ export function handleServerEvent(msg, { closeWs }) {
 
                 import("./actions.js")
                     .then((m) => m.startRound?.())
-                    .catch(() => {/* ignore */ });
+                    .catch((err) => console.error("Failed to auto-start round:", err));
             });
         } else {
             // Session recovery or other case - show game immediately
