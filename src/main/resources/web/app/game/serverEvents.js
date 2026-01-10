@@ -23,6 +23,7 @@ import {
     updateMatchupUi,
     updateTimers,
 } from "./roundUi.js";
+import { isVsTransitionPending, playVsTransition, cancelVsTransition } from "../ui/vsTransition.js";
 // local helper used above to preserve exact formatting
 import { fmtScore as formatScore } from "../core/utils.js";
 
@@ -55,6 +56,7 @@ export function handleServerEvent(msg, { closeWs }) {
         } else {
             toast(t("toastError"), `${code}: ${msg.message || ""}`, "error");
         }
+        cancelVsTransition();
         setNet(false);
         return;
     }
@@ -97,9 +99,37 @@ export function handleServerEvent(msg, { closeWs }) {
 
         state.ui.sessionEnded = false;
 
-        showGame();
-        resetRoundUi();
-        updateMatchupUi();
+        // Play VS transition if pending (new match from lobby)
+        if (isVsTransitionPending()) {
+            const p = playVsTransition({
+                humanName: state.nickname || "You",
+                llmName: state.opponentDisplayName || "LLM",
+                onSwitch: () => {
+                    showGame();
+                    resetRoundUi();
+                    updateMatchupUi();
+                },
+                holdMs: 3000,
+            });
+
+            // Auto-start ONLY the first round, AFTER the transition fully finishes.
+            // Use dynamic import to avoid circular deps.
+            p?.then?.(() => {
+                // Guard: session might have ended / changed / been cancelled
+                if (!state.sessionId || state.sessionId !== msg.sessionId) return;
+                if (state.ui.sessionEnded) return;
+                if (state.inRound || state.roundId) return;
+
+                import("./actions.js")
+                    .then((m) => m.startRound?.())
+                    .catch((err) => console.error("Failed to auto-start round:", err));
+            });
+        } else {
+            // Session recovery or other case - show game immediately
+            showGame();
+            resetRoundUi();
+            updateMatchupUi();
+        }
         return;
     }
 

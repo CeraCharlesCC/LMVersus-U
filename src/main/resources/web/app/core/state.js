@@ -67,5 +67,6 @@ export const state = {
         matchEndVisible: false,
         sessionEnded: false,
         lastResultDetails: null,
+        roundStartPending: false,
     },
 };

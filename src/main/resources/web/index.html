@@ -392,6 +392,31 @@
             </section>
         </div>
 
+        <!-- VS Transition Overlay (fighting game style) -->
+        <div id="vsOverlay" class="vs-overlay hidden" aria-hidden="true">
+            <div class="vs-shutter vs-shutter-left"></div>
+            <div class="vs-shutter vs-shutter-right"></div>
+
+            <div class="vs-content">
+                <div class="vs-player vs-player-left">
+                    <div class="vs-player-label">PLAYER</div>
+                    <div class="vs-player-name" id="vsHumanName">You</div>
+                    <div class="vs-player-accent"></div>
+                </div>
+
+                <div class="vs-center">
+                    <div class="vs-text">V.S.</div>
+                </div>
+                <div class="vs-player vs-player-right">
+                    <div class="vs-player-label">OPPONENT</div>
+                    <div class="vs-player-name" id="vsLlmName">LLM</div>
+                    <div class="vs-player-accent"></div>
+                </div>
+            </div>
+
+            <div class="vs-flash"></div>
+        </div>
+
     </div>
 
     <!-- markdown-it -->

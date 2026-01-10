@@ -129,6 +129,22 @@ export function setSubmitFrozen(on) {
     btn.classList.toggle("is-frozen", !!on);
 }
 
+export function setStartRoundPending(pending) {
+    state.ui.roundStartPending = !!pending;
+
+    const btn = $("#btnStartRound");
+    if (btn) {
+        btn.disabled = !!pending;
+        btn.textContent = pending ? t("startingRound") : t("startRound");
+        btn.setAttribute("aria-busy", pending ? "true" : "false");
+    }
+
+    const hint = $("#preRoundHint");
+    if (hint) {
+        hint.textContent = pending ? t("preRoundStartingHint") : t("preRoundHint");
+    }
+}
+
 export function getLlmScrollEl() {
     return $("#llmPanel .panel-body");
 }
@@ -248,7 +264,7 @@ export function resetRoundUi() {
     // Re-enable buttons in case a previous session disabled them
     $("#btnSubmit").disabled = false;
     $("#btnSubmit").classList.remove("is-locked");
-    $("#btnStartRound").disabled = false;
+    setStartRoundPending(false);
     $("#btnNext").disabled = false;
     setSubmitFrozen(false);
 

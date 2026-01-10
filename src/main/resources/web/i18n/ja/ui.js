@@ -27,6 +27,8 @@ export default {
     lbPageInfo: "{page} / {pages} ({total})",
     startRound: "次のラウンドを開始",
     preRoundHint: "準備ができたら開始ボタンを押してください!",
+    startingRound: "開始中…",
+    preRoundStartingHint: "ラウンドを開始しています…",
     question: "問題",
     reasoning: "LLM",
     answer: "あなたの回答",
