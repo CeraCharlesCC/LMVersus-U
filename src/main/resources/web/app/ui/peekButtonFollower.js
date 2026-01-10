@@ -71,29 +71,36 @@ function updatePeekButtonPosition() {
 
     // The blur mask starts at 34% from top (100% - 66% height = 34%)
     const blurStartRatio = 0.34;
-    const blurEndPadding = 60; // Bottom padding for the button
+    const buttonHeight = 50; // Approximate button height for padding
 
     // Calculate the wrap height and blur zone boundaries
     const wrapHeight = wrapRect.height;
     const blurStartPx = wrapHeight * blurStartRatio;
 
-    // Calculate visible area of the wrap within the scroll container
-    const visibleTop = Math.max(panelRect.top, wrapRect.top) - wrapRect.top;
-    const visibleBottom = Math.min(panelRect.bottom, wrapRect.bottom) - wrapRect.top;
+    // Calculate the visible portion of the wrap within the panel viewport
+    // visibleTop: distance from wrap top to where the visible area starts
+    // visibleBottom: distance from wrap top to where the visible area ends
+    const visibleTop = Math.max(0, panelRect.top - wrapRect.top);
+    const visibleBottom = Math.min(wrapHeight, panelRect.bottom - wrapRect.top);
 
-    // Clamp to blur area only (blur starts at 34% from top)
+    // If the wrap is not visible at all, skip
+    if (visibleBottom <= visibleTop) return;
+
+    // Calculate the visible portion of the blur area specifically
+    // Blur area starts at blurStartPx and ends at wrapHeight
     const blurVisibleTop = Math.max(visibleTop, blurStartPx);
-    const blurVisibleBottom = Math.min(visibleBottom, wrapHeight - blurEndPadding);
+    const blurVisibleBottom = Math.min(visibleBottom, wrapHeight - buttonHeight / 2);
+
+    // If no blur area is visible, keep button at default position
+    if (blurVisibleBottom <= blurVisibleTop) return;
 
     // Center the button in the visible blur area
-    if (blurVisibleBottom > blurVisibleTop) {
-        const centerY = (blurVisibleTop + blurVisibleBottom) / 2;
-        const topPercent = (centerY / wrapHeight) * 100;
+    const centerY = (blurVisibleTop + blurVisibleBottom) / 2;
+    const topPercent = (centerY / wrapHeight) * 100;
 
-        // Clamp between 40% and 88% (stay within blur, with some padding)
-        const clamped = Math.max(40, Math.min(88, topPercent));
-        peekBtn.style.setProperty("--peek-top", `${clamped}%`);
-    }
+    // Clamp between 40% and 92% (stay within blur, with some padding)
+    const clamped = Math.max(40, Math.min(92, topPercent));
+    peekBtn.style.setProperty("--peek-top", `${clamped}%`);
 }
 
 /**
