@@ -1,7 +1,6 @@
-import {$} from "../core/dom.js";
-import {t} from "../core/i18n.js";
-import {fmtMs, fmtPoints, safeLsGet} from "../core/utils.js";
-import {state, STORAGE_KEY_LANDING} from "../core/state.js";
+import { $ } from "../core/dom.js";
+import { t } from "../core/i18n.js";
+import { fmtMs, fmtPoints } from "../core/utils.js";
 
 function matchEndSubtitle(reason) {
     const r = String(reason || "");
@@ -24,12 +23,15 @@ function matchEndTitleAndBadge(winner, reason) {
     return {title: t("matchEndNone"), badge: "🏁", klass: "none"};
 }
 
-export function isMatchEndVisible() {
-    return !!state.ui.matchEndVisible;
-}
-
-export function showMatchEndModal(payload) {
+export function renderMatchEndModal(state) {
     const overlay = $("#matchEndOverlay");
+    if (!overlay) return;
+    const payload = state.ui.matchEnd;
+    if (!payload) {
+        overlay.classList.add("hidden");
+        overlay.setAttribute("aria-hidden", "true");
+        return;
+    }
     const modal = overlay.querySelector(".end-modal");
 
     const {title, badge, klass} = matchEndTitleAndBadge(payload.winner, payload.reason);
@@ -41,8 +43,8 @@ export function showMatchEndModal(payload) {
     $("#endTitle").textContent = title;
     $("#endSub").textContent = matchEndSubtitle(payload.reason);
 
-    $("#endHumanName").textContent = state.nickname || t("yourId");
-    $("#endLlmName").textContent = state.opponentDisplayName || "LLM";
+    $("#endHumanName").textContent = state.player.nickname || t("yourId");
+    $("#endLlmName").textContent = state.session.opponentDisplayName || "LLM";
 
     $("#endHumanScore").textContent = fmtPoints(payload.humanTotalScore);
     $("#endLlmScore").textContent = fmtPoints(payload.llmTotalScore);
@@ -52,17 +54,19 @@ export function showMatchEndModal(payload) {
 
     overlay.classList.remove("hidden");
     overlay.setAttribute("aria-hidden", "false");
-    state.ui.matchEndVisible = true;
 
     requestAnimationFrame(() => $("#btnEndLobby")?.focus());
 }
 
-export function hideMatchEndModal() {
-    const overlay = $("#matchEndOverlay");
+export function renderLandingOverlay(state) {
+    const overlay = $("#landingOverlay");
     if (!overlay) return;
-    overlay.classList.add("hidden");
-    overlay.setAttribute("aria-hidden", "true");
-    state.ui.matchEndVisible = false;
+    const shouldShow = !state.ui.landingAcked;
+    overlay.classList.toggle("hidden", !shouldShow);
+    overlay.setAttribute("aria-hidden", shouldShow ? "false" : "true");
+    if (shouldShow) {
+        setTimeout(() => $("#btnLandingDismiss")?.focus(), 100);
+    }
 }
 
 /** ---- DETAIL modal (for mobile question set badge) ---- */
@@ -200,16 +204,4 @@ export async function loadLicenseHtml() {
     }
 }
 
-export function checkLandingPopup() {
-    // Show only on first visit (until user dismisses)
-    const ack = safeLsGet(STORAGE_KEY_LANDING);
-    if (ack) return;
-
-    const overlay = $("#landingOverlay");
-    if (!overlay) return;
-
-    overlay.classList.remove("hidden");
-    overlay.setAttribute("aria-hidden", "false");
-    setTimeout(() => $("#btnLandingDismiss")?.focus(), 100);
-}
 
