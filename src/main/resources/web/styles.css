@@ -1450,6 +1450,15 @@ a:hover {
     animation: glowPulseTie 800ms ease-out 1;
 }
 
+@media (prefers-reduced-motion: reduce) {
+
+    .glow-win,
+    .glow-lose,
+    .glow-tie {
+        animation: none !important;
+    }
+}
+
 /* ==========================================================================
    Markdown
    ========================================================================== */
