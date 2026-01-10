@@ -1,3 +1,19 @@
+## [v0.8.2] - 2026-01-10
+### Added
+- Add reduced motion styles to respect user accessibility preferences (#21)
+- Add new VS transition overlay with fighting-game-style animation and callbacks (#21)
+
+### Changed
+- Revamp VS transition overlay animation for improved sequencing and mobile support (#21)
+- Improve round start flow to prevent double starts and enhance UI feedback (#21)
+- Remove gold spark effect to simplify visual design (#21)
+
+### Fixed
+- Ensure auto-start only triggers after VS transition completes (#21)
+
+### Internal
+- Bump version to v0.8.2 (#21)
+
 ## [v0.8.1] - 2026-01-10
 ### Added
 - Add Open Graph meta tags to index.html for better social sharing.
