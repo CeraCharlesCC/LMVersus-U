@@ -1,3 +1,22 @@
+## [v0.8.0] - 2026-01-10
+### Added
+- Add opponent filter, pagination, and hide losers option to the leaderboard (#19)
+- Add scroll-following behavior to the 'Show Reasoning' peek button (#19)
+- Display both human and LM final scores in the leaderboard (#19)
+
+### Changed
+- Improve leaderboard responsiveness and rendering on window resize (#19)
+- Shorten leaderboard headers and allow line breaks for better mobile display (#19)
+- Limit nickname length to 5 characters and update validation (#19)
+- Mark nickname field as required in UI labels (#19)
+
+### Documentation
+- Update i18n keys for opponent filter and shortened headers in English and Japanese (#19)
+
+### Internal
+- Refactor leaderboard backend to support dual scores and new filtering (#19)
+- Add peekButtonFollower.js module and integrate it with bindUi/roundUi (#19)
+
 ## [v0.7.2] - 2026-01-08
 ### Fixed
 - Prevent actions on resolved sessions by excluding them from active session lookups.
