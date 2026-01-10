@@ -3043,6 +3043,16 @@ th:not(.th-select-cell) {
     animation: vsPulse 820ms ease-in-out infinite;
 }
 
+@media (prefers-reduced-motion: reduce) {
+    .vs-player,
+    .vs-shutter,
+    .vs-text {
+        animation: none !important;
+        text-shadow: none !important;
+        box-shadow: none !important;
+    }
+}
+
 /* Mobile layout: stack */
 @media (max-width: 760px) {
     .vs-content {
@@ -3065,46 +3075,6 @@ th:not(.th-select-cell) {
     .vs-center {
         padding-block: 4px;
     }
-}
-
-/* ---- Sparks (now gold) ---- */
-
-.vs-spark {
-    position: absolute;
-    width: 10px;
-    height: 10px;
-    border-radius: 999px;
-
-    background: radial-gradient(circle, var(--vs-gold) 0%, transparent 70%);
-    opacity: 0;
-}
-
-.vs-overlay.is-closed .vs-spark {
-    animation: vsSpark 1100ms ease-out infinite;
-}
-
-.vs-spark-1 {
-    left: -12px;
-    top: 18%;
-    animation-delay: 0ms;
-}
-
-.vs-spark-2 {
-    right: -10px;
-    top: 30%;
-    animation-delay: 180ms;
-}
-
-.vs-spark-3 {
-    left: -8px;
-    bottom: 22%;
-    animation-delay: 360ms;
-}
-
-.vs-spark-4 {
-    right: -14px;
-    bottom: 16%;
-    animation-delay: 540ms;
 }
 
 /* ---- Flash (warm gold tint) ---- */
