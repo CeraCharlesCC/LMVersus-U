@@ -119,6 +119,23 @@ function onPlayerJoined(state, msg) {
 function onRoundStarted(state, msg) {
     const freeAnswerMode =
         msg.expectedAnswerType === "integer" ? "int" : msg.expectedAnswerType === "free_text" ? "text" : "text";
+
+    // Restore submitted state from humanAnswer if present (reconnect scenario)
+    const humanAnswer = msg.humanAnswer ?? null;
+    const submitted = humanAnswer !== null;
+    let selectedChoiceIndex = null;
+    let answerInt = "";
+    let answerText = "";
+    if (humanAnswer) {
+        if (humanAnswer.type === "multiple_choice") {
+            selectedChoiceIndex = humanAnswer.choiceIndex;
+        } else if (humanAnswer.type === "integer") {
+            answerInt = String(humanAnswer.value);
+        } else if (humanAnswer.type === "free_text") {
+            answerText = humanAnswer.text;
+        }
+    }
+
     return {
         state: {
             ...resetRound(state),
@@ -138,6 +155,11 @@ function onRoundStarted(state, msg) {
                 handicapMs: msg.handicapMs || 0,
                 deadlineAt: msg.deadlineAtEpochMs || (msg.releasedAtEpochMs || Date.now()) + 60000,
                 nonceToken: msg.nonceToken,
+                humanAnswer,
+                submitted,
+                selectedChoiceIndex,
+                answerInt,
+                answerText,
             },
             ui: { ...state.ui, roundStartPending: false },
         },

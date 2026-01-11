@@ -190,7 +190,7 @@ class SessionActorIntegrityTest {
             )
         }
     }
-    
+
     @Test
     fun `Adversarial - Invalid Nonce Token Rejection`() = runTest {
         every { llmGateway.streamAnswer(any()) } returns emptyFlow()
@@ -319,5 +319,54 @@ class SessionActorIntegrityTest {
         assertEquals(roundEvent.roundId, snapshot.roundId)
         assertEquals(roundEvent.questionPrompt, snapshot.questionPrompt)
         assertEquals(roundEvent.nonceToken, snapshot.nonceToken)
+    }
+
+    @Test
+    fun `Rejoin Session includes humanAnswer in snapshot if already submitted`() = runTest {
+        every { llmGateway.streamAnswer(any()) } returns emptyFlow()
+
+        currentTestScheduler = testScheduler
+        actor = createActor(StandardTestDispatcher(testScheduler))
+
+        // First join - creates session
+        joinSession()
+        testScheduler.runCurrent()
+
+        // Start a round
+        startRound()
+        testScheduler.runCurrent()
+
+        // Capture round started event
+        val roundStartedSlot = slot<GameEvent.RoundStarted>()
+        coVerify { eventBus.publish(capture(roundStartedSlot)) }
+        val roundEvent = roundStartedSlot.captured
+
+        // Submit an answer
+        val submittedAnswer = Answer.MultipleChoice(0)
+        actor.submit(
+            SessionCommand.SubmitAnswer(
+                sessionId = sessionId,
+                playerId = humanId,
+                roundId = roundEvent.roundId,
+                commandId = Uuid.random(),
+                nonceToken = roundEvent.nonceToken,
+                answer = submittedAnswer,
+                clientSentAt = null,
+            )
+        )
+        testScheduler.runCurrent()
+
+        // Now rejoin - simulate browser refresh
+        val rejoinDeferred = CompletableDeferred<SessionActor.JoinResponse>()
+        actor.submit(SessionCommand.JoinSession(sessionId, humanId, "Tester", rejoinDeferred))
+        testScheduler.runCurrent()
+        val rejoinResponse = rejoinDeferred.await()
+
+        // Verify the snapshot contains the already-submitted answer
+        assertIs<SessionActor.JoinResponse.Accepted>(rejoinResponse)
+        val snapshot = rejoinResponse.roundSnapshot
+        assertIs<GameEvent.RoundStarted>(snapshot!!)
+        assertEquals(roundEvent.roundId, snapshot.roundId)
+        assertEquals(submittedAnswer, snapshot.humanAnswer)
     }
 }

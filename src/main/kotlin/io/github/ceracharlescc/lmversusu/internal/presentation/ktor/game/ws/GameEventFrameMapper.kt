@@ -42,6 +42,7 @@ internal class GameEventFrameMapper @Inject constructor(
                 handicapMs = event.handicapMs,
                 deadlineAtEpochMs = event.deadlineAt.toEpochMilli(),
                 nonceToken = event.nonceToken,
+                humanAnswer = event.humanAnswer,
             )
         }
 

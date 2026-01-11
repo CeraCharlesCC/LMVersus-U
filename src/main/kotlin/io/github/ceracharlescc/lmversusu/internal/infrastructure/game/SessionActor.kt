@@ -82,6 +82,7 @@ internal class SessionActor(
     private val roundStreamStates = ConcurrentHashMap<Uuid, RoundStreamState>()
 
     private var sessionResolvedEmitted: Boolean = false
+
     @Volatile
     private var resolvedState: SessionState? = null
     private var droppedReasoningDeltaCount: Int = 0
@@ -953,7 +954,11 @@ internal class SessionActor(
         return sessionId.toString()
     }
 
-    private fun roundStartedEvent(round: Round, roundNumber: Int): GameEvent.RoundStarted {
+    private fun roundStartedEvent(
+        round: Round,
+        roundNumber: Int,
+        humanAnswer: Answer? = null,
+    ): GameEvent.RoundStarted {
         return GameEvent.RoundStarted(
             sessionId = sessionId,
             questionId = round.question.questionId,
@@ -966,6 +971,7 @@ internal class SessionActor(
             handicapMs = round.handicap.toMillis(),
             deadlineAt = round.deadline,
             nonceToken = round.nonceToken,
+            humanAnswer = humanAnswer,
         )
     }
 
@@ -976,7 +982,11 @@ internal class SessionActor(
     private fun buildRoundSnapshot(gameSession: GameSession): GameEvent.RoundStarted? {
         val activeRound = gameSession.rounds.lastOrNull { it.isInProgress } ?: return null
         val roundNumber = gameSession.rounds.indexOfFirst { it.roundId == activeRound.roundId } + 1
-        return roundStartedEvent(round = activeRound, roundNumber = roundNumber)
+        return roundStartedEvent(
+            round = activeRound,
+            roundNumber = roundNumber,
+            humanAnswer = activeRound.humanSubmission?.answer,
+        )
     }
 
     private fun updateSessionWithRound(

@@ -48,6 +48,7 @@ internal data class WsRoundStarted(
     val handicapMs: Long,
     val deadlineAtEpochMs: Long,
     val nonceToken: String,
+    val humanAnswer: Answer? = null,
 ) : WsGameFrame
 
 @Serializable
