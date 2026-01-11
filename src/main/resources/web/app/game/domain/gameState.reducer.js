@@ -1,8 +1,3 @@
-/**
- * Main reducer for game state.
- * Extracted from gameState.js for modularity.
- */
-
 import { MAX_NICKNAME_LEN } from "../../core/state.js";
 import { ActionType, EffectType, GamePhase } from "./gameState.types.js";
 import { createInitialState, defaultRoundState, defaultLlmState } from "./gameState.initial.js";

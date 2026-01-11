@@ -1,8 +1,3 @@
-/**
- * Server event handlers using dispatch table pattern.
- * Extracted from gameState.js for modularity.
- */
-
 import { GamePhase, EffectType } from "./gameState.types.js";
 import { defaultRoundState, defaultLlmState } from "./gameState.initial.js";
 

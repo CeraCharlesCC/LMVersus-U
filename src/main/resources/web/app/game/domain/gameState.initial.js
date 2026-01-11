@@ -1,8 +1,3 @@
-/**
- * Initial state factories for game state.
- * Extracted from gameState.js for modularity.
- */
-
 import { GamePhase } from "./gameState.types.js";
 
 export const defaultRoundState = () => ({

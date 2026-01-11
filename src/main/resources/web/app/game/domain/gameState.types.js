@@ -1,8 +1,3 @@
-/**
- * Game state type constants.
- * Extracted from gameState.js for modularity.
- */
-
 export const GamePhase = {
     LOBBY: "LOBBY",
     JOINING: "JOINING",
