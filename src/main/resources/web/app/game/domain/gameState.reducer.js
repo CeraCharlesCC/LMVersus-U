@@ -339,7 +339,7 @@ export function reducer(state, action) {
         case ActionType.INTENT_GIVE_UP: {
             if (!state.session.id) return { state, effects: [] };
             return {
-                state,
+                state: { ...state, ui: { ...state.ui, roundDisplayHidden: true } },
                 effects: [{ type: EffectType.TERMINATE_SESSION }],
             };
         }
@@ -351,7 +351,7 @@ export function reducer(state, action) {
         }
         case ActionType.GIVE_UP_FAILED: {
             return {
-                state,
+                state: { ...state, ui: { ...state.ui, roundDisplayHidden: false } },
                 effects: [{ type: EffectType.TOAST, payload: { key: "give_up_failed", message: action.payload?.message } }],
             };
         }

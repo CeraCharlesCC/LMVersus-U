@@ -317,17 +317,6 @@ export function createRoundView({ actions }) {
             const rn = state.round.number ? `#${state.round.number}` : "";
             $("#qMeta").textContent = [rn, state.round.questionId || ""].filter(Boolean).join("  ");
 
-            const rd = $("#roundDisplay");
-            if (rd) {
-                if (state.round.number > 0) {
-                    rd.textContent = `${state.round.number}/${totalRoundNumber}`;
-                    rd.classList.remove("hidden");
-                } else {
-                    rd.textContent = "";
-                    rd.classList.add("hidden");
-                }
-            }
-
             const hasChoices = Array.isArray(choices) && choices.length;
             $("#qSep")?.classList.toggle("hidden", !hasChoices);
             $("#qSep2")?.classList.toggle("hidden", !hasChoices);
@@ -373,6 +362,17 @@ export function createRoundView({ actions }) {
             const idx = Number(b.dataset.index);
             b.classList.toggle("is-selected", idx === state.round.selectedChoiceIndex);
         });
+    }
+
+    function renderRoundDisplay(state) {
+        const rd = $("#roundDisplay");
+        if (!rd) return;
+        const shouldShow =
+            state.round.number > 0 &&
+            state.phase !== GamePhase.SESSION_RESOLVED &&
+            !state.ui.roundDisplayHidden;
+        rd.textContent = shouldShow ? `${state.round.number}/${totalRoundNumber}` : "";
+        rd.classList.toggle("hidden", !shouldShow);
     }
 
     function renderFreeAnswerMode(state) {
@@ -562,6 +562,7 @@ export function createRoundView({ actions }) {
             renderTopTab(state);
             renderTimers(state);
             renderBottomActions(state);
+            renderRoundDisplay(state);
             renderQuestion(state);
             renderFreeAnswerMode(state);
             renderLlmReasoning(state);

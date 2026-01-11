@@ -83,6 +83,7 @@ export const createInitialState = (now = Date.now()) => ({
         vsTransitionPending: false,
         vsTransitionPlaying: false,
         autoStartRound: false,
+        roundDisplayHidden: false,
         matchEnd: null,
         lobbyTab: "LIGHTWEIGHT",
         topTab: "question",

@@ -34,6 +34,7 @@ const resetForLobby = (state) => ({
         vsTransitionPending: false,
         vsTransitionPlaying: false,
         autoStartRound: false,
+        roundDisplayHidden: false,
         matchEnd: null,
         lobbyTab: state.ui.lobbyTab || "LIGHTWEIGHT",
         topTab: "question",
