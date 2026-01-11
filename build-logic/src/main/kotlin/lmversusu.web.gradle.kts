@@ -33,26 +33,28 @@ val esbuildBundle = tasks.register<NpxTask>("esbuildBundle") {
 
     command.set("esbuild")
     args.set(
-        listOf(
-            appEntryRel,
-            cssEntryRel,
+        webDistDir.zip(esbuildMeta) { distDir, metaFile ->
+            listOf(
+                appEntryRel,
+                cssEntryRel,
 
-            "--bundle",
-            "--minify",
-            "--sourcemap",
+                "--bundle",
+                "--minify",
+                "--sourcemap",
 
-            "--platform=browser",
-            "--format=esm",
-            "--splitting",
+                "--platform=browser",
+                "--format=esm",
+                "--splitting",
 
-            "--entry-names=[name]-[hash]",
-            "--chunk-names=chunks/[name]-[hash]",
+                "--entry-names=[name]-[hash]",
+                "--chunk-names=chunks/[name]-[hash]",
 
-            "--external:./i18n/*",
+                "--external:./i18n/*",
 
-            "--outdir=${webDistDir.get().asFile.absolutePath}",
-            "--metafile=${esbuildMeta.get().asFile.absolutePath}",
-        )
+                "--outdir=${distDir.asFile.absolutePath}",
+                "--metafile=${metaFile.asFile.absolutePath}",
+            )
+        }
     )
 
     inputs.file(layout.projectDirectory.file(appEntryRel))
