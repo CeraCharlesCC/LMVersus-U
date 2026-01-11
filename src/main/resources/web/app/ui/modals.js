@@ -23,6 +23,9 @@ function matchEndTitleAndBadge(winner, reason) {
     return {title: t("matchEndNone"), badge: "🏁", klass: "none"};
 }
 
+let lastMatchEndOpen = false;
+let lastLandingOpen = false;
+
 export function renderMatchEndModal(state) {
     const overlay = $("#matchEndOverlay");
     if (!overlay) return;
@@ -30,6 +33,7 @@ export function renderMatchEndModal(state) {
     if (!payload) {
         overlay.classList.add("hidden");
         overlay.setAttribute("aria-hidden", "true");
+        lastMatchEndOpen = false;
         return;
     }
     const modal = overlay.querySelector(".end-modal");
@@ -55,7 +59,10 @@ export function renderMatchEndModal(state) {
     overlay.classList.remove("hidden");
     overlay.setAttribute("aria-hidden", "false");
 
-    requestAnimationFrame(() => $("#btnEndLobby")?.focus());
+    if (!lastMatchEndOpen) {
+        requestAnimationFrame(() => $("#btnEndLobby")?.focus());
+    }
+    lastMatchEndOpen = true;
 }
 
 export function renderLandingOverlay(state) {
@@ -64,9 +71,10 @@ export function renderLandingOverlay(state) {
     const shouldShow = !state.ui.landingAcked;
     overlay.classList.toggle("hidden", !shouldShow);
     overlay.setAttribute("aria-hidden", shouldShow ? "false" : "true");
-    if (shouldShow) {
+    if (shouldShow && !lastLandingOpen) {
         setTimeout(() => $("#btnLandingDismiss")?.focus(), 100);
     }
+    lastLandingOpen = shouldShow;
 }
 
 /** ---- DETAIL modal (for mobile question set badge) ---- */

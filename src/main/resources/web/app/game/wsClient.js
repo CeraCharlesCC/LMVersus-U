@@ -4,7 +4,7 @@ import { ActionType } from "./domain/gameState.js";
 let activeWs = null;
 
 export function connectWs({ dispatch, payload }) {
-    closeWs(dispatch);
+    closeWs(dispatch, { suppressDispatch: true });
 
     const ws = new WebSocket(wsUrl());
     activeWs = ws;
@@ -58,14 +58,15 @@ export function sendWs(frame) {
     return true;
 }
 
-export function closeWs(dispatch) {
+export function closeWs(dispatch, options = {}) {
+    const suppressDispatch = options.suppressDispatch === true;
     if (!activeWs) return;
     try {
         activeWs.close();
     } catch {
         // ignore
     } finally {
-        if (dispatch) {
+        if (dispatch && !suppressDispatch) {
             dispatch({ type: ActionType.WS_CLOSED, payload: { toastOnClose: false } });
         }
         activeWs = null;

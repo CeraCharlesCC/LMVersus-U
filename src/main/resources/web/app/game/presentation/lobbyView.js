@@ -11,6 +11,7 @@ export function createLobbyView({ actions }) {
     let lastMode = null;
     let lastModelsKey = "";
     let lastTab = null;
+    let lastNickname = null;
 
     const tabButtons = Array.from(document.querySelectorAll(".tab-btn"));
     tabButtons.forEach((btn) => {
@@ -99,8 +100,10 @@ export function createLobbyView({ actions }) {
         const nick = state.player.nickname || "";
         const nl = $("#nicknameLight");
         const np = $("#nicknamePremium");
-        if (nl && nl.value !== nick) nl.value = nick;
-        if (np && np.value !== nick) np.value = nick;
+        if (nick === lastNickname) return;
+        lastNickname = nick;
+        if (nl) nl.value = nick;
+        if (np) np.value = nick;
     }
 
     return {

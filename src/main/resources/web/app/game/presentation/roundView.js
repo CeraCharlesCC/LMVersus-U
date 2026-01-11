@@ -163,6 +163,7 @@ export function createRoundView({ actions }) {
         programmaticScroll: false,
         reasoningRenderHandle: null,
         pendingReasoningText: "",
+        lastReasoningText: "",
         reasoningSquaresShown: false,
         lastRoundId: null,
         lastQuestionKey: "",
@@ -396,7 +397,10 @@ export function createRoundView({ actions }) {
         $("#reasoningWrap").classList.toggle("masked", masked);
 
         const reasoningText = maybeAppendHiddenSquares(state);
-        scheduleReasoningRender(reasoningText);
+        if (reasoningText !== viewState.lastReasoningText) {
+            viewState.lastReasoningText = reasoningText;
+            scheduleReasoningRender(reasoningText);
+        }
 
         const streamError = $("#llmStreamError");
         if (streamError) {
@@ -533,6 +537,7 @@ export function createRoundView({ actions }) {
         viewState.lastResultKey = "";
         viewState.lastResultDetails = null;
         viewState.pendingReasoningText = "";
+        viewState.lastReasoningText = "";
         $("#omitHint")?.classList.add("hidden");
         $("#llmStreamError")?.classList.add("hidden");
         $("#llmAnswerBox")?.classList.add("hidden");
