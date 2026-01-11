@@ -1,12 +1,9 @@
-import {$} from "../core/dom.js";
-import {httpGetJson} from "../core/net.js";
-import {escapeHtml, isMobileLayout} from "../core/utils.js";
-import {t} from "../core/i18n.js";
-import {state} from "../core/state.js";
-import {renderModelBadgesHtml} from "../ui/badges.js";
-import {showDetailModal} from "../ui/modals.js";
-
-import {installRichTooltip} from "../ui/tooltips.js";
+import { httpGetJson } from "../core/net.js";
+import { escapeHtml, isMobileLayout } from "../core/utils.js";
+import { t } from "../core/i18n.js";
+import { renderModelBadgesHtml } from "../ui/badges.js";
+import { showDetailModal } from "../ui/modals.js";
+import { installRichTooltip } from "../ui/tooltips.js";
 
 // ----- Rich tooltip for Question Set badges (PC only, scoped to model picker) -----
 function installQsRichTooltip({wrapper, optionsList, ac}) {
@@ -76,7 +73,7 @@ function updateTriggerUI(triggerEl, model) {
     }
 }
 
-function renderModelSelectorWidget(container, input, models, mode) {
+export function renderModelSelectorWidget(container, input, models, mode, onSelect) {
     // Cleanup previous instance (prevents leaking global window listeners and orphaned floating menus)
     try {
         container._selectorAbort?.abort?.();
@@ -163,8 +160,9 @@ function renderModelSelectorWidget(container, input, models, mode) {
             updateTriggerUI(trigger, m);
             toggleMenu(false);
 
-            // Sync global state
-            state.mode = mode;
+            if (onSelect) {
+                onSelect({ mode, opponentSpecId: m.id });
+            }
         });
 
         // Keyboard selection for options
@@ -322,24 +320,13 @@ function renderModelSelectorWidget(container, input, models, mode) {
     window.addEventListener("keydown", onKeydown, {signal: ac.signal});
 }
 
-export function populateOpponentSelects() {
-    ["LIGHTWEIGHT", "PREMIUM"].forEach((mode) => {
-        const models = state.models[mode] || [];
-        const container = $(mode === "LIGHTWEIGHT" ? "#opponentLight" : "#opponentPremium");
-        const input = $(mode === "LIGHTWEIGHT" ? "#opponentLightVal" : "#opponentPremiumVal");
-
-        if (!container) return;
-
-        renderModelSelectorWidget(container, input, models, mode);
-    });
-}
-
 export async function loadModels() {
     const [light, prem] = await Promise.all([
         httpGetJson("/api/v1/models?mode=LIGHTWEIGHT"),
         httpGetJson("/api/v1/models?mode=PREMIUM"),
     ]);
-    state.models.LIGHTWEIGHT = light.models || [];
-    state.models.PREMIUM = prem.models || [];
-    populateOpponentSelects();
+    return {
+        light: light.models || [],
+        premium: prem.models || [],
+    };
 }

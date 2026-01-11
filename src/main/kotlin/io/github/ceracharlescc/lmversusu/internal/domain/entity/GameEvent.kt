@@ -34,7 +34,8 @@ internal sealed class GameEvent {
         val releasedAt: Instant,
         val handicapMs: Long,
         val deadlineAt: Instant,
-        val nonceToken: String
+        val nonceToken: String,
+        val humanAnswer: Answer? = null,
     ) : GameEvent()
 
     data class RoundResolved(

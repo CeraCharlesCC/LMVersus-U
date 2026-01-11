@@ -64,6 +64,16 @@ internal class SessionManager @Inject constructor(
         modeContextFor = ::limitContextFor,
     )
 
+    private suspend fun clearActiveBinding(playerId: Uuid, sessionId: Uuid, reason: String) {
+        playerActiveSessionRepository.clear(playerId, sessionId)
+        logger.debug(
+            "Cleared active session binding for player {} due to {} on session {}",
+            playerId,
+            reason,
+            sessionId
+        )
+    }
+
     suspend fun joinSession(
         sessionId: Uuid?,
         clientIdentity: ClientIdentity,
@@ -130,20 +140,10 @@ internal class SessionManager @Inject constructor(
             // Binding exists but we can't resolve its entry; reconcile stale/mismatched bindings.
             val activeEntry = actors[binding.sessionId] as? SessionEntry.Active
             if (activeEntry != null && activeEntry.ownerPlayerId != playerId) {
-                playerActiveSessionRepository.clear(playerId, binding.sessionId)
-                logger.debug(
-                    "Cleared active session binding for player {} due to owner mismatch on session {}",
-                    playerId,
-                    binding.sessionId
-                )
+                clearActiveBinding(playerId, binding.sessionId, "owner mismatch")
                 binding = null
             } else if (activeEntry != null && activeEntry.actor.isResolved()) {
-                playerActiveSessionRepository.clear(playerId, binding.sessionId)
-                logger.debug(
-                    "Cleared active session binding for player {} due to resolved session {}",
-                    playerId,
-                    binding.sessionId
-                )
+                clearActiveBinding(playerId, binding.sessionId, "resolved session")
                 binding = null
             } else if (sessionId != null && sessionId != binding.sessionId) {
                 return rejectActiveSessionExists(binding.sessionId, sessionId)

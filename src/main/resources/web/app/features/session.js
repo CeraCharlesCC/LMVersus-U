@@ -1,18 +1,14 @@
-import {LANG, t} from "../core/i18n.js";
-import {state} from "../core/state.js";
-import {toast} from "../ui/toast.js";
-import {openWsAndJoin} from "../game/ws.js";
+import { LANG, t } from "../core/i18n.js";
+import { toast } from "../ui/toast.js";
 
 export async function ensurePlayerSession() {
     const res = await fetch("/api/v1/player/session", {credentials: "include"});
     if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-    const data = await res.json();
-    state.playerId = data.playerId;
-    state.issuedAt = data.issuedAtEpochMs;
+    return res.json();
 }
 
 /** ---- Session Recovery (F5) ---- */
-export async function tryRecoverActiveSession() {
+export async function tryRecoverActiveSession(models, fallbackNickname) {
     try {
         const res = await fetch("/api/v1/player/active-session", {credentials: "include"});
         if (res.status === 204) {
@@ -29,32 +25,23 @@ export async function tryRecoverActiveSession() {
         }
 
         // Try to recover display name from opponent specs
-        const models = [...(state.models.LIGHTWEIGHT || []), ...(state.models.PREMIUM || [])];
-        const matchingModel = models.find((m) => m.id === data.opponentSpecId);
+        const flat = [...(models.LIGHTWEIGHT || []), ...(models.PREMIUM || [])];
+        const matchingModel = flat.find((m) => m.id === data.opponentSpecId);
         const displayName = matchingModel?.metadata.displayName || data.opponentSpecId;
 
         // We have an active session, attempt to rejoin via WebSocket
         toast(t("toastSession"), t("recovering"));
-
-        state.sessionId = data.activeSessionId;
-        state.opponentSpecId = data.opponentSpecId;
-        state.opponentDisplayName = displayName;
-        state.opponentQuestionSetDisplayName = matchingModel?.metadata?.questionSetDisplayName || null;
-        state.opponentQuestionSetDescription = matchingModel?.metadata?.questionSetDescription || null;
-        state.opponentQuestionSetDescriptionI18nKey = matchingModel?.metadata?.questionSetDescriptionI18nKey || null;
-        state.opponentDifficulty = matchingModel?.metadata?.difficulty || null;
-        // Nickname is not returned by this endpoint, so we use a placeholder
-        state.nickname = state.nickname || t("yourId");
-
-        openWsAndJoin({
+        return {
             sessionId: data.activeSessionId,
             opponentSpecId: data.opponentSpecId,
-            nickname: state.nickname,
+            opponentDisplayName: displayName,
+            opponentQuestionSetDisplayName: matchingModel?.metadata?.questionSetDisplayName || null,
+            opponentQuestionSetDescription: matchingModel?.metadata?.questionSetDescription || null,
+            opponentQuestionSetDescriptionI18nKey: matchingModel?.metadata?.questionSetDescriptionI18nKey || null,
+            opponentDifficulty: matchingModel?.metadata?.difficulty || null,
+            nickname: fallbackNickname || t("yourId"),
             locale: navigator.language || (LANG === "ja" ? "ja-JP" : "en"),
-            toastOnOpen: false, // avoid "Connecting" during recovery
-        });
-
-        return true;
+        };
     } catch (e) {
         // Network error - ignore and stay on lobby
         console.warn("Session recovery failed:", e);

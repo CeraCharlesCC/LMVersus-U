@@ -26,7 +26,7 @@ let listenerAttached = false;
  * Initialize element references.
  * Call this once after DOM is ready.
  */
-export function initPeekButtonFollower() {
+export function initPeekButtonFollower(signal) {
     reasoningWrap = $("#reasoningWrap");
     peekBtn = $("#btnPeek");
     panelBody = $("#llmPanel .panel-body");
@@ -34,9 +34,22 @@ export function initPeekButtonFollower() {
     if (!panelBody || !reasoningWrap || !peekBtn) return;
 
     if (!listenerAttached) {
-        panelBody.addEventListener("scroll", scheduleUpdate, { passive: true });
-        window.addEventListener("resize", scheduleUpdate, { passive: true });
+        panelBody.addEventListener("scroll", scheduleUpdate, { passive: true, signal });
+        window.addEventListener("resize", scheduleUpdate, { passive: true, signal });
         listenerAttached = true;
+        if (signal) {
+            signal.addEventListener(
+                "abort",
+                () => {
+                    if (rafHandle) {
+                        cancelAnimationFrame(rafHandle);
+                        rafHandle = 0;
+                    }
+                    listenerAttached = false;
+                },
+                { once: true }
+            );
+        }
     }
 
     // Initial position

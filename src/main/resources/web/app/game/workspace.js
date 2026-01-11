@@ -1,96 +1,133 @@
-/**
- * workspace.js - Bottom panel workspace features for in-round UI
- *
- * Features:
- * - Answer validity derivation and locked submit state
- * - Answer summary chip with clear action
- * - Copy utilities (question, choice, scratchpad)
- * - Collapsible scratchpad with calculator
- * - Keyboard shortcuts (PC only)
- */
+import { $ } from "../core/dom.js";
+import { t } from "../core/i18n.js";
+import { isMobileLayout } from "../core/utils.js";
+import { toast } from "../ui/toast.js";
+import { GamePhase } from "./domain/gameState.js";
 
-import {$} from "../core/dom.js";
-import {t} from "../core/i18n.js";
-import {state} from "../core/state.js";
-import {isMobileLayout} from "../core/utils.js";
-import {toast} from "../ui/toast.js";
+function hasChoices(state) {
+    return Array.isArray(state.round.choices) && state.round.choices.length > 0;
+}
 
-// ---- State extensions (add to global state.ui) ----
-const initWorkspaceState = () => {
-    if (state.ui.workspace) return; // already initialized
-    state.ui.workspace = {
-        scratchOpen: !isMobileLayout(),
-        scratchText: "",
-        calcExpr: "",
-        calcResult: "",
-    };
-};
+function deriveAnswerValidity(state, now) {
+    if (state.phase !== GamePhase.IN_ROUND) return { valid: false, reason: null };
+    if (state.round.submitted) return { valid: true, reason: null };
+    if (now > state.round.deadlineAt && state.round.deadlineAt > 0) {
+        return { valid: false, reason: t("timeUp") };
+    }
 
-// ---- Answer Validity ----
-
-/**
- * Derive current answer validity.
- * @returns {{ valid: boolean, reason: string | null }}
- */
-export function deriveAnswerValidity() {
-    if (!state.inRound) return {valid: false, reason: null};
-    if (state.submitted) return {valid: true, reason: null}; // already submitted
-
-    const hasChoices = Array.isArray(state.choices) && state.choices.length > 0;
-
-    if (hasChoices) {
-        // MCQ mode
-        if (state.selectedChoiceIndex == null) {
-            return {valid: false, reason: t("lockReasonMcq")};
+    if (hasChoices(state)) {
+        if (state.round.selectedChoiceIndex == null) {
+            return { valid: false, reason: t("lockReasonMcq") };
         }
-        return {valid: true, reason: null};
+        return { valid: true, reason: null };
+    }
+
+    if (state.round.freeAnswerMode === "int") {
+        const raw = String(state.round.answerInt || "").trim();
+        if (!raw || !/^-?\d+$/.test(raw)) {
+            return { valid: false, reason: t("lockReasonInt") };
+        }
+        return { valid: true, reason: null };
+    }
+
+    const text = String(state.round.answerText || "").trim();
+    if (!text) {
+        return { valid: false, reason: t("lockReasonText") };
+    }
+    return { valid: true, reason: null };
+}
+
+function formatCurrentAnswerSummary(state) {
+    if (hasChoices(state)) {
+        const idx = state.round.selectedChoiceIndex;
+        if (idx == null) {
+            return t("answerSummaryEmpty");
+        }
+        return t("answerSummaryMcq", { n: idx + 1 });
+    }
+
+    if (state.round.freeAnswerMode === "int") {
+        const raw = String(state.round.answerInt || "").trim();
+        if (!raw) return t("answerSummaryEmpty");
+        return t("answerSummaryInt", { v: raw });
+    }
+
+    const text = String(state.round.answerText || "").trim();
+    if (!text) return t("answerSummaryEmpty");
+    const display = text.length > 50 ? text.slice(0, 50) + "…" : text;
+    return t("answerSummaryText", { v: display });
+}
+
+function updateAnswerSummary(state) {
+    const el = $("#answerSummaryText");
+    if (!el) return;
+
+    const summary = formatCurrentAnswerSummary(state);
+    el.textContent = summary;
+
+    let hasValue = false;
+    if (hasChoices(state)) {
+        hasValue = state.round.selectedChoiceIndex != null;
+    } else if (state.round.freeAnswerMode === "int") {
+        hasValue = !!String(state.round.answerInt || "").trim();
     } else {
-        // Free response mode
-        if (state.freeAnswerMode === "int") {
-            const raw = ($("#intValue")?.value || "").trim();
-            if (!raw || !/^-?\d+$/.test(raw)) {
-                return {valid: false, reason: t("lockReasonInt")};
-            }
-            return {valid: true, reason: null};
-        } else {
-            // text mode
-            const text = ($("#freeText")?.value || "").trim();
-            if (!text) {
-                return {valid: false, reason: t("lockReasonText")};
-            }
-            return {valid: true, reason: null};
-        }
+        hasValue = !!String(state.round.answerText || "").trim();
+    }
+
+    el.classList.toggle("has-value", hasValue);
+}
+
+function updateKeyboardHint(state) {
+    const el = $("#kbdHint");
+    if (!el) return;
+
+    if (isMobileLayout()) {
+        el.textContent = "";
+        return;
+    }
+
+    if (state.phase !== GamePhase.IN_ROUND) {
+        el.textContent = "";
+        return;
+    }
+
+    if (hasChoices(state)) {
+        el.textContent = t("kbdHintMcq");
+    } else if (state.round.freeAnswerMode === "int") {
+        el.textContent = t("kbdHintInt");
+    } else {
+        el.textContent = t("kbdHintText");
     }
 }
 
-/**
- * Apply the locked/unlocked submit state based on answer validity.
- */
-export function applySubmitLockState() {
+function updateSubmitLockState(state) {
     const btn = $("#btnSubmit");
     const meta = $("#aMeta");
     if (!btn) return;
 
-    // Don't override frozen (already submitted) or time-up
-    if (state.submitted) {
-        btn.classList.remove("is-locked");
-        return;
-    }
-
-    // Check if time is up
-    if (Date.now() > state.deadlineAt && state.deadlineAt > 0) {
-        btn.classList.remove("is-locked");
+    if (state.phase !== GamePhase.IN_ROUND) {
+        btn.classList.remove("is-locked", "is-frozen");
         btn.disabled = true;
-        if (meta) meta.textContent = t("timeUp");
+        if (meta) meta.textContent = "";
         return;
     }
 
-    const {valid, reason} = deriveAnswerValidity();
+    if (state.round.submitted) {
+        btn.classList.remove("is-locked");
+        btn.classList.add("is-frozen");
+        btn.disabled = true;
+        if (meta) meta.textContent = t("submitted");
+        return;
+    }
+
+    btn.classList.remove("is-frozen");
+    const now = state.timers.now || Date.now();
+    const { valid, reason } = deriveAnswerValidity(state, now);
 
     if (!valid) {
         btn.disabled = true;
         btn.classList.add("is-locked");
-        if (meta && reason) meta.textContent = reason;
+        if (meta) meta.textContent = reason || "";
     } else {
         btn.disabled = false;
         btn.classList.remove("is-locked");
@@ -98,101 +135,44 @@ export function applySubmitLockState() {
     }
 }
 
-// ---- Answer Summary Chip ----
+function updateClearButtonState(state) {
+    const btn = $("#btnClearAnswer");
+    if (btn) {
+        btn.disabled = !!state.round.submitted;
+    }
+}
 
-/**
- * Format the current answer for the summary chip.
- * @returns {string}
- */
-export function formatCurrentAnswerSummary() {
-    const hasChoices = Array.isArray(state.choices) && state.choices.length > 0;
+function applyScratchpadPlacement() {
+    const toggle = $("#scratchpadToggle");
+    const panel = $("#scratchpadPanel");
+    const section = $("#scratchpadSection");
+    const summary = $("#answerSummary");
 
-    if (hasChoices) {
-        const idx = state.selectedChoiceIndex;
-        if (idx == null) {
-            return t("answerSummaryEmpty");
+    if (!toggle || !panel || !section) return;
+
+    if (isMobileLayout()) {
+        if (toggle.parentElement !== summary) {
+            summary.appendChild(toggle);
         }
-        return t("answerSummaryMcq", {n: idx + 1});
+        if (panel.parentElement !== section) {
+            section.appendChild(panel);
+        }
     } else {
-        if (state.freeAnswerMode === "int") {
-            const raw = ($("#intValue")?.value || "").trim();
-            if (!raw) return t("answerSummaryEmpty");
-            return t("answerSummaryInt", {v: raw});
-        } else {
-            const text = ($("#freeText")?.value || "").trim();
-            if (!text) return t("answerSummaryEmpty");
-            const display = text.length > 50 ? text.slice(0, 50) + "…" : text;
-            return t("answerSummaryText", {v: display});
+        if (toggle.parentElement !== summary) {
+            summary.appendChild(toggle);
+        }
+        if (panel.parentElement !== section) {
+            section.appendChild(panel);
         }
     }
 }
 
-/**
- * Update the answer summary chip UI.
- */
-export function updateAnswerSummary() {
-    const el = $("#answerSummaryText");
-    if (!el) return;
-
-    const summary = formatCurrentAnswerSummary();
-    el.textContent = summary;
-
-    // Apply "has-value" styling when answer is selected
-    const hasChoices = Array.isArray(state.choices) && state.choices.length > 0;
-    let hasValue = false;
-    if (hasChoices) {
-        hasValue = state.selectedChoiceIndex != null;
-    } else if (state.freeAnswerMode === "int") {
-        hasValue = !!($("#intValue")?.value || "").trim();
-    } else {
-        hasValue = !!($("#freeText")?.value || "").trim();
-    }
-
-    el.classList.toggle("has-value", hasValue);
-}
-
-// ---- Clear Answer ----
-
-/**
- * Clear the current answer and update UI.
- */
-export function clearAnswer() {
-    const hasChoices = Array.isArray(state.choices) && state.choices.length > 0;
-
-    if (hasChoices) {
-        state.selectedChoiceIndex = null;
-        document.querySelectorAll(".choice-btn").forEach(b => {
-            b.classList.remove("is-selected");
-        });
-    } else {
-        if (state.freeAnswerMode === "int") {
-            const el = $("#intValue");
-            if (el) el.value = "";
-        } else {
-            const el = $("#freeText");
-            if (el) el.value = "";
-        }
-    }
-
-    updateAnswerSummary();
-    applySubmitLockState();
-}
-
-// ---- Copy Utilities ----
-
-/**
- * Copy text to clipboard with fallback.
- * @param {string} text
- * @returns {Promise<boolean>}
- */
 async function copyToClipboard(text) {
     try {
         if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
             await navigator.clipboard.writeText(text);
             return true;
         }
-
-        // Fallback for older browsers
         const textarea = document.createElement("textarea");
         textarea.value = text;
         textarea.style.position = "fixed";
@@ -207,127 +187,16 @@ async function copyToClipboard(text) {
     }
 }
 
-export async function copyQuestion() {
-    const text = state.questionPrompt || "";
-    if (!text.trim()) return;
-    const ok = await copyToClipboard(text);
-    toast(ok ? t("copied") : t("copyFailed"), "", ok ? "info" : "error");
-}
-
-export async function copySelectedChoice() {
-    if (!Array.isArray(state.choices)) return;
-    const idx = state.selectedChoiceIndex;
-    if (idx == null) return;
-
-    const text = state.choices[idx] || "";
-    if (!text.trim()) return;
-    const ok = await copyToClipboard(text);
-    toast(ok ? t("copied") : t("copyFailed"), "", ok ? "info" : "error");
-}
-
-export async function copyScratchpad() {
-    initWorkspaceState();
-    const text = state.ui.workspace.scratchText || "";
-    if (!text.trim()) return;
-    const ok = await copyToClipboard(text);
-    toast(ok ? t("copied") : t("copyFailed"), "", ok ? "info" : "error");
-}
-
-// ---- Scratchpad ----
-
-function syncScratchpadUi() {
-    initWorkspaceState();
-    const open = !!state.ui.workspace.scratchOpen;
-
-    const toggle = $("#scratchpadToggle");
-    const panel = $("#scratchpadPanel");
-    const arrow = $("#scratchpadArrow");
-
-    if (toggle) {
-        toggle.classList.toggle("is-open", open);
-        toggle.setAttribute("aria-expanded", open ? "true" : "false");
-    }
-    if (panel) panel.classList.toggle("hidden", !open);
-    if (arrow) arrow.textContent = open ? "▾" : "▸";
-}
-
-export function toggleScratchpad() {
-    initWorkspaceState();
-    state.ui.workspace.scratchOpen = !state.ui.workspace.scratchOpen;
-    syncScratchpadUi();
-}
-
-function isCompactHeightPhone() {
-    // "Smartphones with vertical resolution of 740-800px or less"
-    // We also require the mobile layout breakpoint to avoid affecting desktop.
-    return isMobileLayout() && window.matchMedia("(max-height: 800px)").matches;
-}
-
-// ---- Scratchpad Placement Logic ----
-
-function applyScratchpadPlacement() {
-    const toggle = $("#scratchpadToggle");
-    const panel = $("#scratchpadPanel");
-    const section = $("#scratchpadSection");
-    const summary = $("#answerSummary");
-
-    if (!toggle || !panel || !section) return;
-
-    if (isMobileLayout()) {
-        // MOBILE: Move toggle to Summary area
-        if (toggle.parentElement !== summary) {
-            summary.appendChild(toggle);
-        }
-        if (panel.parentElement !== section) {
-            section.appendChild(panel);
-        }
-    } else {
-        // PC:
-        // 1. Move toggle back to Left Column (#answerSummary) to align with "Clear" button
-        if (toggle.parentElement !== summary) {
-            summary.appendChild(toggle);
-        }
-
-        // 2. Keep panel in Right Column (#scratchpadSection)
-        if (panel.parentElement !== section) {
-            section.appendChild(panel);
-        }
-    }
-
-    // Ensure the section is visible if open
-    section.classList.remove("is-relocated");
-
-    syncScratchpadUi();
-}
-
-
-export function updateScratchpadText(text) {
-    initWorkspaceState();
-    state.ui.workspace.scratchText = text || "";
-}
-
-// ---- Calculator ----
-
-/**
- * Safely evaluate a mathematical expression.
- * Supports: numbers, + - * / ( ) . and constants: pi, e
- * Functions: sqrt, pow, log, ln, sin, cos, tan, abs
- * @param {string} expr
- * @returns {{ value: number | null, error: string | null }}
- */
 export function evalCalc(expr) {
     if (!expr || !expr.trim()) {
-        return {value: null, error: null};
+        return { value: null, error: null };
     }
 
-    // Tokenize and validate
     const sanitized = expr
         .toLowerCase()
         .replace(/\s+/g, "")
-        // Replace constants
         .replace(/\bpi\b/g, `(${Math.PI})`)
         .replace(/\be\b/g, `(${Math.E})`)
-        // Replace functions with Math.*
         .replace(/\bsqrt\(/g, "Math.sqrt(")
         .replace(/\bpow\(/g, "Math.pow(")
         .replace(/\blog\(/g, "Math.log10(")
@@ -337,174 +206,217 @@ export function evalCalc(expr) {
         .replace(/\btan\(/g, "Math.tan(")
         .replace(/\babs\(/g, "Math.abs(");
 
-    // Strict validation: only allow safe characters
-    // Allow: digits, ., +, -, *, /, (, ), Math, and comma for function args
     const safePattern =
         /^(?:\d+(?:\.\d+)?|[+\-*/(),]|\bMath\.(?:sqrt|pow|log|log10|sin|cos|tan|abs)\b)+$/;
     if (!safePattern.test(sanitized)) {
-        return {value: null, error: "Invalid expression"};
+        return { value: null, error: "Invalid expression" };
     }
 
-    // Check for balanced parentheses
     let depth = 0;
     for (const ch of sanitized) {
         if (ch === "(") depth++;
         if (ch === ")") depth--;
         if (depth < 0) {
-            return {value: null, error: "Unbalanced parentheses"};
+            return { value: null, error: "Unbalanced parentheses" };
         }
     }
     if (depth !== 0) {
-        return {value: null, error: "Unbalanced parentheses"};
+        return { value: null, error: "Unbalanced parentheses" };
     }
 
     try {
-        // Use Function constructor for isolated execution
         const fn = new Function(`"use strict"; return (${sanitized});`);
         const result = fn();
 
         if (typeof result !== "number" || !Number.isFinite(result)) {
-            return {value: null, error: "Invalid result"};
+            return { value: null, error: "Invalid result" };
         }
 
-        // Round to avoid floating point weirdness in display
         const rounded = Math.round(result * 1e10) / 1e10;
-        return {value: rounded, error: null};
-    } catch (e) {
-        return {value: null, error: "Eval error"};
+        return { value: rounded, error: null };
+    } catch {
+        return { value: null, error: "Eval error" };
     }
 }
 
-export function runCalc() {
-    initWorkspaceState();
-    const input = $("#calcExpr");
-    const resultEl = $("#calcResult");
-    if (!input || !resultEl) return;
+export function createWorkspaceView({ actions }) {
+    const ac = new AbortController();
+    const signal = ac.signal;
+    let currentState = null;
+    initWorkspaceText();
 
-    const expr = input.value || "";
-    const {value, error} = evalCalc(expr);
-
-    if (error) {
-        resultEl.textContent = error;
-        resultEl.classList.add("error");
-    } else if (value != null) {
-        resultEl.textContent = String(value);
-        resultEl.classList.remove("error");
-    } else {
-        resultEl.textContent = "";
-        resultEl.classList.remove("error");
-    }
-
-    state.ui.workspace.calcExpr = expr;
-    state.ui.workspace.calcResult = resultEl.textContent;
-}
-
-export function clearScratchpad() {
-    initWorkspaceState();
-    const textarea = $("#scratchpadText");
-    const exprInput = $("#calcExpr");
-    const resultEl = $("#calcResult");
-
-    if (textarea) textarea.value = "";
-    if (exprInput) exprInput.value = "";
-    if (resultEl) {
-        resultEl.textContent = "";
-        resultEl.classList.remove("error");
-    }
-
-    state.ui.workspace.scratchText = "";
-    state.ui.workspace.calcExpr = "";
-    state.ui.workspace.calcResult = "";
-}
-
-// ---- Keyboard Shortcuts ----
-
-/**
- * Update keyboard hint text based on current mode.
- */
-export function updateKeyboardHint() {
-    const el = $("#kbdHint");
-    if (!el) return;
-
-    // Hide on mobile
-    if (isMobileLayout()) {
-        el.textContent = "";
-        return;
-    }
-
-    if (!state.inRound) {
-        el.textContent = "";
-        return;
-    }
-
-    const hasChoices = Array.isArray(state.choices) && state.choices.length > 0;
-
-    if (hasChoices) {
-        el.textContent = t("kbdHintMcq");
-    } else if (state.freeAnswerMode === "int") {
-        el.textContent = t("kbdHintInt");
-    } else {
-        el.textContent = t("kbdHintText");
-    }
-}
-
-/**
- * Handle keyboard shortcuts for MCQ selection and submission.
- * @param {KeyboardEvent} e
- * @param {() => void} submitFn - Submit answer callback
- */
-export function handleKeyboardShortcut(e, submitFn) {
-    if (!state.inRound || state.submitted) return;
-    if (isMobileLayout()) return;
-
-    const target = e.target;
-
-    // If the user is typing anywhere (inputs/textareas/selects/contenteditable),
-    // NEVER trigger global shortcuts (fixes scratchpad/calc/int inputs stealing digits).
-    const tag = target?.tagName;
-    const isTypingContext = !!target && (
-        target.isContentEditable ||
-        tag === "TEXTAREA" ||
-        tag === "INPUT" ||
-        tag === "SELECT"
+    $("#btnClearAnswer")?.addEventListener(
+        "click",
+        () => actions.clearAnswer(),
+        { signal }
     );
-    if (isTypingContext) return;
 
-    const hasChoices = Array.isArray(state.choices) && state.choices.length > 0;
-    if (!hasChoices) return;
+    $("#scratchpadToggle")?.addEventListener(
+        "click",
+        () => actions.toggleScratchpad(),
+        { signal }
+    );
 
-    // MCQ mode: 1-9 for selection, Enter for submit
-    const key = e.key;
+    $("#scratchpadText")?.addEventListener(
+        "input",
+        (event) => actions.updateScratchpadText(event.target.value),
+        { signal }
+    );
 
-    const m = e.code?.match(/^Digit([0-9])$/);
-    if (m) {
-        const d = Number(m[1]);
-        let idx = d - 1;
-        if (d === 0) idx = 9;
-        if (e.shiftKey) idx += 10;
-        if (idx < state.choices.length) {
-            state.selectedChoiceIndex = idx;
-            document.querySelectorAll(".choice-btn").forEach((btn, i) => {
-                btn.classList.toggle("is-selected", i === idx);
+    $("#btnCalcEval")?.addEventListener(
+        "click",
+        () => runCalc(actions),
+        { signal }
+    );
+
+    $("#calcExpr")?.addEventListener(
+        "keydown",
+        (event) => {
+            if (event.key === "Enter") {
+                event.preventDefault();
+                runCalc(actions);
+            }
+        },
+        { signal }
+    );
+    $("#calcExpr")?.addEventListener(
+        "input",
+        (event) => actions.updateCalcExpr(event.target.value),
+        { signal }
+    );
+
+    $("#btnScratchClear")?.addEventListener(
+        "click",
+        () => actions.clearScratchpad(),
+        { signal }
+    );
+
+    $("#freeText")?.addEventListener(
+        "input",
+        (event) => actions.updateFreeText(event.target.value),
+        { signal }
+    );
+
+    $("#intValue")?.addEventListener(
+        "input",
+        (event) => actions.updateIntValue(event.target.value),
+        { signal }
+    );
+
+    window.addEventListener(
+        "keydown",
+        (event) => handleKeyboardShortcut(event, actions, () => currentState),
+        { signal }
+    );
+
+    let resizeRaf = 0;
+    window.addEventListener(
+        "resize",
+        () => {
+            if (resizeRaf) cancelAnimationFrame(resizeRaf);
+            resizeRaf = requestAnimationFrame(() => {
+                resizeRaf = 0;
+                applyScratchpadPlacement();
             });
-            updateAnswerSummary();
-            applySubmitLockState();
-            e.preventDefault();
+        },
+        { passive: true, signal }
+    );
+
+    $("#btnCopyQuestion")?.addEventListener(
+        "click",
+        async () => {
+            if (!currentState) return;
+            const text = currentState.round.prompt || "";
+            if (!text.trim()) return;
+            const ok = await copyToClipboard(text);
+            toast(ok ? t("copied") : t("copyFailed"), "", ok ? "info" : "error");
+        },
+        { signal }
+    );
+
+    $("#btnCopyChoice")?.addEventListener(
+        "click",
+        async () => {
+            if (!currentState || !hasChoices(currentState)) return;
+            const idx = currentState.round.selectedChoiceIndex;
+            if (idx == null) return;
+            const text = currentState.round.choices[idx] || "";
+            if (!text.trim()) return;
+            const ok = await copyToClipboard(text);
+            toast(ok ? t("copied") : t("copyFailed"), "", ok ? "info" : "error");
+        },
+        { signal }
+    );
+
+    $("#btnCopyScratch")?.addEventListener(
+        "click",
+        async () => {
+            if (!currentState) return;
+            const text = currentState.ui.workspace.scratchText || "";
+            if (!text.trim()) return;
+            const ok = await copyToClipboard(text);
+            toast(ok ? t("copied") : t("copyFailed"), "", ok ? "info" : "error");
+        },
+        { signal }
+    );
+
+    function renderScratchpad(state) {
+        const open = !!state.ui.workspace.scratchOpen;
+        const toggle = $("#scratchpadToggle");
+        const panel = $("#scratchpadPanel");
+        const arrow = $("#scratchpadArrow");
+
+        if (toggle) {
+            toggle.classList.toggle("is-open", open);
+            toggle.setAttribute("aria-expanded", open ? "true" : "false");
         }
-    } else if (key === "Enter") {
-        if (state.selectedChoiceIndex != null) {
-            submitFn();
-            e.preventDefault();
+        if (panel) panel.classList.toggle("hidden", !open);
+        if (arrow) arrow.textContent = open ? "▾" : "▸";
+
+        const scratch = $("#scratchpadText");
+        if (scratch && scratch.value !== state.ui.workspace.scratchText) {
+            scratch.value = state.ui.workspace.scratchText || "";
+        }
+
+        const calcExpr = $("#calcExpr");
+        if (calcExpr && calcExpr.value !== state.ui.workspace.calcExpr) {
+            calcExpr.value = state.ui.workspace.calcExpr || "";
+        }
+
+        const resultEl = $("#calcResult");
+        if (resultEl) {
+            resultEl.textContent = state.ui.workspace.calcResult || "";
+            const text = state.ui.workspace.calcResult || "";
+            const isNumber = /^-?\d+(\.\d+)?$/.test(text.trim());
+            resultEl.classList.toggle("error", !!text && !isNumber);
         }
     }
+
+    return {
+        render(state) {
+            currentState = state;
+            const freeText = $("#freeText");
+            if (freeText && freeText.value !== state.round.answerText) {
+                freeText.value = state.round.answerText || "";
+            }
+            const intValue = $("#intValue");
+            if (intValue && intValue.value !== state.round.answerInt) {
+                intValue.value = state.round.answerInt || "";
+            }
+            updateAnswerSummary(state);
+            updateKeyboardHint(state);
+            updateSubmitLockState(state);
+            updateClearButtonState(state);
+            applyScratchpadPlacement();
+            renderScratchpad(state);
+        },
+        dispose() {
+            ac.abort();
+        },
+    };
 }
 
-// ---- Initialization & Reset ----
-
-/**
- * Initialize workspace static text.
- */
-export function initWorkspaceText() {
+function initWorkspaceText() {
     const btn = (id, key) => {
         const el = $(id);
         if (el) el.textContent = t(key);
@@ -521,92 +433,54 @@ export function initWorkspaceText() {
     if (scratch) scratch.placeholder = t("scratchpadPlaceholder");
 }
 
-/**
- * Update the enabled/disabled state of the Clear Answer button.
- * Disabled if the user has already submitted.
- */
-export function updateClearButtonState() {
-    const btn = $("#btnClearAnswer");
-    if (btn) {
-        btn.disabled = !!state.submitted;
-    }
-}
+function handleKeyboardShortcut(event, actions, getState) {
+    const state = getState();
+    if (!state) return;
+    if (isMobileLayout()) return;
+    if (state.phase !== GamePhase.IN_ROUND || state.round.submitted) return;
+    if (!hasChoices(state)) return;
+    const target = event.target;
+    const tag = target?.tagName;
+    const isTypingContext =
+        !!target &&
+        (target.isContentEditable || tag === "TEXTAREA" || tag === "INPUT" || tag === "SELECT");
+    if (isTypingContext) return;
 
-/**
- * Reset workspace UI state for new round.
- */
-export function resetWorkspace() {
-    initWorkspaceState();
-
-    // Reset answer summary
-    updateAnswerSummary();
-    applySubmitLockState();
-    updateClearButtonState();
-
-    // Reset keyboard hint
-    updateKeyboardHint();
-
-    // Keep scratchpad content across rounds, reset calc
-    const resultEl = $("#calcResult");
-    if (resultEl) {
-        resultEl.textContent = "";
-        resultEl.classList.remove("error");
-    }
-
-    applyScratchpadPlacement();
-}
-
-/**
- * Bind workspace event handlers.
- */
-export function bindWorkspaceEvents(submitFn) {
-    initWorkspaceState();
-
-    // Clear answer button
-    $("#btnClearAnswer")?.addEventListener("click", clearAnswer);
-
-    // Scratchpad toggle
-    $("#scratchpadToggle")?.addEventListener("click", toggleScratchpad);
-
-    // Scratchpad textarea
-    $("#scratchpadText")?.addEventListener("input", (e) => {
-        updateScratchpadText(e.target.value);
-    });
-
-    // Calculator
-    $("#btnCalcEval")?.addEventListener("click", runCalc);
-    $("#calcExpr")?.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") {
-            e.preventDefault();
-            runCalc();
+    const key = event.key;
+    const m = event.code?.match(/^Digit([0-9])$/);
+    if (m) {
+        const d = Number(m[1]);
+        let idx = d - 1;
+        if (d === 0) idx = 9;
+        if (event.shiftKey) idx += 10;
+        if (idx < state.round.choices.length) {
+            actions.selectChoice(idx);
+            event.preventDefault();
         }
-    });
-    $("#btnScratchClear")?.addEventListener("click", clearScratchpad);
+        return;
+    }
+    if (key === "Enter") {
+        if (state.round.selectedChoiceIndex != null) {
+            actions.submitAnswer();
+            event.preventDefault();
+        }
+    }
+}
 
-    // Keyboard shortcuts (global)
-    window.addEventListener("keydown", (e) => {
-        handleKeyboardShortcut(e, submitFn);
-    });
+function runCalc(actions) {
+    const input = $("#calcExpr");
+    const resultEl = $("#calcResult");
+    if (!input || !resultEl) return;
 
-    // Update on input changes for free response
-    $("#freeText")?.addEventListener("input", () => {
-        updateAnswerSummary();
-        applySubmitLockState();
-    });
+    const expr = input.value || "";
+    const { value, error } = evalCalc(expr);
 
-    $("#intValue")?.addEventListener("input", () => {
-        updateAnswerSummary();
-        applySubmitLockState();
-    });
+    const resultText = error ? String(error) : value != null ? String(value) : "";
+    const isErr = !!error;
 
-    applyScratchpadPlacement();
+    resultEl.textContent = resultText;
+    resultEl.classList.toggle("error", isErr);
 
-    let raf = 0;
-    window.addEventListener("resize", () => {
-        if (raf) cancelAnimationFrame(raf);
-        raf = requestAnimationFrame(() => {
-            raf = 0;
-            applyScratchpadPlacement();
-        });
-    }, {passive: true});
+    actions.updateCalcExpr(expr);
+    actions.updateCalcResult(resultText);
 }

@@ -5,12 +5,14 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
-internal sealed interface WsGameFrame
+internal sealed interface WsGameFrame {
+    val sessionId: String?
+}
 
 @Serializable
 @SerialName("session_joined")
 internal data class WsSessionJoined(
-    val sessionId: String,
+    override val sessionId: String,
     val playerId: String,
     val nickname: String,
     val opponentSpecId: String,
@@ -19,7 +21,7 @@ internal data class WsSessionJoined(
 @Serializable
 @SerialName("session_error")
 internal data class WsSessionError(
-    val sessionId: String? = null,
+    override val sessionId: String? = null,
     val errorCode: String,
     val message: String,
 ) : WsGameFrame
@@ -27,7 +29,7 @@ internal data class WsSessionError(
 @Serializable
 @SerialName("player_joined")
 internal data class WsPlayerJoined(
-    val sessionId: String,
+    override val sessionId: String,
     val playerId: String,
     val nickname: String,
 ) : WsGameFrame
@@ -35,7 +37,7 @@ internal data class WsPlayerJoined(
 @Serializable
 @SerialName("round_started")
 internal data class WsRoundStarted(
-    val sessionId: String,
+    override val sessionId: String,
     val questionId: String,
     val roundId: String,
     val roundNumber: Int,
@@ -46,12 +48,13 @@ internal data class WsRoundStarted(
     val handicapMs: Long,
     val deadlineAtEpochMs: Long,
     val nonceToken: String,
+    val humanAnswer: Answer? = null,
 ) : WsGameFrame
 
 @Serializable
 @SerialName("round_resolved")
 internal data class WsRoundResolved(
-    val sessionId: String,
+    override val sessionId: String,
     val roundId: String,
     val correctAnswer: Answer,
     val humanCorrect: Boolean,
@@ -65,14 +68,14 @@ internal data class WsRoundResolved(
 @Serializable
 @SerialName("llm_thinking")
 internal data class WsLlmThinking(
-    val sessionId: String,
+    override val sessionId: String,
     val roundId: String,
 ) : WsGameFrame
 
 @Serializable
 @SerialName("llm_reasoning_delta")
 internal data class WsLlmReasoningDelta(
-    val sessionId: String,
+    override val sessionId: String,
     val roundId: String,
     val deltaText: String,
     val seq: Long,
@@ -81,7 +84,7 @@ internal data class WsLlmReasoningDelta(
 @Serializable
 @SerialName("llm_reasoning_truncated")
 internal data class WsLlmReasoningTruncated(
-    val sessionId: String,
+    override val sessionId: String,
     val roundId: String,
     val droppedChars: Int,
 ) : WsGameFrame
@@ -89,7 +92,7 @@ internal data class WsLlmReasoningTruncated(
 @Serializable
 @SerialName("llm_stream_error")
 internal data class WsLlmStreamError(
-    val sessionId: String,
+    override val sessionId: String,
     val roundId: String,
     val message: String,
 ) : WsGameFrame
@@ -97,7 +100,7 @@ internal data class WsLlmStreamError(
 @Serializable
 @SerialName("llm_final_answer")
 internal data class WsLlmFinalAnswer(
-    val sessionId: String,
+    override val sessionId: String,
     val roundId: String,
     val finalAnswer: Answer,
     val reasoningSummary: String? = null,
@@ -107,21 +110,21 @@ internal data class WsLlmFinalAnswer(
 @Serializable
 @SerialName("llm_answer_lock_in")
 internal data class WsLlmAnswerLockIn(
-    val sessionId: String,
+    override val sessionId: String,
     val roundId: String,
 ) : WsGameFrame
 
 @Serializable
 @SerialName("llm_reasoning_ended")
 internal data class WsLlmReasoningEnded(
-    val sessionId: String,
+    override val sessionId: String,
     val roundId: String,
 ) : WsGameFrame
 
 @Serializable
 @SerialName("llm_reasoning_reveal")
 internal data class WsLlmReasoningReveal(
-    val sessionId: String,
+    override val sessionId: String,
     val roundId: String,
     val fullReasoning: String,
 ) : WsGameFrame
@@ -129,7 +132,7 @@ internal data class WsLlmReasoningReveal(
 @Serializable
 @SerialName("session_resolved")
 internal data class WsSessionResolved(
-    val sessionId: String,
+    override val sessionId: String,
     val state: String,
     val reason: String,
     val humanTotalScore: Double,
@@ -144,6 +147,6 @@ internal data class WsSessionResolved(
 @Serializable
 @SerialName("session_terminated")
 internal data class WsSessionTerminated(
-    val sessionId: String,
+    override val sessionId: String,
     val reason: String,
 ) : WsGameFrame
