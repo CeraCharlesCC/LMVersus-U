@@ -1,6 +1,7 @@
 rootProject.name = "LMVersus-U"
 
 pluginManagement {
+    includeBuild("build-logic")
     repositories {
         gradlePluginPortal()
         mavenCentral()
