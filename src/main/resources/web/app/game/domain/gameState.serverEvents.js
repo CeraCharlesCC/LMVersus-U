@@ -260,6 +260,7 @@ function onSessionTerminated(state, msg) {
         effects: [
             { type: EffectType.TOAST, payload: { key: "session_terminated", reason: msg.reason } },
             { type: EffectType.WS_CLOSE },
+            { type: EffectType.STOP_TICKER },
             { type: EffectType.SET_HASH },
         ],
     };
