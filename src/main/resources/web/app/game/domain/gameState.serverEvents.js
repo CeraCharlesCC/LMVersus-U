@@ -37,6 +37,7 @@ const resetForLobby = (state) => ({
         matchEnd: null,
         lobbyTab: state.ui.lobbyTab || "LIGHTWEIGHT",
         topTab: "question",
+        reasoningPeeked: false,
     },
 });
 
@@ -47,6 +48,7 @@ const resetRound = (state) => ({
     ui: {
         ...state.ui,
         topTab: "question",
+        reasoningPeeked: false,
     },
 });
 

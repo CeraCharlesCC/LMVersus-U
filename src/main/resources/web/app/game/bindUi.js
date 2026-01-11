@@ -33,7 +33,7 @@ export function bindUi() {
     $("#btnSubmit")?.addEventListener("click", actions.submitAnswer, { signal });
     $("#btnNext")?.addEventListener("click", actions.next, { signal });
 
-    $("#btnPeek")?.addEventListener("click", actions.revealReasoning, { signal });
+    $("#btnPeek")?.addEventListener("click", actions.peekReasoning, { signal });
     $("#btnTopQuestion")?.addEventListener("click", () => actions.setTopTab("question"), { signal });
     $("#btnTopReasoning")?.addEventListener("click", () => actions.setTopTab("reasoning"), { signal });
 

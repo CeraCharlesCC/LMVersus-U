@@ -87,6 +87,7 @@ export const createInitialState = (now = Date.now()) => ({
         lobbyTab: "LIGHTWEIGHT",
         topTab: "question",
         landingAcked: false,
+        reasoningPeeked: false,
         workspace: defaultWorkspaceState(false),
     },
 });

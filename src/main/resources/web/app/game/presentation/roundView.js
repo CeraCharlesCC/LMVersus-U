@@ -392,7 +392,7 @@ export function createRoundView({ actions }) {
 
     function renderLlmReasoning(state) {
         $("#omitHint").classList.toggle("hidden", !state.llm.reasoningTruncated);
-        const masked = !state.llm.reasoningRevealed;
+        const masked = !(state.llm.reasoningRevealed || state.ui.reasoningPeeked);
         $("#reasoningWrap").classList.toggle("masked", masked);
 
         const reasoningText = maybeAppendHiddenSquares(state);
@@ -461,19 +461,17 @@ export function createRoundView({ actions }) {
 
         lines.push(`${t("correctAnswerLabel")}: ${formatAnswerDisplay(resolution.correctAnswer, state.round.choices)}`);
         lines.push(
-            `${t("yourAnswerLabel")}${hMark}: ${
-                state.round.humanAnswer
-                    ? formatAnswerDisplay(state.round.humanAnswer, state.round.choices)
-                    : t("noAnswer")
+            `${t("yourAnswerLabel")}${hMark}: ${state.round.humanAnswer
+                ? formatAnswerDisplay(state.round.humanAnswer, state.round.choices)
+                : t("noAnswer")
             }`
         );
         lines.push(
-            `${t("oppAnswerLabel")}${lMark}: ${
-                state.llm.finalAnswer
-                    ? formatAnswerDisplay(state.llm.finalAnswer, state.round.choices)
-                    : resolution.reason === "TIMEOVER_LLM"
-                        ? t("noAnswer")
-                        : t("oppPending")
+            `${t("oppAnswerLabel")}${lMark}: ${state.llm.finalAnswer
+                ? formatAnswerDisplay(state.llm.finalAnswer, state.round.choices)
+                : resolution.reason === "TIMEOVER_LLM"
+                    ? t("noAnswer")
+                    : t("oppPending")
             }`
         );
 

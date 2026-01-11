@@ -262,7 +262,7 @@ export function reducer(state, action) {
                 ...state,
                 round: defaultRoundState(),
                 llm: defaultLlmState(),
-                ui: { ...state.ui, roundStartPending: true },
+                ui: { ...state.ui, roundStartPending: true, reasoningPeeked: false },
             };
             return {
                 state: nextState,
@@ -453,9 +453,9 @@ export function reducer(state, action) {
                 effects: [],
             };
         }
-        case ActionType.INTENT_REVEAL_REASONING: {
+        case ActionType.INTENT_PEEK_REASONING: {
             return {
-                state: { ...state, llm: { ...state.llm, reasoningRevealed: true } },
+                state: { ...state, ui: { ...state.ui, reasoningPeeked: true } },
                 effects: [],
             };
         }

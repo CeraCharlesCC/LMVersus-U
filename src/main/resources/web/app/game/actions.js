@@ -49,7 +49,7 @@ export const actions = {
     updateCalcResult: (result) =>
         dispatch({ type: ActionType.INTENT_CALC_RESULT, payload: { result } }),
     clearScratchpad: () => dispatch({ type: ActionType.INTENT_CLEAR_SCRATCHPAD }),
-    revealReasoning: () => dispatch({ type: ActionType.INTENT_REVEAL_REASONING }),
+    peekReasoning: () => dispatch({ type: ActionType.INTENT_PEEK_REASONING }),
     dismissMatchEnd: () => dispatch({ type: ActionType.MATCH_END_DISMISSED }),
     ackLanding: () => dispatch({ type: ActionType.LANDING_ACKED }),
 };
