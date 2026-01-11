@@ -48,6 +48,8 @@ val esbuildBundle = tasks.register<NpxTask>("esbuildBundle") {
             "--entry-names=[name]-[hash]",
             "--chunk-names=chunks/[name]-[hash]",
 
+            "--external:./i18n/*",
+
             "--outdir=${webDistDir.get().asFile.absolutePath}",
             "--metafile=${esbuildMeta.get().asFile.absolutePath}",
         )
@@ -132,5 +134,7 @@ tasks.named<ProcessResources>("processResources") {
 
     from(webDistDir) {
         into("web")
+        exclude("meta.json")
+        exclude("**/*.map")
     }
 }
