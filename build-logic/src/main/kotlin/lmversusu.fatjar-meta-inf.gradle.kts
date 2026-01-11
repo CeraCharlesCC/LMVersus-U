@@ -3,12 +3,6 @@ import org.gradle.api.artifacts.component.ModuleComponentIdentifier
 import org.gradle.jvm.tasks.Jar
 import java.util.zip.ZipFile
 
-/**
- * Convention plugin: Fat JAR META-INF handling
- * Renames duplicate META-INF files (LICENSE, NOTICE, etc.) from dependencies
- * to avoid conflicts in the fat JAR.
- */
-
 val metaInfDupNames = listOf("NOTICE", "NOTICE.md", "NOTICE.txt", "LICENSE", "LICENSE.md", "LICENSE.txt")
 val metaInfDupPaths = metaInfDupNames.map { "META-INF/$it" }
 
@@ -56,7 +50,6 @@ val collectRenamedMetaInf = tasks.register("collectRenamedMetaInf") {
     }
 }
 
-// Configure fat jar tasks to exclude duplicate META-INF files and include renamed versions
 tasks.withType<Jar>().configureEach {
     if (name == "shadowJar" || name == "buildFatJar") {
         exclude(metaInfDupPaths)

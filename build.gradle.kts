@@ -3,8 +3,6 @@ plugins {
     alias(libs.plugins.ksp)
     alias(libs.plugins.ktor)
     alias(libs.plugins.kotlin.serialization)
-    alias(libs.plugins.dependency.license.report)
-    alias(libs.plugins.node.gradle)
     application
 
     id("lmversusu.web")

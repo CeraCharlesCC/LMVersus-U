@@ -2,10 +2,6 @@ import com.github.gradle.node.npm.task.NpxTask
 import groovy.json.JsonSlurper
 import java.nio.charset.StandardCharsets
 
-/**
- * Convention plugin: Web build (esbuild bundling, static assets, index.html rewriting)
- */
-
 plugins {
     id("com.github.node-gradle.node")
 }
