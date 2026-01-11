@@ -1,5 +1,3 @@
-import org.gradle.api.attributes.Attribute
-import org.gradle.api.artifacts.component.ModuleComponentIdentifier
 import org.gradle.jvm.tasks.Jar
 import java.util.zip.ZipFile
 
