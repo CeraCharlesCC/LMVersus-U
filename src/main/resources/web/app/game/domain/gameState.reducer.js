@@ -1,6 +1,6 @@
 import { MAX_NICKNAME_LEN } from "../../core/state.js";
 import { ActionType, EffectType, GamePhase } from "./gameState.types.js";
-import { createInitialState, defaultRoundState, defaultLlmState } from "./gameState.initial.js";
+import { defaultRoundState, defaultLlmState } from "./gameState.initial.js";
 import { reduceServerEvent, resetForLobby } from "./gameState.serverEvents.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
