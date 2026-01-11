@@ -148,9 +148,6 @@ export function bindUi() {
         roundView.render(state);
         workspaceView.render(state);
 
-        const submitted = state.round.submitted;
-        $("#btnClearAnswer")?.setAttribute("aria-disabled", submitted ? "true" : "false");
-
         if (state.phase === GamePhase.SESSION_RESOLVED && state.screen === "GAME") {
             $("#btnStartRound")?.setAttribute("disabled", "true");
         }
