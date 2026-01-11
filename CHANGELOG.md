@@ -1,3 +1,28 @@
+## [v0.9.0] - 2026-01-11
+### ⚠️ Breaking changes
+- Refactor frontend to a Redux-like store architecture, replacing global mutable state with reducers, actions, and effects. This may require updates to custom extensions or scripts interacting with the internal state.
+
+### Added
+- Add optional `humanAnswer` field to `GameEvent.RoundStarted` to restore user's submitted answer on reconnect (#24).
+- Introduce `roundDisplayHidden` UI state to control round display visibility on give up actions.
+
+### Changed
+- Rename "reveal reasoning" to "peek reasoning" throughout the game UI for clearer semantics.
+- Optimize UI updates to prevent redundant DOM changes in lobby and round views.
+- Refine modal focus handling to only trigger when overlays are newly opened.
+- Improve store dispatch to avoid unnecessary listener calls when state is unchanged.
+- Add `STOP_TICKER` effect on `GIVE_UP_SUCCEEDED` in game state reducer.
+
+### Fixed
+- Fix regression in round display logic after state refactoring.
+
+### Internal
+- Split `gameState.js` into modular files: types, initial state, server events, and reducer.
+- Remove unused imports from `gameState.reducer.js` and `models.js`.
+- Migrate WebSocket client to `wsClient.js` and allow suppressing dispatch on close.
+- Reorganize frontend presentation layer into `lobbyView.js` and `roundView.js`.
+- Bump version and update build configuration.
+
 ## [v0.8.3] - 2026-01-10
 ### Added
 - Add round display to the app header (#23)
