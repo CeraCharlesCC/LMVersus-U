@@ -475,17 +475,12 @@ function runCalc(actions) {
     const expr = input.value || "";
     const { value, error } = evalCalc(expr);
 
-    if (error) {
-        resultEl.textContent = error;
-        resultEl.classList.add("error");
-    } else if (value != null) {
-        resultEl.textContent = String(value);
-        resultEl.classList.remove("error");
-    } else {
-        resultEl.textContent = "";
-        resultEl.classList.remove("error");
-    }
+    const resultText = error ? String(error) : value != null ? String(value) : "";
+    const isErr = !!error;
+
+    resultEl.textContent = resultText;
+    resultEl.classList.toggle("error", isErr);
 
     actions.updateCalcExpr(expr);
-    actions.updateCalcResult(resultEl.textContent);
+    actions.updateCalcResult(resultText);
 }

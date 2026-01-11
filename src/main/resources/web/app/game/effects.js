@@ -134,9 +134,11 @@ export function runEffects(effects, dispatch, getState) {
                 });
                 Promise.resolve(promise)
                     .then(() => {
-                        dispatch({ type: ActionType.VS_TRANSITION_DONE });
                         const state = getState();
-                        if (state.ui.autoStartRound && state.phase === GamePhase.SESSION_READY) {
+                        const shouldAutoStart =
+                            state.ui.autoStartRound && state.phase === GamePhase.SESSION_READY;
+                        dispatch({ type: ActionType.VS_TRANSITION_DONE });
+                        if (shouldAutoStart) {
                             dispatch({
                                 type: ActionType.INTENT_START_ROUND,
                                 payload: { commandId: newCommandId() },
