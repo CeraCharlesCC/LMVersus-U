@@ -49,7 +49,7 @@ val esbuildBundle = tasks.register<NpxTask>("esbuildBundle") {
                 "--entry-names=[name]-[hash]",
                 "--chunk-names=chunks/[name]-[hash]",
 
-                "--external:./i18n/*",
+                "--external:/i18n/*",
 
                 "--outdir=${distDir.asFile.absolutePath}",
                 "--metafile=${metaFile.asFile.absolutePath}",
