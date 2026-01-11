@@ -242,7 +242,9 @@ export function createRoundView({ actions }) {
     }
 
     function maybeAppendHiddenSquares(state) {
-        if (!state.llm.reasoningEnded) return state.llm.reasoningBuf;
+        const canShowHint =
+            state.llm.reasoningEnded || state.llm.status === "ANSWERING" || state.llm.status === "LOCKIN";
+        if (!canShowHint) return state.llm.reasoningBuf;
         if (viewState.reasoningSquaresShown) return state.llm.reasoningBuf;
         if (state.llm.reasoningRevealed) return state.llm.reasoningBuf;
 
