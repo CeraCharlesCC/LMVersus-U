@@ -1,3 +1,16 @@
+## [v0.9.1] - 2026-01-11
+### Added
+- Add HTTP caching headers for static assets (no-cache for HTML, 1-day cache for CSS/JS) (#25)
+- Integrate Node.js and esbuild into Gradle build for bundling and minifying web assets (#25)
+
+### Changed
+- Update i18n import paths to absolute paths and adjust Ktor caching to prevent caching of /i18n/ resources (#25)
+- Refactor build logic into convention plugins under build-logic/ for web, licenses, and fat JAR META-INF (#25)
+
+### Internal
+- Clean up convention plugin scripts by removing redundant comments and unused plugin aliases (#25)
+- Update project icon and version catalog dependencies (#25)
+
 ## [v0.9.0] - 2026-01-11
 ### ⚠️ Breaking changes
 - Refactor frontend to a Redux-like store architecture, replacing global mutable state with reducers, actions, and effects. This may require updates to custom extensions or scripts interacting with the internal state.
