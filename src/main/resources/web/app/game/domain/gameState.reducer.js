@@ -341,7 +341,7 @@ export function reducer(state, action) {
         case ActionType.GIVE_UP_SUCCEEDED: {
             return {
                 state: resetForLobby(state),
-                effects: [{ type: EffectType.WS_CLOSE }, { type: EffectType.SET_HASH }],
+                effects: [{ type: EffectType.STOP_TICKER }, { type: EffectType.WS_CLOSE }, { type: EffectType.SET_HASH }],
             };
         }
         case ActionType.GIVE_UP_FAILED: {

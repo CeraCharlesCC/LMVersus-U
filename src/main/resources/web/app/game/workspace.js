@@ -121,7 +121,7 @@ function updateSubmitLockState(state) {
     }
 
     btn.classList.remove("is-frozen");
-    const now = Date.now();
+    const now = state.timers.now || Date.now();
     const { valid, reason } = deriveAnswerValidity(state, now);
 
     if (!valid) {

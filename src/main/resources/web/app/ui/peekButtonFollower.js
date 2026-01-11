@@ -37,6 +37,19 @@ export function initPeekButtonFollower(signal) {
         panelBody.addEventListener("scroll", scheduleUpdate, { passive: true, signal });
         window.addEventListener("resize", scheduleUpdate, { passive: true, signal });
         listenerAttached = true;
+        if (signal) {
+            signal.addEventListener(
+                "abort",
+                () => {
+                    if (rafHandle) {
+                        cancelAnimationFrame(rafHandle);
+                        rafHandle = 0;
+                    }
+                    listenerAttached = false;
+                },
+                { once: true }
+            );
+        }
     }
 
     // Initial position

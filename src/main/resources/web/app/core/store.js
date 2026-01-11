@@ -9,8 +9,9 @@ export function createStore({ reducer, initialState, effectRunner }) {
         if (!result) return;
         const prev = state;
         state = result.state;
-        listeners.forEach((listener) => listener(state, prev, action));
         const effects = result.effects || [];
+        if (state === prev && effects.length === 0) return;
+        listeners.forEach((listener) => listener(state, prev, action));
         if (effects.length && effectRunner) {
             effectRunner(effects, dispatch, getState);
         }
