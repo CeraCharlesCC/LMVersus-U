@@ -32,6 +32,7 @@ internal fun Application.module(
     configureSecurity(appConfig.sessionCrypto)
     configureFrontend()
     configureHTTP(appConfig.serverConfig)
+    configureHttpCache()
 
     configureRouting(appComponent.logger())
 
