@@ -242,18 +242,21 @@ export function createRoundView({ actions }) {
     }
 
     function maybeAppendHiddenSquares(state) {
+        if (state.llm.reasoningRevealed) return state.llm.reasoningBuf;
+
+        const blocks = "██████████████████████████ \n".repeat(16);
+        const withBlocks = (buf) => `${buf}\n\n\`${blocks}\``;
+
+        if (viewState.reasoningSquaresShown) return withBlocks(state.llm.reasoningBuf);
         const canShowHint =
             state.llm.reasoningEnded || state.llm.status === "ANSWERING" || state.llm.status === "LOCKIN";
         if (!canShowHint) return state.llm.reasoningBuf;
-        if (viewState.reasoningSquaresShown) return state.llm.reasoningBuf;
-        if (state.llm.reasoningRevealed) return state.llm.reasoningBuf;
 
         const since = Date.now() - (state.llm.lastReasoningAt || 0);
         if (since < 700) return state.llm.reasoningBuf;
 
         viewState.reasoningSquaresShown = true;
-        const blocks = "██████████████████████████ \n".repeat(16);
-        return `${state.llm.reasoningBuf}\n\n\`${blocks}\``;
+        return withBlocks(state.llm.reasoningBuf);
     }
 
     function renderMatchup(state) {
