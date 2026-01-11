@@ -10,7 +10,7 @@ import { setNet } from "../ui/netIndicator.js";
 import { initPeekButtonFollower } from "../ui/peekButtonFollower.js";
 import { GamePhase } from "./domain/gameState.js";
 import { t } from "../core/i18n.js";
-import { isMobileLayout } from "../core/utils.js";
+import { isMobileLayout, safeLsSet } from "../core/utils.js";
 
 export function bindUi() {
     const ac = new AbortController();
@@ -59,7 +59,7 @@ export function bindUi() {
     $("#btnLandingDismiss")?.addEventListener(
         "click",
         () => {
-            localStorage.setItem(STORAGE_KEY_LANDING, "true");
+            safeLsSet(STORAGE_KEY_LANDING, "true");
             actions.ackLanding();
         },
         { signal }
