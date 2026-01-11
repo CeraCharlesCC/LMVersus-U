@@ -1,4 +1,3 @@
-import { $ } from "../core/dom.js";
 import { httpGetJson } from "../core/net.js";
 import { escapeHtml, isMobileLayout } from "../core/utils.js";
 import { t } from "../core/i18n.js";
