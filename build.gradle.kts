@@ -1,5 +1,6 @@
 import com.github.jk1.license.render.ReportRenderer
 import com.github.jk1.license.render.TextReportRenderer
+import com.github.gradle.node.npm.task.NpxTask
 import org.gradle.api.attributes.Attribute
 import org.gradle.api.artifacts.component.ModuleComponentIdentifier
 import org.gradle.jvm.tasks.Jar
@@ -11,6 +12,7 @@ plugins {
     alias(libs.plugins.ktor)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.dependency.license.report)
+    alias(libs.plugins.node.gradle)
     application
 }
 
@@ -107,6 +109,11 @@ licenseReport {
     )
 }
 
+node {
+    download.set(true)
+    version.set("20.11.1")
+}
+
 val metaInfDupNames = listOf("NOTICE", "NOTICE.md", "NOTICE.txt", "LICENSE", "LICENSE.md", "LICENSE.txt")
 val metaInfDupPaths = metaInfDupNames.map { "META-INF/$it" }
 
@@ -154,7 +161,64 @@ val collectRenamedMetaInf = tasks.register("collectRenamedMetaInf") {
     }
 }
 
+val webSrcDir = layout.projectDirectory.dir("src/main/resources/web")
+val webDistDir = layout.buildDirectory.dir("generated/web-dist")
+
+val copyWeb = tasks.register<Copy>("copyWeb") {
+    from(webSrcDir)
+    into(webDistDir)
+    exclude("app/**") // module sources (they get bundled)
+    // keep app.js and styles.css out too; we'll overwrite them with minified versions
+    exclude("app.js", "styles.css")
+}
+
+val esbuildJs = tasks.register<NpxTask>("esbuildJs") {
+    dependsOn(tasks.npmInstall, copyWeb)
+    command.set("esbuild")
+    args.set(
+        listOf(
+            "${webSrcDir.file("app.js").asFile.absolutePath}",
+            "--bundle",
+            "--format=esm",
+            "--platform=browser",
+            "--minify",
+            "--sourcemap",
+            "--outfile=${webDistDir.get().file("app.js").asFile.absolutePath}",
+        )
+    )
+    inputs.file(webSrcDir.file("app.js"))
+    inputs.dir(webSrcDir.dir("app"))
+    outputs.file(webDistDir.map { it.file("app.js") })
+}
+
+val esbuildCss = tasks.register<NpxTask>("esbuildCss") {
+    dependsOn(tasks.npmInstall, copyWeb)
+    command.set("esbuild")
+    args.set(
+        listOf(
+            "${webSrcDir.file("styles.css").asFile.absolutePath}",
+            "--minify",
+            "--sourcemap",
+            "--outfile=${webDistDir.get().file("styles.css").asFile.absolutePath}",
+        )
+    )
+    inputs.file(webSrcDir.file("styles.css"))
+    outputs.file(webDistDir.map { it.file("styles.css") })
+}
+
+val buildWeb = tasks.register("buildWeb") {
+    dependsOn(copyWeb, esbuildJs, esbuildCss)
+}
+
 tasks.processResources {
+    dependsOn(buildWeb)
+
+    exclude("web/**")
+
+    from(webDistDir) {
+        into("web")
+    }
+
     from(rootProject.file("LICENSE")) {
         into("META-INF/LICENSES")
     }

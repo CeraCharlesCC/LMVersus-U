@@ -13,6 +13,7 @@ ktoml-core = "0.7.1"
 kotlinx-coroutines = "1.10.2"
 kotlinx-serialization = "1.8.1"
 license-report = "2.9"
+node-gradle = "7.1.0"
 
 # Testing
 junit-jupiter = "5.14.1"
@@ -27,6 +28,7 @@ kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", versi
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 ktor = { id = "io.ktor.plugin", version.ref = "ktor" }
 dependency-license-report = { id = "com.github.jk1.dependency-license-report", version.ref = "license-report" }
+node-gradle = { id = "com.github.node-gradle.node", version.ref = "node-gradle" }
 
 [libraries]
 kotlin-stdlib = { group = "org.jetbrains.kotlin", name = "kotlin-stdlib", version.ref = "kotlin" }
