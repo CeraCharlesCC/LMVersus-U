@@ -36,17 +36,7 @@ export async function main() {
             savedNick
         );
         if (recovery) {
-            actions.recoverSession({
-                sessionId: recovery.activeSessionId,
-                opponentSpecId: recovery.opponentSpecId,
-                opponentDisplayName: recovery.opponentDisplayName,
-                opponentQuestionSetDisplayName: recovery.opponentQuestionSetDisplayName,
-                opponentQuestionSetDescription: recovery.opponentQuestionSetDescription,
-                opponentQuestionSetDescriptionI18nKey: recovery.opponentQuestionSetDescriptionI18nKey,
-                opponentDifficulty: recovery.opponentDifficulty,
-                nickname: recovery.nickname,
-                locale: recovery.locale,
-            });
+            actions.recoverSession(recovery);
         }
     } catch (e) {
         showNetError(e);

@@ -32,7 +32,7 @@ export async function tryRecoverActiveSession(models, fallbackNickname) {
         // We have an active session, attempt to rejoin via WebSocket
         toast(t("toastSession"), t("recovering"));
         return {
-            activeSessionId: data.activeSessionId,
+            sessionId: data.activeSessionId,
             opponentSpecId: data.opponentSpecId,
             opponentDisplayName: displayName,
             opponentQuestionSetDisplayName: matchingModel?.metadata?.questionSetDisplayName || null,
