@@ -71,6 +71,10 @@ internal object ConfigLoader {
             cryptoConfig = config.sessionCrypto,
             reasons = reasons,
         )
+        val resolvedWebhook = resolveWebhookConfig(
+            webhookConfig = config.webhookConfig,
+            reasons = reasons,
+        )
 
         if (reasons.isNotEmpty()) {
             val message = buildString {
@@ -85,6 +89,7 @@ internal object ConfigLoader {
         return config.copy(
             serverConfig = resolvedServerConfig,
             sessionCrypto = resolvedCrypto,
+            webhookConfig = resolvedWebhook,
         )
     }
 
@@ -136,6 +141,22 @@ internal object ConfigLoader {
             encryptionKeyHex = encryptionKeyHex,
             signKeyHex = signKeyHex,
         )
+    }
+
+    private fun resolveWebhookConfig(
+        webhookConfig: AppConfig.WebhookConfig,
+        reasons: MutableList<String>,
+    ): AppConfig.WebhookConfig {
+        val url = resolveSecret(webhookConfig.url, "webhookConfig.url", reasons)
+
+        if (webhookConfig.enabled && url.isBlank()) {
+            reasons += "- 'webhookConfig.url' must be set when webhookConfig.enabled is true."
+        }
+        if (webhookConfig.timeoutMillis <= 0) {
+            reasons += "- 'webhookConfig.timeoutMillis' must be a positive number of milliseconds."
+        }
+
+        return webhookConfig.copy(url = url)
     }
 
     private fun resolveConfigDirectory(): Path {

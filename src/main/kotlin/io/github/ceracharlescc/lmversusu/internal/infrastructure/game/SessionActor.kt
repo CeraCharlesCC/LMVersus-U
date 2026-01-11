@@ -13,6 +13,7 @@ import io.github.ceracharlescc.lmversusu.internal.domain.repository.ResultsRepos
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.Answer
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.RoundResolveReason
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.VerifierSpec
+import io.github.ceracharlescc.lmversusu.internal.domain.vo.WebhookEvent
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.streaming.LlmAnswer
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.streaming.LlmStreamEvent
 import io.github.ceracharlescc.lmversusu.internal.domain.vo.streaming.StreamSeq
@@ -40,6 +41,7 @@ internal class SessionActor(
     private val answerVerifier: AnswerVerifier,
     private val llmPlayerGateway: LlmPlayerGateway,
     private val llmStreamOrchestrator: LlmStreamOrchestrator,
+    private val webhookNotifier: WebhookNotifier,
     private val resultsRepository: ResultsRepository,
     private val clock: Clock,
     private val mailboxCapacity: Int,
@@ -205,6 +207,12 @@ internal class SessionActor(
             )
     }
 
+    private fun notifyWebhook(event: WebhookEvent) {
+        scope.launch {
+            webhookNotifier.notify(event)
+        }
+    }
+
     private suspend inline fun withSession(block: suspend (GameSession) -> Unit) {
         val currentSession = session ?: return
         block(currentSession)
@@ -276,6 +284,19 @@ internal class SessionActor(
                     sessionId = sessionId,
                     playerId = llm.playerId,
                     nickname = llm.nickname,
+                )
+            )
+            notifyWebhook(
+                WebhookEvent.SessionStarted(
+                    sessionId = sessionId,
+                    mode = created.mode,
+                    occurredAt = created.createdAt,
+                    opponentSpecId = opponentSpec.id,
+                    humanPlayerId = human.playerId,
+                    humanNickname = human.nickname,
+                    llmNickname = llm.nickname,
+                    llmProfileName = created.llmProfile.displayName,
+                    questionSetDisplayName = opponentSpec.metadata.questionSetDisplayName,
                 )
             )
             command.response.complete(JoinResponse.Accepted(roundSnapshot = null))
@@ -1050,6 +1071,28 @@ internal class SessionActor(
             reason = "completed",
             state = SessionState.COMPLETED,
             resolvedAt = now,
+        )
+
+        val roundsPlayed = updatedSession.rounds.count { it.result != null }
+        val winner = when {
+            humanScore.points > llmScore.points -> GameEvent.MatchWinner.HUMAN.name.lowercase()
+            llmScore.points > humanScore.points -> GameEvent.MatchWinner.LLM.name.lowercase()
+            else -> GameEvent.MatchWinner.TIE.name.lowercase()
+        }
+        val durationMs = Duration.between(updatedSession.createdAt, now).toMillis()
+
+        notifyWebhook(
+            WebhookEvent.SessionCompleted(
+                sessionId = updatedSession.sessionId,
+                mode = updatedSession.mode,
+                occurredAt = now,
+                humanTotalScore = humanScore.points,
+                llmTotalScore = llmScore.points,
+                winner = winner,
+                roundsPlayed = roundsPlayed,
+                totalRounds = GameSession.TOTAL_ROUNDS,
+                durationMs = durationMs,
+            )
         )
 
         enqueueEvent(
